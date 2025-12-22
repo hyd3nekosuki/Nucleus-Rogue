@@ -153,9 +153,19 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     case DecayMode.GAMMA_RAY_H: typeClass = "effect-base effect-gamma-h"; break;
                     case DecayMode.GAMMA_RAY_V: typeClass = "effect-base effect-gamma-v"; break;
                     case DecayMode.STABILIZE_ZAP: typeClass = "effect-stabilize-zap"; break;
-                    case DecayMode.NUCLEOSYNTHESIS_ZAP: typeClass = "effect-nucleosynthesis-zap"; break; // NEW
+                    case DecayMode.NUCLEOSYNTHESIS_ZAP: typeClass = "effect-nucleosynthesis-zap"; break; 
                     
-                    // NEW DIRECTIONAL LASERS (No effect-base to avoid centering transform conflicts)
+                    // Diagonal Lasers
+                    case DecayMode.GAMMA_RAY_DIAG_TL_BR: 
+                        typeClass = "effect-base effect-gamma-h"; 
+                        style = { transform: 'translate(-50%, -50%) rotate(45deg)' }; 
+                        break;
+                    case DecayMode.GAMMA_RAY_DIAG_TR_BL: 
+                        typeClass = "effect-base effect-gamma-h"; 
+                        style = { transform: 'translate(-50%, -50%) rotate(-45deg)' }; 
+                        break;
+                        
+                    // Uni-directional Lasers
                     case DecayMode.GAMMA_RAY_RIGHT: 
                         typeClass = "effect-gamma-h"; 
                         style = { position: 'absolute', top: '50%', left: '50%', transform: 'translateY(-50%)', transformOrigin: 'left' };
@@ -191,25 +201,24 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   if (finalCombo) {
       if (finalCombo.count >= 20) {
           comboClass = "anim-combo-extreme";
-          comboTextColor = "text-rainbow-anim"; // Requires CSS class from index.html
+          comboTextColor = "text-rainbow-anim"; 
           comboTextSize = "text-6xl md:text-8xl";
           comboShadow = "0 0 40px rgba(255,255,255,0.6)";
           comboLabel = "GODLIKE CHAIN!";
           isRainbow = true;
       } else if (finalCombo.count >= 10) {
           comboClass = "anim-combo-large";
-          comboTextColor = "text-yellow-400"; // Legendary Gold
+          comboTextColor = "text-yellow-400"; 
           comboTextSize = "text-5xl md:text-7xl";
           comboShadow = "0 0 30px rgba(250, 204, 21, 0.8)";
           comboLabel = "LEGENDARY CHAIN!";
       } else if (finalCombo.count >= 5) {
           comboClass = "anim-combo-medium";
-          comboTextColor = "text-neon-blue"; // Classic Blue
+          comboTextColor = "text-neon-blue"; 
           comboTextSize = "text-4xl md:text-6xl";
           comboShadow = "0 0 20px #00f3ff";
           comboLabel = "HYPER CHAIN!";
       }
-      // Else default to small (white/gray)
   }
 
   return (

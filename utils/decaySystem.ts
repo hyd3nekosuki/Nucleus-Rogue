@@ -94,7 +94,7 @@ export const calculateDecayEffects = (
             trigger = "β+ decay"; 
             shouldFlash = false;
             
-            // Annihilation only triggers if skill is enabled and unlocked
+            // Annihilation logic
             const nearbyElectrons = currentEntities.filter(e => {
                 if (e.type !== EntityType.ENEMY_ELECTRON) return false;
                 const dx = Math.abs(e.position.x - gameState.playerPos.x);
@@ -106,21 +106,37 @@ export const calculateDecayEffects = (
                 const target = nearbyElectrons[Math.floor(Math.random() * nearbyElectrons.length)];
                 currentEntities = currentEntities.filter(e => e.id !== target.id);
                 
-                const isHorizontal = target.position.y === gameState.playerPos.y;
+                const dx = target.position.x - gameState.playerPos.x;
+                const dy = target.position.y - gameState.playerPos.y;
+                const isHorizontal = dy === 0;
+                const isVertical = dx === 0;
+                const isDiag1 = dx === dy;  // Top-Left to Bottom-Right (\)
+                const isDiag2 = dx === -dy; // Top-Right to Bottom-Left (/)
                 
+                // Excite all entities on the line (Straight or Diagonal)
                 currentEntities = currentEntities.map(e => {
-                    if (isHorizontal) {
-                        if (e.position.y === gameState.playerPos.y) return { ...e, isHighEnergy: true };
-                    } else {
-                        if (e.position.x === gameState.playerPos.x) return { ...e, isHighEnergy: true };
-                    }
+                    const edx = e.position.x - gameState.playerPos.x;
+                    const edy = e.position.y - gameState.playerPos.y;
+                    
+                    let onLine = false;
+                    if (isHorizontal && edy === 0) onLine = true;
+                    else if (isVertical && edx === 0) onLine = true;
+                    else if (isDiag1 && edx === edy) onLine = true;
+                    else if (isDiag2 && edx === -edy) onLine = true;
+
+                    if (onLine) return { ...e, isHighEnergy: true };
                     return e;
                 });
 
+                // Select effect type based on direction
+                let effectMode = isHorizontal ? DecayMode.GAMMA_RAY_H : DecayMode.GAMMA_RAY_V;
+                if (isDiag1) effectMode = DecayMode.GAMMA_RAY_DIAG_TL_BR;
+                else if (isDiag2) effectMode = DecayMode.GAMMA_RAY_DIAG_TR_BL;
+
                 additionalEffects.push({
                     id: Math.random().toString(36).substr(2, 9),
-                    type: isHorizontal ? DecayMode.GAMMA_RAY_H : DecayMode.GAMMA_RAY_V,
-                    position: { ...target.position },
+                    type: effectMode,
+                    position: { ...gameState.playerPos }, // Center beam on player
                     timestamp: currentTime
                 });
 
@@ -131,7 +147,7 @@ export const calculateDecayEffects = (
                     timestamp: currentTime
                 });
                 actionBonusScore += 20000;
-                extraMessages.push("💥 ANNIHILATION! Gamma rays excited nearby particles! (+20000 PTS)");
+                extraMessages.push("💥 ANNIHILATION! Gamma rays excited the diagonal line! (+20000 PTS)");
                 speechOverride = "Pair Annihilation";
                 isAnnihilation = true;
             }

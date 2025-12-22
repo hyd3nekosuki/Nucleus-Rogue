@@ -25,6 +25,8 @@ export enum DecayMode {
   GAMMA_RAY_DOWN = 'GAMMA_RAY_DOWN', // Visual effect only (Uni-directional)
   GAMMA_RAY_LEFT = 'GAMMA_RAY_LEFT', // Visual effect only (Uni-directional)
   GAMMA_RAY_RIGHT = 'GAMMA_RAY_RIGHT', // Visual effect only (Uni-directional)
+  GAMMA_RAY_DIAG_TL_BR = 'GAMMA_RAY_DIAG_TL_BR', // New: Diagonal \
+  GAMMA_RAY_DIAG_TR_BL = 'GAMMA_RAY_DIAG_TR_BL', // New: Diagonal /
   STABILIZE_ZAP = 'STABILIZE_ZAP',
   NUCLEOSYNTHESIS_ZAP = 'NUCLEOSYNTHESIS_ZAP' // NEW: Powerful blue-white lightning
 }
