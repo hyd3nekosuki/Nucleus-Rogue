@@ -1,0 +1,321 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nucleus Rogue</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'neon-blue': '#00f3ff',
+              'neon-green': '#00ff9d',
+              'neon-red': '#ff0055',
+              'neon-purple': '#bc13fe',
+              'dark-bg': '#0a0a12',
+              'panel-bg': '#13131f',
+            },
+            fontFamily: {
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+            },
+            animation: {
+                'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+            },
+            keyframes: {
+                shake: {
+                    '10%, 90%': { transform: 'translate3d(-2px, 0, 0)' },
+                    '20%, 80%': { transform: 'translate3d(4px, 0, 0)' },
+                    '30%, 50%, 70%': { transform: 'translate3d(-8px, 0, 0)' },
+                    '40%, 60%': { transform: 'translate3d(8px, 0, 0)' }
+                }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #050508;
+        color: #e0e0e0;
+      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a1a2e; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333355; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555577; 
+      }
+      .grid-cell-anim {
+        transition: all 0.2s ease-in-out;
+      }
+
+      /* Decay Effects */
+      .effect-base {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      @keyframes flash-alpha {
+        0% { width: 0%; height: 0%; opacity: 1; box-shadow: 0 0 20px #fbbf24; border: 4px solid #fff; background: #fbbf24; }
+        40% { opacity: 1; border-width: 2px; background: transparent; }
+        100% { width: 250%; height: 250%; opacity: 0; border: 0px solid #fbbf24; background: transparent; }
+      }
+      .effect-alpha {
+        border-radius: 50%;
+        animation: flash-alpha 0.7s ease-out forwards;
+      }
+
+      @keyframes spark-beta-minus {
+        0% { width: 0%; opacity: 1; transform: translate(-50%, -50%) rotate(0deg); }
+        20% { width: 150%; height: 4px; opacity: 1; background: #22d3ee; box-shadow: 0 0 15px #22d3ee; }
+        100% { width: 300%; height: 0px; opacity: 0; transform: translate(-50%, -50%) rotate(180deg); }
+      }
+      .effect-beta-minus {
+        background: #22d3ee; /* Cyan */
+        animation: spark-beta-minus 0.5s ease-out forwards;
+      }
+      .effect-beta-minus::after {
+        content: '';
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 100%; height: 100%;
+        background: inherit;
+        transform: translate(-50%, -50%) rotate(90deg);
+      }
+
+      @keyframes implodex-beta-plus {
+        0% { width: 300%; height: 300%; opacity: 0; border: 2px solid #d946ef; transform: translate(-50%, -50%) scale(1); }
+        40% { width: 10%; height: 10%; opacity: 1; background: #fff; box-shadow: 0 0 30px #d946ef; transform: translate(-50%, -50%) scale(1); }
+        60% { width: 20%; height: 20%; opacity: 1; background: #d946ef; }
+        100% { width: 200%; height: 200%; opacity: 0; background: transparent; border: 4px solid #d946ef; transform: translate(-50%, -50%) scale(1.5); }
+      }
+      .effect-beta-plus {
+        border-radius: 50%;
+        animation: implodex-beta-plus 0.6s ease-out forwards;
+      }
+
+      @keyframes nuke-fission {
+        0% { width: 10%; height: 10%; background: #fff; opacity: 1; }
+        20% { background: #00f3ff; box-shadow: 0 0 50px #00f3ff, 0 0 100px #0088ff; }
+        100% { width: 600%; height: 600%; opacity: 0; background: #0000ff; }
+      }
+      .effect-fission {
+        border-radius: 50%;
+        animation: nuke-fission 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+        z-index: 100;
+        mix-blend-mode: screen;
+      }
+
+      @keyframes zap-capture-intense {
+        0% { 
+            width: 10%; height: 10%; 
+            background: #fff; 
+            opacity: 1; 
+            transform: translate(-50%, -50%) scale(0.5) rotate(0deg); 
+            box-shadow: 0 0 50px #00f3ff;
+        }
+        20% { 
+            width: 250%; height: 250%; 
+            background: rgba(0, 243, 255, 0.8); 
+            opacity: 1; 
+            transform: translate(-50%, -50%) scale(1.2) rotate(45deg);
+            box-shadow: 0 0 80px #00f3ff, inset 0 0 40px white;
+        }
+        50% {
+            background: transparent;
+            border: 4px solid #fff;
+            opacity: 0.8;
+            transform: translate(-50%, -50%) scale(1.5) rotate(90deg);
+        }
+        100% { 
+            width: 300%; height: 300%; 
+            opacity: 0; 
+            border: 1px solid #00f3ff;
+            transform: translate(-50%, -50%) scale(2) rotate(135deg); 
+        }
+      }
+      .effect-capture {
+        /* Intense Electric Burst */
+        animation: zap-capture-intense 0.5s cubic-bezier(0, 0.5, 0.5, 1) forwards;
+        z-index: 80;
+        /* Star/Burst Shape */
+        clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+      }
+
+      @keyframes lightning-strike {
+          0% { height: 0; top: -1000%; opacity: 1; border-left: 2px solid #fff; }
+          10% { height: 1000%; top: -1000%; opacity: 1; border-left: 6px solid #facc15; box-shadow: 0 0 30px #facc15; }
+          30% { opacity: 1; }
+          100% { height: 1000%; top: -1000%; opacity: 0; border-left: 1px solid #facc15; }
+      }
+      .effect-stabilize-zap {
+          position: absolute;
+          left: 50%;
+          width: 0;
+          animation: lightning-strike 0.6s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+          z-index: 110;
+          pointer-events: none;
+      }
+      .effect-stabilize-zap::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: -15px;
+          width: 30px;
+          height: 30px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 40px 20px #facc15;
+          filter: blur(5px);
+          opacity: 0.8;
+      }
+
+      @keyframes blue-lightning-strike {
+          0% { height: 0; top: -1000%; opacity: 1; border-left: 3px solid #fff; }
+          10% { height: 1000%; top: -1000%; opacity: 1; border-left: 8px solid #00f3ff; box-shadow: 0 0 40px #00f3ff, 0 0 80px #fff; }
+          30% { opacity: 1; }
+          100% { height: 1000%; top: -1000%; opacity: 0; border-left: 1px solid #00f3ff; }
+      }
+      .effect-nucleosynthesis-zap {
+          position: absolute;
+          left: 50%;
+          width: 0;
+          animation: blue-lightning-strike 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+          z-index: 120;
+          pointer-events: none;
+      }
+      .effect-nucleosynthesis-zap::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: -20px;
+          width: 40px;
+          height: 40px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 60px 30px #00f3ff;
+          filter: blur(8px);
+          opacity: 0.9;
+      }
+
+      @keyframes pulse-generic {
+         0% { width: 50%; height: 50%; opacity: 0.8; box-shadow: 0 0 10px white; }
+         100% { width: 200%; height: 200%; opacity: 0; }
+      }
+      .effect-generic {
+        border-radius: 50%;
+        border: 1px solid white;
+        animation: pulse-generic 0.5s ease-out forwards;
+      }
+
+      /* Gamma Ray Lasers */
+      @keyframes laser-h {
+        0% { width: 0%; height: 6px; opacity: 1; background: #fff; box-shadow: 0 0 20px #fff; }
+        30% { width: 3000%; height: 4px; opacity: 1; background: #e0e7ff; box-shadow: 0 0 30px #818cf8, 0 0 60px #818cf8; }
+        100% { width: 3000%; height: 1px; opacity: 0; background: #312e81; }
+      }
+      .effect-gamma-h {
+        animation: laser-h 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        z-index: 90;
+      }
+
+      @keyframes laser-v {
+        0% { width: 6px; height: 0%; opacity: 1; background: #fff; box-shadow: 0 0 20px #fff; }
+        30% { width: 4px; height: 3000%; opacity: 1; background: #e0e7ff; box-shadow: 0 0 30px #818cf8, 0 0 60px #818cf8; }
+        100% { width: 1px; height: 3000%; opacity: 0; background: #312e81; }
+      }
+      .effect-gamma-v {
+        animation: laser-v 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        z-index: 90;
+      }
+
+      /* --- COMBO ANIMATIONS --- */
+
+      /* Small (2-4): Quick fade in, hold, quick fade out */
+      @keyframes combo-small {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+          15% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(1.0); }
+      }
+      .anim-combo-small { animation: combo-small 0.8s ease-out forwards; }
+
+      /* Medium (5-9): Bounce in, hold, quick fade out (No blur) */
+      @keyframes combo-medium {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+          15% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+          30% { transform: translate(-50%, -50%) scale(1.0); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(1.0); }
+      }
+      .anim-combo-medium { animation: combo-medium 1.0s ease-out forwards; }
+
+      /* Large (10-19): Rotate in, hold, quick fade out */
+      @keyframes combo-large {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-45deg); }
+          15% { opacity: 1; transform: translate(-50%, -50%) scale(1.5) rotate(0deg); }
+          30% { transform: translate(-50%, -50%) scale(1.2) rotate(0deg); }
+          40% { transform: translate(-50%, -50%) scale(1.3) rotate(5deg); text-shadow: 0 0 30px rgba(255,255,255,0.8); }
+          50% { transform: translate(-50%, -50%) scale(1.3) rotate(5deg); }
+          60% { transform: translate(-50%, -50%) scale(1.3) rotate(0deg); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(0deg); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3) rotate(0deg); }
+      }
+      .anim-combo-large { animation: combo-large 1.5s ease-out forwards; }
+
+      /* Extreme (20+): Rainbow, crazy scaling, NO SHAKE/ROTATION */
+      @keyframes combo-extreme {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+          15% { opacity: 1; transform: translate(-50%, -50%) scale(2.0); }
+          30% { transform: translate(-50%, -50%) scale(1.5); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(3.0); filter: blur(10px); }
+      }
+      .anim-combo-extreme { animation: combo-extreme 3.0s ease-out forwards; }
+
+      @keyframes rainbow-flow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+      }
+      .text-rainbow-anim {
+          background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+          background-size: 200% auto;
+          color: transparent;
+          -webkit-background-clip: text;
+          background-clip: text;
+          animation: rainbow-flow 2s linear infinite;
+      }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "recharts": "https://esm.sh/recharts@^3.5.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
