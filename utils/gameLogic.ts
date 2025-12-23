@@ -69,6 +69,8 @@ export const calculateMoveResult = (
 
     // Check if Pair annihilation is enabled
     const annihilationEnabled = !prev.disabledSkills.includes("Pair anihilation");
+    // Check if Fission skill is enabled
+    const isFissionDisabled = prev.disabledSkills.includes("Fission");
 
     // Local tracker variables for consecutive counts
     let cP = prev.consecutiveProtons;
@@ -172,9 +174,17 @@ export const calculateMoveResult = (
                 if (intermediateData.exists) {
                     const tempState = { ...prev, playerPos: { x: newX, y: newY }, currentNuclide: intermediateData, gridEntities: nextEntities };
                     const options = [{ mode: DecayMode.GAMMA, label: "(n, γ)" }, { mode: DecayMode.PROTON_EMISSION, label: "(n, p)" }, { mode: DecayMode.NEUTRON_EMISSION, label: "(n, 2n)" }];
-                    if (intermediateData.z >= 92) options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: "(n, fission)" });
+                    
+                    if (intermediateData.z >= 92) {
+                        if (isFissionDisabled) {
+                            options.push({ mode: DecayMode.ALPHA, label: "(n, α)" });
+                        } else {
+                            options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: "(n, fission)" });
+                        }
+                    }
+                    
                     const chosen = options[Math.floor(Math.random() * options.length)];
-                    chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled);
+                    chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled, !isFissionDisabled);
                     chainReactionLabel = chosen.label;
                     inducedDecayMode = chosen.mode;
                     dZ = (chosen.mode === DecayMode.PROTON_EMISSION) ? -1 : (chainDecayResult.dZ);
@@ -221,7 +231,8 @@ export const calculateMoveResult = (
     if (dZ !== 0 || dA !== 0 || chainDecayResult || isCoulombScattered || isPpFusion || isPositronAbsorption) {
         const newData = (dZ === 0 && dA === 0 && !isPpFusion && !isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
         if (newData.exists) {
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion);
+            const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+42,000 PTS)"] : [];
             

@@ -12,7 +12,8 @@ export const processUnlocks = (
     isTemporalInversion: boolean = false,
     comboScore: number = 0,
     isCoulombScattered: boolean = false,
-    isFusionAchieved: boolean = false
+    isFusionAchieved: boolean = false,
+    isFissionAchieved: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -88,7 +89,14 @@ export const processUnlocks = (
         messages.push(` 👑 HIDDEN TITLE: Fusion! (+42,000 PTS)`);
     }
 
-    // 9. Group Unlock Check
+    // 9. Special Hidden Title: Fission (Unlock by n-induced fission)
+    if (isFissionAchieved && !updatedGroups.includes("Fission")) {
+        updatedGroups = [...updatedGroups, "Fission"];
+        scoreBonus += 100000;
+        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+100,000 PTS)`);
+    }
+
+    // 10. Group Unlock Check
     Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
         if (!updatedGroups.includes(groupName)) {
             const allFound = groupZs.every(z => updatedElements.includes(z));
@@ -100,7 +108,7 @@ export const processUnlocks = (
         }
     });
 
-    // 10. Magic Number Checks (Physics Bonus)
+    // 11. Magic Number Checks (Physics Bonus)
     const newN = newA - newZ;
     const isMagicZ = MAGIC_NUMBERS.includes(newZ);
     const isMagicN = MAGIC_NUMBERS.includes(newN);

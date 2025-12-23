@@ -89,6 +89,7 @@ function App() {
   const isTemporalEnabled = !gameState.disabledSkills.includes("Temporal Inversion");
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Transmutation");
+  const isFissionEnabled = !gameState.disabledSkills.includes("Fission");
 
   const isNucleosynthesisReady = gameState.energyPoints >= NUCLEOSYNTHESIS_COST && gameState.playerLevel >= 5 && isNucleosynthesisEnabled;
 
@@ -313,7 +314,7 @@ function App() {
               setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
               if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
               if (result.shouldFlash) {
-                  setFlashColor('bg-neon-blue');
+                  setFlashColor(result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
                   setIsFlashBang(true); 
                   setTimeout(() => setIsFlashBang(false), 500); 
               }
@@ -469,16 +470,22 @@ function App() {
           if (!found) return;
       }
 
-      // Pair Anihilation Skill Check
+      // Skill Toggles check
       const annihilationEnabled = !gameState.disabledSkills.includes("Pair anihilation");
-      const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled);
+      const fissionEnabled = !gameState.disabledSkills.includes("Fission");
+
+      const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled, fissionEnabled);
       if (decayResult.dZ === 0 && decayResult.dA === 0 && decayResult.trigger === "") return; 
       
-      setLastDecayEvent({ mode: actualMode, timestamp: currentTime });
+      // Map SPONTANEOUS_FISSION visuals to ALPHA if fission skill is disabled
+      const visualMode = (actualMode === DecayMode.SPONTANEOUS_FISSION && !fissionEnabled) ? DecayMode.ALPHA : actualMode;
+      setLastDecayEvent({ mode: visualMode, timestamp: currentTime });
       
       if (decayResult.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
       if (decayResult.shouldFlash) { 
-          setFlashColor(actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
+          // If fission is disabled, the effective mode becomes ALPHA which sets shouldFlash to false in decaySystem.
+          // This block might not be hit for ALPHA, but we update the color logic for safety.
+          setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
           setIsFlashBang(true); 
           setTimeout(() => setIsFlashBang(false), 500); 
       }

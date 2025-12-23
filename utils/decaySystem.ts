@@ -36,12 +36,19 @@ export const calculateDecayEffects = (
     mode: DecayMode,
     gameState: GameState,
     currentTime: number,
-    annihilationEnabled: boolean = true
+    annihilationEnabled: boolean = true,
+    fissionEnabled: boolean = true
 ): DecayResult => {
-    const { dZ, dA } = getDecayDeltas(mode);
+    // If Fission skill is disabled, SF decay acts as ALPHA decay
+    let effectiveMode = mode;
+    if (mode === DecayMode.SPONTANEOUS_FISSION && !fissionEnabled) {
+        effectiveMode = DecayMode.ALPHA;
+    }
+
+    const { dZ, dA } = getDecayDeltas(effectiveMode);
     
     // Default trigger text
-    let trigger = mode.toString().replace(/_/g, ' ').toLowerCase();
+    let trigger = effectiveMode.toString().replace(/_/g, ' ').toLowerCase();
     
     let actionBonusScore = 0;
     let energyBonus = 0;
@@ -55,7 +62,7 @@ export const calculateDecayEffects = (
     let newPosition: Position | undefined = undefined;
 
     // Custom logic overrides per mode
-    switch (mode) {
+    switch (effectiveMode) {
         case DecayMode.ALPHA: 
             trigger = "α decay";
             energyBonus = 5; 
@@ -257,6 +264,7 @@ export const calculateDecayEffects = (
              });
              break;
         case DecayMode.SPONTANEOUS_FISSION: 
+             // This case is only hit if fissionEnabled is true
              const parentZ = gameState.currentNuclide.z;
              const parentA = gameState.currentNuclide.a;
 
