@@ -327,11 +327,18 @@ function App() {
                 
                 const targetEntity = prev.gridEntities.find(e => e.position.x === nextState.playerPos.x && e.position.y === nextState.playerPos.y);
                 let method = "Transmutation";
-                if (targetEntity) {
+                
+                if (result.isPpFusion) {
+                    method = "fusion";
+                    triggerOverride("Nuclear Fusion");
+                } else if (result.isPositronAbsorption) {
+                    method = "Positron capture";
+                } else if (targetEntity) {
                     if (targetEntity.type === EntityType.PROTON) method = "Proton Capture";
                     else if (targetEntity.type === EntityType.NEUTRON) method = "Neutron Capture";
                     else if (targetEntity.type === EntityType.ENEMY_ELECTRON) method = "Electron Capture";
                 }
+                
                 if (result.inducedDecayMode) {
                     if (result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION) {
                         method = "Neutron-induced fission";
@@ -401,7 +408,7 @@ function App() {
 
           return nextState;
       });
-  }, [stopAutoMove]);
+  }, [stopAutoMove, triggerOverride]);
 
   const startMovementLoop = useCallback(() => {
       if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
@@ -621,7 +628,7 @@ function App() {
       if (newData.exists) {
           const unlockResult = processUnlocks(gameState.unlockedElements, gameState.unlockedGroups, selectedZ, randomA, true);
           setLastDecayEvent(null);
-          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
+          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: gameState.currentNuclide.z, a: gameState.currentNuclide.a, method: "Transmutation" }]);
           setGameState(prev => ({
               ...prev,
               currentNuclide: newData,

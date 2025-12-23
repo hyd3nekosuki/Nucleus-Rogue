@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -18,14 +19,12 @@ interface EvolutionMapProps {
 
 const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) => {
     const GRID_SIZE = 7;
-    // 垂直方向の中心を3から2にシフト（上に1個ずらす）
     const CENTER_X = 3; 
     const CENTER_Y = 2; 
 
     const curZ = currentNuclide.z;
     const curN = currentNuclide.a - currentNuclide.z;
 
-    // Helper to get base color styles and contrasting text color
     const getStylesForNuclide = (z: number, a: number) => {
         const data = getNuclideDataSync(z, a);
         if (data.isStable) {
@@ -50,10 +49,8 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
         }
     };
 
-    // Plotting logic
     const plottedNodes = useMemo(() => {
         const nodes: { x: number, y: number, entry: HistoryEntry, isCurrent: boolean, styles: any }[] = [];
-        // Changed from -25 to -50 to satisfy user request
         const recentHistory = [...history].slice(-50); 
 
         recentHistory.forEach((entry) => {
@@ -124,9 +121,7 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
     return (
         <div className="w-full h-full flex flex-col bg-[#050508] rounded-xl border border-gray-800 relative overflow-hidden shadow-inner">
             <div className="flex-1 relative">
-                {/* Visual Grid Layer */}
                 <div className="absolute inset-0 pointer-events-none">
-                    {/* Centering crosshairs adjusted to NEW CENTER */}
                     <div 
                         className="absolute left-0 w-full h-[1px] bg-white/10 shadow-[0_0_10px_rgba(255,255,255,0.1)]"
                         style={{ top: `${(CENTER_Y + 0.5) * (100 / GRID_SIZE)}%` }}
@@ -146,14 +141,14 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
                         const row = Math.floor(i / GRID_SIZE);
                         const col = i % GRID_SIZE;
-                        const node = plottedNodes.find(n => n.x === col && n.y === row);
+                        // v1.2.2: 使用 findLast 来确保最新履歴を表示
+                        const node = (plottedNodes as any).findLast 
+                            ? (plottedNodes as any).findLast((n: any) => n.x === col && n.y === row) 
+                            : [...plottedNodes].reverse().find(n => n.x === col && n.y === row);
                         const isCenter = row === CENTER_Y && col === CENTER_X;
 
                         return (
-                            <div 
-                                key={i} 
-                                className="relative flex items-center justify-center"
-                            >
+                            <div key={i} className="relative flex items-center justify-center">
                                 {node && (
                                     <div 
                                         className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center transition-all duration-500

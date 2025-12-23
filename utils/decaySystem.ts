@@ -64,6 +64,8 @@ export const calculateDecayEffects = (
         case DecayMode.BETA_MINUS: 
             trigger = "β- decay"; 
             shouldFlash = false;
+            
+            // Check for neighboring protons (Priority 1)
             const neighborProtons = currentEntities.filter(e => {
                 if (e.type !== EntityType.PROTON) return false;
                 const dx = Math.abs(e.position.x - gameState.playerPos.x);
@@ -71,7 +73,16 @@ export const calculateDecayEffects = (
                 return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
             });
 
+            // Check for neighboring positrons (Priority 2)
+            const neighborPositrons = currentEntities.filter(e => {
+                if (e.type !== EntityType.ENEMY_POSITRON) return false;
+                const dx = Math.abs(e.position.x - gameState.playerPos.x);
+                const dy = Math.abs(e.position.y - gameState.playerPos.y);
+                return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
+            });
+
             if (neighborProtons.length > 0) {
+                // Priority 1: Proton Capture (p + e- -> n)
                 const targetProton = neighborProtons[Math.floor(Math.random() * neighborProtons.length)];
                 const targetIndex = currentEntities.findIndex(e => e.id === targetProton.id);
 
@@ -86,8 +97,54 @@ export const calculateDecayEffects = (
                     });
                     
                     actionBonusScore += 1000;
-                    extraMessages.push("⚡ p + e- → n (+1000 PTS)");
+                    extraMessages.push("⚡ p + e- → n ? (+1000 PTS)");
                 }
+            } else if (neighborPositrons.length > 0 && annihilationEnabled) {
+                // Priority 2: Annihilation (e- + e+ -> gamma)
+                const target = neighborPositrons[Math.floor(Math.random() * neighborPositrons.length)];
+                currentEntities = currentEntities.filter(e => e.id !== target.id);
+                
+                const dx = target.position.x - gameState.playerPos.x;
+                const dy = target.position.y - gameState.playerPos.y;
+                const isHorizontal = dy === 0;
+                const isVertical = dx === 0;
+                const isDiag1 = dx === dy;  // \
+                const isDiag2 = dx === -dy; // /
+                
+                // Excite line
+                currentEntities = currentEntities.map(e => {
+                    const edx = e.position.x - gameState.playerPos.x;
+                    const edy = e.position.y - gameState.playerPos.y;
+                    let onLine = false;
+                    if (isHorizontal && edy === 0) onLine = true;
+                    else if (isVertical && edx === 0) onLine = true;
+                    else if (isDiag1 && edx === edy) onLine = true;
+                    else if (isDiag2 && edx === -edy) onLine = true;
+                    if (onLine) return { ...e, isHighEnergy: true };
+                    return e;
+                });
+
+                let effectMode = isHorizontal ? DecayMode.GAMMA_RAY_H : DecayMode.GAMMA_RAY_V;
+                if (isDiag1) effectMode = DecayMode.GAMMA_RAY_DIAG_TL_BR;
+                else if (isDiag2) effectMode = DecayMode.GAMMA_RAY_DIAG_TR_BL;
+
+                additionalEffects.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: effectMode,
+                    position: { ...gameState.playerPos },
+                    timestamp: currentTime
+                });
+                additionalEffects.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: DecayMode.SPONTANEOUS_FISSION,
+                    position: { ...target.position },
+                    timestamp: currentTime
+                });
+
+                actionBonusScore += 20000;
+                extraMessages.push("💥 ANNIHILATION! Gamma rays may excite other particle (+20000 PTS)");
+                speechOverride = "Pair Annihilation";
+                isAnnihilation = true;
             }
             break;
         case DecayMode.BETA_PLUS: 
@@ -147,7 +204,7 @@ export const calculateDecayEffects = (
                     timestamp: currentTime
                 });
                 actionBonusScore += 20000;
-                extraMessages.push("💥 ANNIHILATION! Gamma rays excited the diagonal line! (+20000 PTS)");
+                extraMessages.push("💥 ANNIHILATION! Gamma rays may excite other particle (+20000 PTS)");
                 speechOverride = "Pair Annihilation";
                 isAnnihilation = true;
             }

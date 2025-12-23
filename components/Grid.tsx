@@ -87,6 +87,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
           const protonRingColor = "border-neon-red";
           const neutronRingColor = "border-neon-blue";
           const electronRingColor = "border-yellow-400";
+          const positronRingColor = "border-neon-purple";
           
           switch(entity.type) {
               case EntityType.PROTON:
@@ -116,6 +117,14 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                         <div className={`absolute inset-[-5px] border ${electronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]'} opacity-75`}></div>
                       )}
                       <div className={`w-2 h-2 bg-yellow-400 rounded-full ${gameState.isTimeStopped ? '' : 'animate-bounce'}`}></div>
+                    </div>
+                  );
+                  break;
+              case EntityType.ENEMY_POSITRON:
+                  content = (
+                    <div className="relative flex items-center justify-center">
+                        <div className={`absolute inset-[-6px] border ${positronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-pulse'} opacity-50`}></div>
+                        <div className="w-2 h-2 bg-neon-purple rounded-full shadow-[0_0_10px_#bc13fe]"></div>
                     </div>
                   );
                   break;
