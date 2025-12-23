@@ -11,7 +11,8 @@ export const processUnlocks = (
     isNucleosynthesis: boolean = false,
     isTemporalInversion: boolean = false,
     comboScore: number = 0,
-    isCoulombScattered: boolean = false
+    isCoulombScattered: boolean = false,
+    isFusionAchieved: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -80,7 +81,14 @@ export const processUnlocks = (
         messages.push(` 👑 HIDDEN TITLE: Coulomb barrier! (+10,000 PTS)`);
     }
 
-    // 8. Group Unlock Check
+    // 8. Special Hidden Title: Fusion (Unlock by p+p reaction)
+    if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
+        updatedGroups = [...updatedGroups, "Fusion"];
+        scoreBonus += 42000;
+        messages.push(` 👑 HIDDEN TITLE: Fusion! (+42,000 PTS)`);
+    }
+
+    // 9. Group Unlock Check
     Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
         if (!updatedGroups.includes(groupName)) {
             const allFound = groupZs.every(z => updatedElements.includes(z));
@@ -92,7 +100,7 @@ export const processUnlocks = (
         }
     });
 
-    // 9. Magic Number Checks (Physics Bonus)
+    // 10. Magic Number Checks (Physics Bonus)
     const newN = newA - newZ;
     const isMagicZ = MAGIC_NUMBERS.includes(newZ);
     const isMagicN = MAGIC_NUMBERS.includes(newN);

@@ -101,61 +101,69 @@ export const calculateMoveResult = (
         }
 
         if (entity.type === EntityType.PROTON) { 
+            const isFusionDisabled = prev.disabledSkills.includes("Fusion");
             const coulombBarrierActive = prev.unlockedGroups.includes("Coulomb barrier") && !prev.disabledSkills.includes("Coulomb barrier");
 
-            // SPECIAL REACTION: Stellar Fusion p + p -> D + e+ (Hydrogen-1 eats High Energy Proton)
-            if (prev.currentNuclide.z === 1 && prev.currentNuclide.a === 1 && entity.isHighEnergy) {
-                isPpFusion = true;
-                dZ = 0; // Stays Hydrogen (Z=1)
-                dA = 1; // Mass 1 -> 2
-                
-                // Spawn Positron at current player position (where the fusion occurred)
-                nextEntities.push({
-                    id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9),
-                    type: EntityType.ENEMY_POSITRON,
-                    position: { ...prev.playerPos },
-                    spawnTurn: prev.turn,
-                    isHighEnergy: false
-                });
-            }
-            // Normal Capture / Scattering logic
-            else if (isMagic && coulombBarrierActive) {
-                isCoulombScattered = true;
-                scatteredMessage = "Proton was deflected by Coulomb barrier (Magic Shell Protection)";
-            }
-            else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
-                dZ = 1; dA = 1; 
-                if (isMagic && !entity.isHighEnergy) {
-                    magicProtectionBonus = prev.currentNuclide.z * 10000;
+            if (isFusionDisabled) {
+                // If Fusion skill is off, proton is simply removed without capture
+                dZ = 0;
+                dA = 0;
+                scatteredMessage = "Fusion disabled: Proton ignored.";
+            } else {
+                // SPECIAL REACTION: Stellar Fusion p + p -> D + e+ (Hydrogen-1 eats High Energy Proton)
+                if (prev.currentNuclide.z === 1 && prev.currentNuclide.a === 1 && entity.isHighEnergy) {
+                    isPpFusion = true;
+                    dZ = 0; // Stays Hydrogen (Z=1)
+                    dA = 1; // Mass 1 -> 2
+                    
+                    // Spawn Positron at current player position (where the fusion occurred)
+                    nextEntities.push({
+                        id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9),
+                        type: EntityType.ENEMY_POSITRON,
+                        position: { ...prev.playerPos },
+                        spawnTurn: prev.turn,
+                        isHighEnergy: false
+                    });
                 }
-            }
-            else if (prev.hp > COULOMB_BARRIER_THRESHOLD) { 
-                hpPenalty = 20; dZ = 1; dA = 1; 
-            }
-            else { 
-                // SCATTERING LOGIC (HP too low)
-                isCoulombScattered = true;
-                scatteredMessage = "Proton was scattered by Coulomb barrier";
-            }
+                // Normal Capture / Scattering logic
+                else if (isMagic && coulombBarrierActive) {
+                    isCoulombScattered = true;
+                    scatteredMessage = "Proton was deflected by Coulomb barrier (Magic Shell Protection)";
+                }
+                else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
+                    dZ = 1; dA = 1; 
+                    if (isMagic && !entity.isHighEnergy) {
+                        magicProtectionBonus = prev.currentNuclide.z * 10000;
+                    }
+                }
+                else if (prev.hp > COULOMB_BARRIER_THRESHOLD) { 
+                    hpPenalty = 20; dZ = 1; dA = 1; 
+                }
+                else { 
+                    // SCATTERING LOGIC (HP too low)
+                    isCoulombScattered = true;
+                    scatteredMessage = "Proton was scattered by Coulomb barrier";
+                }
 
-            if (isCoulombScattered) {
-                let respawnPos: Position;
-                let attempts = 0;
-                do {
-                    respawnPos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
-                    attempts++;
-                } while (
-                    (respawnPos.x === newX && respawnPos.y === newY) || 
-                    nextEntities.some(e => e.position.x === respawnPos.x && e.position.y === respawnPos.y) && attempts < 10
-                );
+                if (isCoulombScattered) {
+                    let respawnPos: Position;
+                    let attempts = 0;
+                    do {
+                        respawnPos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
+                        attempts++;
+                    } while (
+                        (respawnPos.x === newX && respawnPos.y === newY) || 
+                        nextEntities.some(e => e.position.x === respawnPos.x && e.position.y === respawnPos.y) && attempts < 10
+                    );
 
-                nextEntities.push({
-                    id: Math.random().toString(36).substr(2, 9),
-                    type: EntityType.PROTON,
-                    position: respawnPos,
-                    spawnTurn: prev.turn,
-                    isHighEnergy: false
-                });
+                    nextEntities.push({
+                        id: Math.random().toString(36).substr(2, 9),
+                        type: EntityType.PROTON,
+                        position: respawnPos,
+                        spawnTurn: prev.turn,
+                        isHighEnergy: false
+                    });
+                }
             }
         } else if (entity.type === EntityType.NEUTRON) { 
             dZ = 0; dA = 1; 
@@ -213,7 +221,7 @@ export const calculateMoveResult = (
     if (dZ !== 0 || dA !== 0 || chainDecayResult || isCoulombScattered || isPpFusion || isPositronAbsorption) {
         const newData = (dZ === 0 && dA === 0 && !isPpFusion && !isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
         if (newData.exists) {
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"));
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+42,000 PTS)"] : [];
             

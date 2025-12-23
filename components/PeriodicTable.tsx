@@ -111,12 +111,13 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "Actinide", class: "bg-fuchsia-900/80 border-fuchsia-500 text-fuchsia-300" },
     ];
 
-    // Special hidden titles / skills
+    // Special hidden titles / skills - REORDERED
     const hiddenSkills = [
         { name: "Pair anihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
+        { name: "Coulomb barrier", class: "bg-red-900/20 border-neon-red text-neon-red font-bold shadow-[0_0_10px_#ff0055]" },
+        { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
         { name: "Transmutation", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
         { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
-        { name: "Coulomb barrier", class: "bg-red-900/20 border-neon-red text-neon-red font-bold shadow-[0_0_10px_#ff0055]" },
         { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
         { name: "Tetraneutron", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" }
     ];
@@ -168,7 +169,7 @@ const PeriodicTable: React.FC<Props> = ({
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 text-[9px] font-bold uppercase tracking-wider shrink-0">
                     {legendItems.map(item => {
                         const isUnlockedGroup = unlockedGroups.includes(item.name);
-                        const isSpecial = ["Pair anihilation", "Transmutation", "Nucleosynthesis", "Tetraneutron", "Temporal Inversion", "Coulomb barrier"].includes(item.name);
+                        const isSpecial = ["Pair anihilation", "Coulomb barrier", "Fusion", "Transmutation", "Nucleosynthesis", "Temporal Inversion", "Tetraneutron"].includes(item.name);
                         const isDisabled = disabledSkills.includes(item.name);
                         
                         // Icon mapping
@@ -180,6 +181,8 @@ const PeriodicTable: React.FC<Props> = ({
 
                         const tooltipText = item.name === "Coulomb barrier" 
                             ? "Active: Deflects protons when Z is a magic number (Prevents transmutation)."
+                            : item.name === "Fusion" 
+                            ? "Active: Allows proton capture. Disabled: Prevents Z increase from protons."
                             : "";
 
                         return (
