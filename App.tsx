@@ -678,6 +678,7 @@ function App() {
   const restartGame = (randomStart: boolean = false) => {
       const currentTitles = gameState.unlockedElements;
       const currentGroups = gameState.unlockedGroups;
+      const currentDisabledSkills = gameState.disabledSkills; // PERSIST: Store current skill states
       const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
       const newState = getInitialState();
       
@@ -700,6 +701,7 @@ function App() {
 
       setGameState({
           ...newState,
+          disabledSkills: currentDisabledSkills, // PERSIST: Restore skill states
           score: unlockResult.scoreBonus,
           currentNuclide: startNuclide,
           gridEntities: generateEntities(5, [], newState.playerPos, 0),
