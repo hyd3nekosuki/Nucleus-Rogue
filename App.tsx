@@ -249,7 +249,7 @@ function App() {
             if (newData.exists) {
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
                 triggerOverride("Nucleosynthesis Complete");
-                setFlashColor('bg-neon-blue');
+                setFlashColor('bg-white'); // Nucleosynthesis is pure blinding white
                 setIsFlashBang(true);
                 setTimeout(() => setIsFlashBang(false), 800);
 
@@ -314,7 +314,8 @@ function App() {
               setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
               if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
               if (result.shouldFlash) {
-                  setFlashColor(result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
+                  // Neutron-induced reactions use neon-blue
+                  setFlashColor('bg-neon-blue');
                   setIsFlashBang(true); 
                   setTimeout(() => setIsFlashBang(false), 500); 
               }
@@ -483,8 +484,7 @@ function App() {
       
       if (decayResult.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
       if (decayResult.shouldFlash) { 
-          // If fission is disabled, the effective mode becomes ALPHA which sets shouldFlash to false in decaySystem.
-          // This block might not be hit for ALPHA, but we update the color logic for safety.
+          // Spontaneous fission (manual action) still uses yellow flash for distinction
           setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
           setIsFlashBang(true); 
           setTimeout(() => setIsFlashBang(false), 500); 
