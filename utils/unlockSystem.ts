@@ -91,6 +91,7 @@ export const processUnlocks = (
     // 9. Special Hidden Title: Fission (Unlock by n-induced fission)
     if (isFissionAchieved && !updatedGroups.includes("Fission")) {
         updatedGroups = [...updatedGroups, "Fission"];
+        // UPDATE: Fission hidden title score to +2,000,000 PTS
         scoreBonus += 2000000;
         messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+2,000,000 PTS)`);
     }

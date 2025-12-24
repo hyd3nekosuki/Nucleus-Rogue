@@ -241,6 +241,7 @@ export const calculateDecayEffects = (
             shouldFlash = true;
             speechOverride = "Nuclear Fission";
             actionBonusScore += 50000;
+            // UPDATE: energy bonus for fission from 25 to 200 points
             energyBonus += 200;
 
             // FIX: Player transmutes into one of the fission fragments

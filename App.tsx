@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from './types';
@@ -635,7 +634,8 @@ function App() {
       if (newData.exists) {
           const unlockResult = processUnlocks(gameState.unlockedElements, gameState.unlockedGroups, selectedZ, randomA, true);
           setLastDecayEvent(null);
-          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: gameState.currentNuclide.z, a: gameState.currentNuclide.a, method: "Transmutation" }]);
+          // FIX: Use newData.z and newData.a to ensure correct positioning in EvolutionMap at the current center
+          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
           setGameState(prev => ({
               ...prev,
               currentNuclide: newData,
