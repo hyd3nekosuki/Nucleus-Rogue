@@ -1,4 +1,3 @@
-
 import { ELEMENT_GROUPS, MAGIC_NUMBERS } from '../constants';
 
 export const processUnlocks = (
@@ -92,8 +91,8 @@ export const processUnlocks = (
     // 9. Special Hidden Title: Fission (Unlock by n-induced fission)
     if (isFissionAchieved && !updatedGroups.includes("Fission")) {
         updatedGroups = [...updatedGroups, "Fission"];
-        scoreBonus += 100000;
-        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+100,000 PTS)`);
+        scoreBonus += 2000000;
+        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+2,000,000 PTS)`);
     }
 
     // 10. Group Unlock Check

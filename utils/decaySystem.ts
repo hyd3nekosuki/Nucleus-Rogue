@@ -1,4 +1,3 @@
-
 import { GameState, DecayMode, EntityType, GridEntity, VisualEffect, Position } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants';
 
@@ -242,7 +241,7 @@ export const calculateDecayEffects = (
             shouldFlash = true;
             speechOverride = "Nuclear Fission";
             actionBonusScore += 50000;
-            energyBonus += 25;
+            energyBonus += 200;
 
             // FIX: Player transmutes into one of the fission fragments
             const fragment = getFissionFragment(gameState.currentNuclide.z, gameState.currentNuclide.a);
