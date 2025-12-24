@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
 
@@ -114,6 +113,7 @@ const PeriodicTable: React.FC<Props> = ({
     const hiddenSkills = [
         { name: "Pair anihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
         { name: "Coulomb barrier", class: "bg-red-900/20 border-neon-red text-neon-red font-bold shadow-[0_0_10px_#ff0055]" },
+        { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
         { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
         { name: "Fission", class: "bg-red-600/20 border-red-500 text-red-400 font-bold shadow-[0_0_10px_#ef4444]" },
         { name: "Transmutation", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
@@ -176,6 +176,7 @@ const PeriodicTable: React.FC<Props> = ({
                             let icon = "👑";
                             if (item.name === "Tetraneutron") icon = "🌟";
                             if (item.name === "Temporal Inversion") icon = "⏱";
+                            if (item.name === "zero barn") icon = "🌑";
 
                             const tooltipText = item.name === "Coulomb barrier" 
                                 ? "Active: Deflects protons when Z is a magic number (Prevents transmutation)."
@@ -183,6 +184,8 @@ const PeriodicTable: React.FC<Props> = ({
                                 ? "Active: Allows proton capture. Disabled: Prevents Z increase from protons."
                                 : item.name === "Fission"
                                 ? "Active: Gain massive points and energy when neutron-induced fission occurs. Disabled: Replaces fission with alpha decay (Restriction mode)."
+                                : item.name === "zero barn"
+                                ? "Active: Neutrons flow through without being captured. Prevents A increase from neutrons."
                                 : "";
 
                             return (

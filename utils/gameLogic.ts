@@ -1,4 +1,3 @@
-
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -101,7 +100,7 @@ export const calculateMoveResult = (
             const coulombBarrierActive = prev.unlockedGroups.includes("Coulomb barrier") && !prev.disabledSkills.includes("Coulomb barrier");
             if (isFusionDisabled) {
                 dZ = 0; dA = 0;
-                scatteredMessage = "Fusion disabled: Proton ignored.";
+                scatteredMessage = "Proton was blocked by Coulomb barrier";
             } else {
                 if (prev.currentNuclide.z === 1 && prev.currentNuclide.a === 1 && entity.isHighEnergy) {
                     isPpFusion = true;
@@ -131,32 +130,37 @@ export const calculateMoveResult = (
                 }
             }
         } else if (entity.type === EntityType.NEUTRON) { 
-            dZ = 0; dA = 1; 
-            if (entity.isHighEnergy) {
-                const intermediateData = getNuclideDataSync(prev.currentNuclide.z, prev.currentNuclide.a + 1);
-                if (intermediateData.exists) {
-                    const tempState = { ...prev, playerPos: { x: newX, y: newY }, currentNuclide: intermediateData, gridEntities: nextEntities };
-                    const options = [{ mode: DecayMode.GAMMA, label: "(n,γ)" }, { mode: DecayMode.PROTON_EMISSION, label: "(n,p)" }, { mode: DecayMode.NEUTRON_EMISSION, label: "(n,2n)" }];
-                    if (intermediateData.z >= 92) {
-                        if (isFissionDisabled) options.push({ mode: DecayMode.ALPHA, label: "(n,α)" });
-                        else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: "(n,fission)" });
-                    }
-                    const chosen = options[Math.floor(Math.random() * options.length)];
-                    chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled, !isFissionDisabled);
-                    chainReactionLabel = chosen.label;
-                    inducedDecayMode = chosen.mode;
+            const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
+            if (isZeroBarnActive) {
+                dZ = 0; dA = 0;
+                scatteredMessage = "No reaction to neutron";
+            } else {
+                dZ = 0; dA = 1; 
+                if (entity.isHighEnergy) {
+                    const intermediateData = getNuclideDataSync(prev.currentNuclide.z, prev.currentNuclide.a + 1);
+                    if (intermediateData.exists) {
+                        const tempState = { ...prev, playerPos: { x: newX, y: newY }, currentNuclide: intermediateData, gridEntities: nextEntities };
+                        const options = [{ mode: DecayMode.GAMMA, label: "(n,γ)" }, { mode: DecayMode.PROTON_EMISSION, label: "(n,p)" }, { mode: DecayMode.NEUTRON_EMISSION, label: "(n,2n)" }];
+                        if (intermediateData.z >= 92) {
+                            if (isFissionDisabled) options.push({ mode: DecayMode.ALPHA, label: "(n,α)" });
+                            else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: "(n,fission)" });
+                        }
+                        const chosen = options[Math.floor(Math.random() * options.length)];
+                        chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled, !isFissionDisabled);
+                        chainReactionLabel = chosen.label;
+                        inducedDecayMode = chosen.mode;
 
-                    // FIX: Final dZ and dA must account for absorption (+1A) plus decay effects
-                    if (chosen.mode === DecayMode.SPONTANEOUS_FISSION) {
-                        dZ = chainDecayResult.dZ;
-                        dA = 1 + chainDecayResult.dA; // n absorption (1) + fission fragment shift (dA relative to A+1)
-                    } else if (chosen.mode === DecayMode.PROTON_EMISSION) {
-                        dZ = -1; dA = 0; // (n,p) net change: Z stays Z (n in, p out), A stays A
-                    } else if (chosen.mode === DecayMode.NEUTRON_EMISSION) {
-                        dZ = 0; dA = -1; // (n,2n) net change: Z stays Z, A-1 (1 in, 2 out)
-                    } else {
-                        dZ = chainDecayResult.dZ;
-                        dA = 1 + chainDecayResult.dA;
+                        if (chosen.mode === DecayMode.SPONTANEOUS_FISSION) {
+                            dZ = chainDecayResult.dZ;
+                            dA = 1 + chainDecayResult.dA; 
+                        } else if (chosen.mode === DecayMode.PROTON_EMISSION) {
+                            dZ = -1; dA = 0; 
+                        } else if (chosen.mode === DecayMode.NEUTRON_EMISSION) {
+                            dZ = 0; dA = -1; 
+                        } else {
+                            dZ = chainDecayResult.dZ;
+                            dA = 1 + chainDecayResult.dA;
+                        }
                     }
                 }
             }
@@ -183,7 +187,8 @@ export const calculateMoveResult = (
         const newData = (dZ === 0 && dA === 0 && !isPpFusion && !isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
         if (newData.exists) {
             const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved);
+            const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved, isZeroBarnAchieved);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+42,000 PTS)"] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
@@ -197,7 +202,12 @@ export const calculateMoveResult = (
         }
     } else {
         if (nextState.currentNuclide.isStable) nextState.hp = Math.min(prev.maxHp, prev.hp + 1);
-        if (scatteredMessage) nextState.messages = [...prev.messages, `ℹ ${scatteredMessage}`].slice(-5);
+        const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
+        if (isZeroBarnAchieved) {
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
+            nextState = { ...nextState, unlockedGroups: unlockResult.updatedGroups, messages: [...prev.messages, ...unlockResult.messages].slice(-5), score: nextState.score + unlockResult.scoreBonus };
+        }
+        if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-5);
     }
 
     if (Math.random() < 0.15) nextState.gridEntities = generateEntities(1, nextState.gridEntities, nextState.playerPos, nextState.turn);
