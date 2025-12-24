@@ -1,3 +1,4 @@
+
 import { ELEMENT_GROUPS, MAGIC_NUMBERS } from '../constants';
 
 export const processUnlocks = (
@@ -42,11 +43,11 @@ export const processUnlocks = (
         messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
     }
 
-    // 3. Special Hidden Title: Transmutation
-    if (isTransmutation && !updatedGroups.includes("Transmutation")) {
-        updatedGroups = [...updatedGroups, "Transmutation"];
+    // 3. Special Hidden Title: Replication (formerly Transmutation / Experimental Replication)
+    if (isTransmutation && !updatedGroups.includes("Replication")) {
+        updatedGroups = [...updatedGroups, "Replication"];
         scoreBonus += 30000;
-        messages.push(` 👑 HIDDEN TITLE: Transmutation! (+30,000 PTS)`);
+        messages.push(` 👑 HIDDEN TITLE: Replication! (+30,000 PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis

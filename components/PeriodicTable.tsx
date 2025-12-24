@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
 
@@ -116,7 +117,7 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
         { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
         { name: "Fission", class: "bg-red-600/20 border-red-500 text-red-400 font-bold shadow-[0_0_10px_#ef4444]" },
-        { name: "Transmutation", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
+        { name: "Replication", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
         { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
         { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
         { name: "Tetraneutron", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" }
@@ -148,7 +149,7 @@ const PeriodicTable: React.FC<Props> = ({
                         </h2>
                         {canTransmute ? (
                              <div className="mt-1 px-3 py-1 bg-yellow-400/20 border border-yellow-400/50 rounded text-yellow-400 font-black text-xs md:text-sm animate-bounce tracking-tight">
-                                ✨ READY FOR NUCLEAR TRANSMUTATION ✨
+                                ✨ READY FOR REPLICATION ✨
                              </div>
                         ) : (
                             <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-2 items-center">

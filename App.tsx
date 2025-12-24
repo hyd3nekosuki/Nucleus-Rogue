@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from './types';
@@ -87,7 +88,7 @@ function App() {
   const isAnnihilationEnabled = !gameState.disabledSkills.includes("Pair anihilation");
   const isTemporalEnabled = !gameState.disabledSkills.includes("Temporal Inversion");
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
-  const isTransmutationEnabled = !gameState.disabledSkills.includes("Transmutation");
+  const isTransmutationEnabled = !gameState.disabledSkills.includes("Replication");
   const isFissionEnabled = !gameState.disabledSkills.includes("Fission");
 
   const isNucleosynthesisReady = gameState.energyPoints >= NUCLEOSYNTHESIS_COST && gameState.playerLevel >= 5 && isNucleosynthesisEnabled;
@@ -270,7 +271,7 @@ function App() {
                     effects: [...prev.effects, zapEffect],
                     unlockedElements: unlockResult.updatedElements,
                     unlockedGroups: unlockResult.updatedGroups,
-                    messages: [...prev.messages, `✨ NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+10M Score)`, ...unlockResult.messages].slice(-5),
+                    messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+10M Score)`, ...unlockResult.messages].slice(-5),
                     isTimeStopped: false,
                     consecutiveProtons: 0,
                     consecutiveNeutrons: 0,
@@ -535,7 +536,7 @@ function App() {
               if (nextLevel === 1) levelUpMessages.push("☢️ MASTERY Lv 1: Magic shells protect against capture!");
               if (nextLevel === 2) levelUpMessages.push("☢️ MASTERY Lv 2: Use [🔬] to convert energy into stability.");
               if (nextLevel === 3) levelUpMessages.push("☢️ MASTERY Lv 3: Magic N-shells can freeze time.");
-              if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Transmutation unlocked.");
+              if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Replication unlocked.");
               if (nextLevel === 5) levelUpMessages.push("☢️ MASTERY Lv 5: Nucleosynthesis [🌟] unlocked.");
           }
 
@@ -635,6 +636,7 @@ function App() {
           const unlockResult = processUnlocks(gameState.unlockedElements, gameState.unlockedGroups, selectedZ, randomA, true);
           setLastDecayEvent(null);
           // FIX: Use newData.z and newData.a to ensure correct positioning in EvolutionMap at the current center
+          // Keeping method name "Transmutation" for evolution history as requested
           setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
           setGameState(prev => ({
               ...prev,
@@ -642,7 +644,7 @@ function App() {
               unlockedElements: unlockResult.updatedElements,
               unlockedGroups: unlockResult.updatedGroups,
               score: prev.score + 500000 + unlockResult.scoreBonus,
-              messages: [...prev.messages, `🔮 TRANSMUTATION: ${newData.name}!`, ...unlockResult.messages].slice(-5),
+              messages: [...prev.messages, `🔮 REPLICATION: ${newData.name}!`, ...unlockResult.messages].slice(-5),
               isTimeStopped: false,
               combo: 0,
               comboScore: 0,
