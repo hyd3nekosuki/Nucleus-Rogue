@@ -1,3 +1,4 @@
+
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -63,6 +64,7 @@ export const calculateMoveResult = (
     let isPpFusion = false;
     let isPositronAbsorption = false;
     let isCoulombScattered = false;
+    let isBremsAchieved = false;
     
     let nextEntities = [...prev.gridEntities];
 
@@ -165,10 +167,23 @@ export const calculateMoveResult = (
                 }
             }
         } else if (entity.type === EntityType.ENEMY_ELECTRON) { 
-            if (isMagic || entity.isHighEnergy) { 
-                dZ = -1; dA = 0; 
-                if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
-            } else { hpPenalty = prev.hp * 0.5; dZ = -1; dA = 0; }
+            const bremsActive = prev.unlockedGroups.includes("Bremsstrahlung") && !prev.disabledSkills.includes("Bremsstrahlung");
+            if (bremsActive) {
+                dZ = 0; dA = 0;
+                scatteredMessage = "Electron emission (Bremsstrahlung) prevents capture";
+            } else {
+                // BREMSSTRAHLUNG CONDITION: HP <= 10 AND consecutive electron capture count >= 5
+                if (prev.hp <= 10 && cE >= 5) {
+                    isBremsAchieved = true;
+                }
+
+                if (isMagic || entity.isHighEnergy) { 
+                    dZ = -1; dA = 0; 
+                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
+                } else { 
+                    hpPenalty = prev.hp * 0.5; dZ = -1; dA = 0; 
+                }
+            }
         } else if (entity.type === EntityType.ENEMY_POSITRON) {
             isPositronAbsorption = true; dZ = 1; dA = 0;
         }
@@ -188,17 +203,36 @@ export const calculateMoveResult = (
         if (newData.exists) {
             const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
             const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved, isZeroBarnAchieved);
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+42,000 PTS)"] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
             const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-5);
             nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 42000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
-            if (nextState.hp <= 0) { nextState.gameOver = true; nextState.gameOverReason = "TRANSFORMATION_SHOCK"; nextState.combo = 0; }
+            if (nextState.hp <= 0) { 
+                if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
+                    // Handled in App.tsx moveStep but we check here to prevent game over in logic if possible
+                } else {
+                    nextState.gameOver = true; nextState.gameOverReason = "TRANSFORMATION_SHOCK"; nextState.combo = 0; 
+                }
+            }
             if (newData.isStable && (dZ !== 0 || dA !== 0 || isPpFusion || isPositronAbsorption)) nextState.combo = 0;
         } else {
+            // BREMSSTRAHLUNG: Allow unlock even if transmutation fails (e.g. Z=-1)
+            if (isBremsAchieved) {
+                const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
+                nextState.unlockedGroups = unlockResult.updatedGroups;
+                nextState.score += unlockResult.scoreBonus;
+                nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-5);
+            }
             nextState.hp = Math.max(0, prev.hp - hpPenalty);
-            if (nextState.hp <= 0 && hpPenalty > 0) { nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; }
+            if (nextState.hp <= 0 && hpPenalty > 0) { 
+                if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
+                   // Survival by Temporal Inversion
+                } else {
+                    nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; 
+                }
+            }
         }
     } else {
         if (nextState.currentNuclide.isStable) nextState.hp = Math.min(prev.maxHp, prev.hp + 1);

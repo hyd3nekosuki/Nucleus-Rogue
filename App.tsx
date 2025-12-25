@@ -88,7 +88,7 @@ function App() {
   const isAnnihilationEnabled = !gameState.disabledSkills.includes("Pair anihilation");
   const isTemporalEnabled = !gameState.disabledSkills.includes("Temporal Inversion");
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
-  const isTransmutationEnabled = !gameState.disabledSkills.includes("Replication");
+  const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
   const isFissionEnabled = !gameState.disabledSkills.includes("Fission");
 
   const isNucleosynthesisReady = gameState.energyPoints >= NUCLEOSYNTHESIS_COST && gameState.playerLevel >= 5 && isNucleosynthesisEnabled;
@@ -536,7 +536,7 @@ function App() {
               if (nextLevel === 1) levelUpMessages.push("☢️ MASTERY Lv 1: Magic shells protect against capture!");
               if (nextLevel === 2) levelUpMessages.push("☢️ MASTERY Lv 2: Use [🔬] to convert energy into stability.");
               if (nextLevel === 3) levelUpMessages.push("☢️ MASTERY Lv 3: Magic N-shells can freeze time.");
-              if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Replication unlocked.");
+              if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Exp. Replicate unlocked.");
               if (nextLevel === 5) levelUpMessages.push("☢️ MASTERY Lv 5: Nucleosynthesis [🌟] unlocked.");
           }
 
@@ -644,7 +644,7 @@ function App() {
               unlockedElements: unlockResult.updatedElements,
               unlockedGroups: unlockResult.updatedGroups,
               score: prev.score + 500000 + unlockResult.scoreBonus,
-              messages: [...prev.messages, `🔮 REPLICATION: ${newData.name}!`, ...unlockResult.messages].slice(-5),
+              messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-5),
               isTimeStopped: false,
               combo: 0,
               comboScore: 0,

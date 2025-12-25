@@ -14,7 +14,8 @@ export const processUnlocks = (
     isCoulombScattered: boolean = false,
     isFusionAchieved: boolean = false,
     isFissionAchieved: boolean = false,
-    isZeroBarnAchieved: boolean = false
+    isZeroBarnAchieved: boolean = false,
+    isBremsAchieved: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -43,11 +44,11 @@ export const processUnlocks = (
         messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
     }
 
-    // 3. Special Hidden Title: Replication (formerly Transmutation / Experimental Replication)
-    if (isTransmutation && !updatedGroups.includes("Replication")) {
-        updatedGroups = [...updatedGroups, "Replication"];
+    // 3. Special Hidden Title: Exp. Replicate
+    if (isTransmutation && !updatedGroups.includes("Exp. Replicate")) {
+        updatedGroups = [...updatedGroups, "Exp. Replicate"];
         scoreBonus += 30000;
-        messages.push(` 👑 HIDDEN TITLE: Replication! (+30,000 PTS)`);
+        messages.push(` 👑 HIDDEN TITLE: Exp. Replicate! (+30,000 PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
@@ -64,7 +65,7 @@ export const processUnlocks = (
         messages.push(` 🌟 HIDDEN TITLE: Tetraneutron! The Void State. (+400,000 PTS)`);
     }
 
-    // 6. Special Hidden Title: Temporal Inversion (TENET)
+    // 6. Special Hidden Title: Temporal Inversion
     if (isTemporalInversion) {
         const inversionBonus = comboScore * 10;
         if (!updatedGroups.includes("Temporal Inversion")) {
@@ -83,28 +84,35 @@ export const processUnlocks = (
         messages.push(` 👑 HIDDEN TITLE: Coulomb barrier! (+10,000 PTS)`);
     }
 
-    // 8. Special Hidden Title: Fusion (Unlock by p+p reaction)
+    // 8. Special Hidden Title: Fusion
     if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
         updatedGroups = [...updatedGroups, "Fusion"];
         scoreBonus += 42000;
         messages.push(` 👑 HIDDEN TITLE: Fusion! (+42,000 PTS)`);
     }
 
-    // 9. Special Hidden Title: Fission (Unlock by n-induced fission)
+    // 9. Special Hidden Title: Fission
     if (isFissionAchieved && !updatedGroups.includes("Fission")) {
         updatedGroups = [...updatedGroups, "Fission"];
         scoreBonus += 2000000;
         messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+2,000,000 PTS)`);
     }
 
-    // 10. Special Hidden Title: zero barn (Unlock by 20 consecutive neutrons)
+    // 10. Special Hidden Title: zero barn
     if (isZeroBarnAchieved && !updatedGroups.includes("zero barn")) {
         updatedGroups = [...updatedGroups, "zero barn"];
         scoreBonus += 500000;
         messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+500,000 PTS)`);
     }
 
-    // 11. Group Unlock Check
+    // 11. Special Hidden Title: Bremsstrahlung
+    if (isBremsAchieved && !updatedGroups.includes("Bremsstrahlung")) {
+        updatedGroups = [...updatedGroups, "Bremsstrahlung"];
+        scoreBonus += 100000;
+        messages.push(` ☢️ HIDDEN TITLE: Bremsstrahlung! Continuous electron capture at HP ≤ 10! (+100,000 PTS)`);
+    }
+
+    // 12. Group Unlock Check
     Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
         if (!updatedGroups.includes(groupName)) {
             const allFound = groupZs.every(z => updatedElements.includes(z));
@@ -116,7 +124,7 @@ export const processUnlocks = (
         }
     });
 
-    // 12. Magic Number Checks (Physics Bonus)
+    // 13. Magic Number Checks
     const newN = newA - newZ;
     const isMagicZ = MAGIC_NUMBERS.includes(newZ);
     const isMagicN = MAGIC_NUMBERS.includes(newN);
