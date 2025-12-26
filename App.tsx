@@ -61,7 +61,24 @@ const getInitialState = (): GameState => ({
     consecutiveProtons: 0,
     consecutiveNeutrons: 0,
     consecutiveElectrons: 0,
-    lastConsumedType: null
+    lastConsumedType: null,
+    decayStats: {
+        [DecayMode.ALPHA]: 0,
+        [DecayMode.BETA_MINUS]: 0,
+        [DecayMode.BETA_PLUS]: 0,
+        [DecayMode.ELECTRON_CAPTURE]: 0,
+        [DecayMode.SPONTANEOUS_FISSION]: 0,
+        [DecayMode.NEUTRON_EMISSION]: 0,
+        [DecayMode.PROTON_EMISSION]: 0,
+        [DecayMode.GAMMA]: 0,
+    },
+    reactionStats: {
+        "(n,γ)": 0,
+        "(n,p)": 0,
+        "(n,2n)": 0,
+        "(n,α)": 0,
+        "(n,fission)": 0,
+    }
 });
 
 function App() {
@@ -310,8 +327,15 @@ function App() {
             nextState.energyPoints = 0;
           }
 
-          if (result.inducedDecayMode) {
+          if (result.inducedDecayMode && result.inducedReactionLabel) {
               setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
+              
+              // Increment REACTION stat for induced decay
+              nextState.reactionStats = {
+                  ...nextState.reactionStats,
+                  [result.inducedReactionLabel]: (nextState.reactionStats[result.inducedReactionLabel] || 0) + 1
+              };
+
               if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
               if (result.shouldFlash) {
                   // Neutron-induced reactions use neon-blue
@@ -377,7 +401,7 @@ function App() {
                     }
 
                     if (inversionMatched) {
-                        const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore);
+                        const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, nextState.decayStats[DecayMode.BETA_PLUS]);
                         nextState.score += unlockResult.scoreBonus;
                         nextState.unlockedGroups = unlockResult.updatedGroups;
                         nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-5);
@@ -472,7 +496,12 @@ function App() {
       }
 
       // Skill Toggles check
-      const annihilationEnabled = !gameState.disabledSkills.includes("Pair anihilation");
+      const isPairUnlocked = gameState.unlockedGroups.includes("Pair anihilation");
+      const isPairEnabled = !gameState.disabledSkills.includes("Pair anihilation");
+      // NEW ANNIHILATION RULES: 
+      // Beta Minus can ALWAYS annihilate. 
+      // Beta Plus needs skill UNLOCKED and ON.
+      const annihilationEnabled = actualMode === DecayMode.BETA_MINUS ? true : (isPairUnlocked && isPairEnabled);
       const fissionEnabled = !gameState.disabledSkills.includes("Fission");
 
       const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled, fissionEnabled);
@@ -512,7 +541,8 @@ function App() {
               }
           }
 
-          const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, decayResult.isAnnihilation, false, inversionMatched, nextComboScore);
+          const nextBetaPlusCount = prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0);
+          const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, decayResult.isAnnihilation, false, inversionMatched, nextComboScore, false, false, false, false, false, nextBetaPlusCount);
           const totalScoreIncrease = scoreIncrease + unlockResult.scoreBonus;
 
           let finalComboCount = rawCombo;
@@ -576,7 +606,11 @@ function App() {
               consecutiveProtons: 0,
               consecutiveNeutrons: 0,
               consecutiveElectrons: 0,
-              lastConsumedType: null
+              lastConsumedType: null,
+              decayStats: {
+                  ...prev.decayStats,
+                  [actualMode]: (prev.decayStats[actualMode] || 0) + 1
+              }
           };
 
           // Temporal Inversion Check for Decay Action
@@ -595,7 +629,7 @@ function App() {
 
           return nextStateCandidate;
       });
-  }, [gameState.disabledSkills, gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, triggerOverride]);
+  }, [gameState.disabledSkills, gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, triggerOverride, gameState.unlockedGroups]);
 
   const handlePlayerInteract = useCallback(() => {
     stopAutoMove();
@@ -750,7 +784,7 @@ function App() {
   return (
     <div ref={containerRef} tabIndex={0} className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${flashColor} mix-blend-screen transition-opacity duration-500 ${isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
-      {showTable && <PeriodicTable unlocked={gameState.unlockedElements} unlockedGroups={gameState.unlockedGroups} disabledSkills={gameState.disabledSkills} onToggleSkill={handleToggleHiddenSkill} maxCombo={gameState.maxCombo} onClose={() => setShowTable(false)} canTransmute={transmutationReady} onSelectElement={handleTransmute} />}
+      {showTable && <PeriodicTable unlocked={gameState.unlockedElements} unlockedGroups={gameState.unlockedGroups} decayStats={gameState.decayStats} reactionStats={gameState.reactionStats} disabledSkills={gameState.disabledSkills} onToggleSkill={handleToggleHiddenSkill} maxCombo={gameState.maxCombo} onClose={() => setShowTable(false)} canTransmute={transmutationReady} onSelectElement={handleTransmute} />}
       {!showTable && (
         <div className="md:hidden absolute top-3 right-3 z-50 flex items-center gap-2">
           <TrefoilIndicator level={gameState.playerLevel} />

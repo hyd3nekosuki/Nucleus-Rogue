@@ -1,6 +1,6 @@
 {
   "name": "Nucleus Rogue: Valley of Stability",
-  "version": "1.2.4",
+  "version": "1.2.4.1",
   "description": "A scientific roguelike odyssey through the Chart of Nuclides. Navigate a dynamic particle grid as a lone proton and transmute into heavier elements. Manage your core stability based on real-world IAEA data and harness radioactive decays as tactical weapons for survival. Advance your Mastery Level to uncover deep atomic phenomena and learn to manipulate the subatomic cosmos in your quest to reach Z=118 and the ultimate limits of the atomic world",
   "requestFramePermissions": []
 }

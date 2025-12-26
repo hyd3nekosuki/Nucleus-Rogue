@@ -1,5 +1,6 @@
 
 import { ELEMENT_GROUPS, MAGIC_NUMBERS } from '../constants';
+import { DecayMode } from '../types';
 
 export const processUnlocks = (
     currentUnlockedElements: number[], 
@@ -15,7 +16,8 @@ export const processUnlocks = (
     isFusionAchieved: boolean = false,
     isFissionAchieved: boolean = false,
     isZeroBarnAchieved: boolean = false,
-    isBremsAchieved: boolean = false
+    isBremsAchieved: boolean = false,
+    betaPlusCount: number = 0
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -38,10 +40,17 @@ export const processUnlocks = (
     }
 
     // 2. Special Hidden Title: Pair anihilation
-    if (isAnnihilation && !updatedGroups.includes("Pair anihilation")) {
-        updatedGroups = [...updatedGroups, "Pair anihilation"];
-        scoreBonus += 20000;
-        messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
+    // NEW CONDITION: 10+ Beta Plus decays OR successful Beta Minus annihilation
+    if (!updatedGroups.includes("Pair anihilation")) {
+        if (isAnnihilation) {
+            updatedGroups = [...updatedGroups, "Pair anihilation"];
+            scoreBonus += 20000;
+            messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
+        } else if (betaPlusCount >= 10) {
+            updatedGroups = [...updatedGroups, "Pair anihilation"];
+            scoreBonus += 20000;
+            messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (Mastered β+ Emission) (+20,000 PTS)`);
+        }
     }
 
     // 3. Special Hidden Title: Exp. Replicate

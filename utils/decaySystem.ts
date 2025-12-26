@@ -1,3 +1,4 @@
+
 import { GameState, DecayMode, EntityType, GridEntity, VisualEffect, Position } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants';
 
@@ -137,7 +138,8 @@ export const calculateDecayEffects = (
                     actionBonusScore += 1000;
                     extraMessages.push("⚡ p + e- → n ? (+1000 PTS)");
                 }
-            } else if (neighborPositrons.length > 0 && annihilationEnabled) {
+            } else if (neighborPositrons.length > 0) {
+                // ANNIHILATION via BETA_MINUS is initially/always possible (annihilationEnabled check not required for β-)
                 const target = neighborPositrons[Math.floor(Math.random() * neighborPositrons.length)];
                 currentEntities = currentEntities.filter(e => e.id !== target.id);
                 const dx = target.position.x - gameState.playerPos.x;
@@ -177,6 +179,7 @@ export const calculateDecayEffects = (
                 const dy = Math.abs(e.position.y - gameState.playerPos.y);
                 return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
             });
+            // ANNIHILATION via BETA_PLUS is only possible if skill is unlocked/enabled
             if (nearbyElectrons.length > 0 && annihilationEnabled) {
                 const target = nearbyElectrons[Math.floor(Math.random() * nearbyElectrons.length)];
                 currentEntities = currentEntities.filter(e => e.id !== target.id);

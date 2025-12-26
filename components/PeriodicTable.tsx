@@ -1,10 +1,13 @@
 
 import React from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
+import { DecayMode } from '../types';
 
 interface Props {
     unlocked: number[];
     unlockedGroups: string[];
+    decayStats: Record<string, number>;
+    reactionStats: Record<string, number>;
     disabledSkills: string[];
     onToggleSkill: (skillName: string) => void;
     maxCombo: number;
@@ -16,6 +19,8 @@ interface Props {
 const PeriodicTable: React.FC<Props> = ({ 
     unlocked, 
     unlockedGroups, 
+    decayStats,
+    reactionStats,
     disabledSkills,
     onToggleSkill,
     maxCombo, 
@@ -132,6 +137,27 @@ const PeriodicTable: React.FC<Props> = ({
 
     const discoveredCount = unlocked.filter(z => z > 0).length;
 
+    // Simplified format for decay stats: α:0 β-:0 β+:0 EC:0 SF:0 n:0 p:0 γ:0
+    const statsStr = [
+        { l: 'α', v: decayStats[DecayMode.ALPHA] || 0 },
+        { l: 'β-', v: decayStats[DecayMode.BETA_MINUS] || 0 },
+        { l: 'β+', v: decayStats[DecayMode.BETA_PLUS] || 0 },
+        { l: 'EC', v: decayStats[DecayMode.ELECTRON_CAPTURE] || 0 },
+        { l: 'SF', v: decayStats[DecayMode.SPONTANEOUS_FISSION] || 0 },
+        { l: 'n', v: decayStats[DecayMode.NEUTRON_EMISSION] || 0 },
+        { l: 'p', v: decayStats[DecayMode.PROTON_EMISSION] || 0 },
+        { l: 'γ', v: decayStats[DecayMode.GAMMA] || 0 },
+    ].map(s => `${s.l}:${s.v}`).join(' ');
+
+    // Simplified format for reaction stats
+    const reactionStr = [
+        { l: '(n,γ)', v: reactionStats["(n,γ)"] || 0 },
+        { l: '(n,p)', v: reactionStats["(n,p)"] || 0 },
+        { l: '(n,2n)', v: reactionStats["(n,2n)"] || 0 },
+        { l: '(n,α)', v: reactionStats["(n,α)"] || 0 },
+        { l: '(n,f)', v: reactionStats["(n,fission)"] || 0 },
+    ].map(s => `${s.l}:${s.v}`).join(' ');
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fade-in">
             <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[95vw] w-full lg:w-[1200px] max-h-[95vh] overflow-y-auto flex flex-col shadow-2xl">
@@ -159,6 +185,10 @@ const PeriodicTable: React.FC<Props> = ({
                                 <span>Titles: <span className="text-yellow-400 font-bold">{unlockedGroups.length}</span></span>
                                 <span className="opacity-30">|</span>
                                 <span>Best Chain: <span className="text-neon-blue font-black">{maxCombo}</span></span>
+                                <span className="opacity-30">|</span>
+                                <span className="text-gray-500 font-mono">{statsStr}</span>
+                                <span className="opacity-30">|</span>
+                                <span className="text-neon-blue/70 font-mono">{reactionStr}</span>
                             </div>
                         )}
                     </div>

@@ -9,6 +9,7 @@ export interface MoveResult {
     moved: boolean;
     state: GameState;
     inducedDecayMode?: DecayMode;
+    inducedReactionLabel?: string;
     shouldShake?: boolean;
     shouldFlash?: boolean;
     additionalEffects?: VisualEffect[];
@@ -245,5 +246,5 @@ export const calculateMoveResult = (
     }
 
     if (Math.random() < 0.15) nextState.gridEntities = generateEntities(1, nextState.gridEntities, nextState.playerPos, nextState.turn);
-    return { moved: true, state: nextState, inducedDecayMode, shouldShake: chainDecayResult?.shouldShake || isCoulombScattered || isPpFusion || isPositronAbsorption, shouldFlash: chainDecayResult?.shouldFlash || isPpFusion || isPositronAbsorption, additionalEffects: chainDecayResult?.additionalEffects, isPpFusion, isPositronAbsorption };
+    return { moved: true, state: nextState, inducedDecayMode, inducedReactionLabel: chainReactionLabel, shouldShake: chainDecayResult?.shouldShake || isCoulombScattered || isPpFusion || isPositronAbsorption, shouldFlash: chainDecayResult?.shouldFlash || isPpFusion || isPositronAbsorption, additionalEffects: chainDecayResult?.additionalEffects, isPpFusion, isPositronAbsorption };
 };

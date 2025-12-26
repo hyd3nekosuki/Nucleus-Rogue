@@ -102,4 +102,6 @@ export interface GameState {
   consecutiveNeutrons: number; // Hidden: Consecutive neutrons eaten
   consecutiveElectrons: number; // Hidden: Consecutive electrons eaten
   lastConsumedType: EntityType | null; // Hidden: Tracker for streak
+  decayStats: Record<string, number>; // Total counts of α, β-, β+, EC, SF, n, p, γ
+  reactionStats: Record<string, number>; // Counts of (n,γ), (n,p), (n,2n), (n,α), (n,fission)
 }
