@@ -115,14 +115,16 @@ const PeriodicTable: React.FC<Props> = ({
     // Filtered legend items containing only functional hidden skills
     const displayLegendItems: any[] = [];
 
-    // Special hidden titles / skills - Ordered: Bremsstrahlung, zero barn, Fusion
+    // Special hidden titles / skills - Updated Order: 
+    // 1. Neutron star, 2. Pair anihilation, 3. Fission, 4. Fusion, 5. zero barn, 
+    // 6. Bremsstrahlung, 7. Exp. Replicate, 8. Nucleosynthesis, 9. Temporal Inversion, 10. Tetraneutron
     const hiddenSkills = [
-        { name: "Bremsstrahlung", class: "bg-yellow-600/20 border-yellow-400 text-yellow-300 font-bold shadow-[0_0_10px_#facc15]" },
-        { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
-        { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
+        { name: "Neutron star", class: "bg-white/10 border-gray-300 text-white font-bold shadow-[0_0_10px_white]" },
         { name: "Pair anihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
-        { name: "Coulomb barrier", class: "bg-red-900/20 border-neon-red text-neon-red font-bold shadow-[0_0_10px_#ff0055]" },
         { name: "Fission", class: "bg-red-600/20 border-red-500 text-red-400 font-bold shadow-[0_0_10px_#ef4444]" },
+        { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
+        { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
+        { name: "Bremsstrahlung", class: "bg-yellow-600/20 border-yellow-400 text-yellow-300 font-bold shadow-[0_0_10px_#facc15]" },
         { name: "Exp. Replicate", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
         { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
         { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
@@ -200,20 +202,24 @@ const PeriodicTable: React.FC<Props> = ({
                 {displayLegendItems.length > 0 && (
                   <div className="mt-2 border-t border-gray-800/50 pt-4">
                     <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Skills</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider shrink-0">
                         {displayLegendItems.map(item => {
                             const isDisabled = disabledSkills.includes(item.name);
                             
-                            // Icon mapping
+                            // Icon mapping - Updated icons
                             let icon = "👑";
-                            if (item.name === "Tetraneutron") icon = "🌟";
-                            if (item.name === "Temporal Inversion") icon = "⏱";
-                            if (item.name === "zero barn") icon = "🌑";
-                            if (item.name === "Bremsstrahlung") icon = "☢️";
+                            if (item.name === "Neutron star") icon = "⚪";
+                            else if (item.name === "Pair anihilation") icon = "☯";
+                            else if (item.name === "Fission") icon = "☢️";
+                            else if (item.name === "Fusion") icon = "💥";
+                            else if (item.name === "zero barn") icon = "🌑";
+                            else if (item.name === "Bremsstrahlung") icon = "⤵️";
+                            else if (item.name === "Exp. Replicate") icon = "⚛️";
+                            else if (item.name === "Nucleosynthesis") icon = "🌟";
+                            else if (item.name === "Temporal Inversion") icon = "⏱";
+                            else if (item.name === "Tetraneutron") icon = "🌌";
 
-                            const tooltipText = item.name === "Coulomb barrier" 
-                                ? "Active: Deflects protons when Z is a magic number (Prevents transmutation)."
-                                : item.name === "Fusion" 
+                            const tooltipText = item.name === "Fusion" 
                                 ? "Active: Allows proton capture. Disabled: Prevents Z increase from protons."
                                 : item.name === "Fission"
                                 ? "Active: Gain massive points and energy when neutron-induced fission occurs. Disabled: Replaces fission with alpha decay (Restriction mode)."
@@ -223,6 +229,10 @@ const PeriodicTable: React.FC<Props> = ({
                                 ? "Active: Allows manually selecting an element when magic conditions are met. Disabled: Prevents manual transmutation."
                                 : item.name === "Bremsstrahlung"
                                 ? "Active: Prevents electron capture (Z reduction). Rejects electrons on the grid."
+                                : item.name === "Neutron star"
+                                ? "Active: Allows converting adjacent protons to neutrons during Beta Minus decay. Disabled: Beta Minus decay has no conversion effect."
+                                : item.name === "Pair anihilation"
+                                ? "Active: Beta Plus decay can annihilate adjacent electrons to emit gamma rays."
                                 : "";
 
                             return (

@@ -17,7 +17,8 @@ export const processUnlocks = (
     isFissionAchieved: boolean = false,
     isZeroBarnAchieved: boolean = false,
     isBremsAchieved: boolean = false,
-    betaPlusCount: number = 0
+    betaPlusCount: number = 0,
+    betaMinusCount: number = 0
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -40,24 +41,30 @@ export const processUnlocks = (
     }
 
     // 2. Special Hidden Title: Pair anihilation
-    // NEW CONDITION: 10+ Beta Plus decays OR successful Beta Minus annihilation
     if (!updatedGroups.includes("Pair anihilation")) {
         if (isAnnihilation) {
             updatedGroups = [...updatedGroups, "Pair anihilation"];
             scoreBonus += 20000;
-            messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
+            messages.push(` ☯️ HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
         } else if (betaPlusCount >= 10) {
             updatedGroups = [...updatedGroups, "Pair anihilation"];
             scoreBonus += 20000;
-            messages.push(` 👑 HIDDEN TITLE: Pair anihilation! (Mastered β+ Emission) (+20,000 PTS)`);
+            messages.push(` ☯️ HIDDEN TITLE: Pair anihilation! (Mastered β+ Emission) (+20,000 PTS)`);
         }
+    }
+
+    // NEW: Special Hidden Title: Neutron star
+    if (!updatedGroups.includes("Neutron star") && betaMinusCount >= 20) {
+        updatedGroups = [...updatedGroups, "Neutron star"];
+        scoreBonus += 50000;
+        messages.push(` ⚪ HIDDEN TITLE: Neutron star! (Mastered p + e- → n  reaction) (+50,000 PTS)`);
     }
 
     // 3. Special Hidden Title: Exp. Replicate
     if (isTransmutation && !updatedGroups.includes("Exp. Replicate")) {
         updatedGroups = [...updatedGroups, "Exp. Replicate"];
         scoreBonus += 30000;
-        messages.push(` 👑 HIDDEN TITLE: Exp. Replicate! (+30,000 PTS)`);
+        messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+30,000 PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
@@ -71,7 +78,7 @@ export const processUnlocks = (
     if (newZ === 0 && newA === 4 && !updatedGroups.includes("Tetraneutron")) {
         updatedGroups = [...updatedGroups, "Tetraneutron"];
         scoreBonus += 400000;
-        messages.push(` 🌟 HIDDEN TITLE: Tetraneutron! The Void State. (+400,000 PTS)`);
+        messages.push(` 🌌 HIDDEN TITLE: Tetraneutron! The Void State. (+400,000 PTS)`);
     }
 
     // 6. Special Hidden Title: Temporal Inversion
@@ -79,25 +86,20 @@ export const processUnlocks = (
         const inversionBonus = comboScore * 10;
         if (!updatedGroups.includes("Temporal Inversion")) {
             updatedGroups = [...updatedGroups, "Temporal Inversion"];
-            messages.push(` ✨ HIDDEN TITLE: Temporal Inversion. (+${inversionBonus.toLocaleString()} PTS 10x Bonus!)`);
+            messages.push(` ⏱ HIDDEN TITLE: Temporal Inversion. (+${inversionBonus.toLocaleString()} PTS 10x Bonus!)`);
         } else {
-            messages.push(` ✨ TEMPORAL INVERSION: 10x Combo Score! (+${inversionBonus.toLocaleString()} PTS)`);
+            messages.push(` ⏱ TEMPORAL INVERSION: 10x Combo Score! (+${inversionBonus.toLocaleString()} PTS)`);
         }
         scoreBonus += inversionBonus;
     }
 
-    // 7. Special Hidden Title: Coulomb barrier
-    if (isCoulombScattered && !updatedGroups.includes("Coulomb barrier")) {
-        updatedGroups = [...updatedGroups, "Coulomb barrier"];
-        scoreBonus += 10000;
-        messages.push(` 👑 HIDDEN TITLE: Coulomb barrier! (+10,000 PTS)`);
-    }
+    // 7. Coulomb barrier title removed as requested.
 
     // 8. Special Hidden Title: Fusion
     if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
         updatedGroups = [...updatedGroups, "Fusion"];
-        scoreBonus += 42000;
-        messages.push(` 👑 HIDDEN TITLE: Fusion! (+42,000 PTS)`);
+        scoreBonus += 420000;
+        messages.push(` 💥 HIDDEN TITLE: Fusion! (+420,000 PTS)`);
     }
 
     // 9. Special Hidden Title: Fission
@@ -118,7 +120,7 @@ export const processUnlocks = (
     if (isBremsAchieved && !updatedGroups.includes("Bremsstrahlung")) {
         updatedGroups = [...updatedGroups, "Bremsstrahlung"];
         scoreBonus += 100000;
-        messages.push(` ☢️ HIDDEN TITLE: Bremsstrahlung! Continuous electron capture at HP ≤ 10! (+100,000 PTS)`);
+        messages.push(` ⤵️ HIDDEN TITLE: Bremsstrahlung! Continuous electron capture at HP ≤ 10! (+100,000 PTS)`);
     }
 
     // 12. Group Unlock Check

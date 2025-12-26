@@ -86,7 +86,8 @@ export const calculateDecayEffects = (
     gameState: GameState,
     currentTime: number,
     annihilationEnabled: boolean = true,
-    fissionEnabled: boolean = true
+    fissionEnabled: boolean = true,
+    neutronStarEnabled: boolean = false
 ): DecayResult => {
     let effectiveMode = mode;
     if (mode === DecayMode.SPONTANEOUS_FISSION && !fissionEnabled) {
@@ -117,29 +118,37 @@ export const calculateDecayEffects = (
         case DecayMode.BETA_MINUS: 
             trigger = "β- decay"; 
             shouldFlash = false;
-            const neighborProtons = currentEntities.filter(e => {
-                if (e.type !== EntityType.PROTON) return false;
-                const dx = Math.abs(e.position.x - gameState.playerPos.x);
-                const dy = Math.abs(e.position.y - gameState.playerPos.y);
-                return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
-            });
+            
+            // Check for Proton -> Neutron conversion (requires skill)
+            if (neutronStarEnabled) {
+                const neighborProtons = currentEntities.filter(e => {
+                    if (e.type !== EntityType.PROTON) return false;
+                    const dx = Math.abs(e.position.x - gameState.playerPos.x);
+                    const dy = Math.abs(e.position.y - gameState.playerPos.y);
+                    return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
+                });
+                
+                if (neighborProtons.length > 0) {
+                    const targetProton = neighborProtons[Math.floor(Math.random() * neighborProtons.length)];
+                    const targetIndex = currentEntities.findIndex(e => e.id === targetProton.id);
+                    if (targetIndex !== -1) {
+                        currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
+                        additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
+                        actionBonusScore += 1000;
+                        extraMessages.push("⚡ p + e- → n ? (+1000 PTS)");
+                    }
+                }
+            }
+
+            // Check for Positron Annihilation (always available for β-)
             const neighborPositrons = currentEntities.filter(e => {
                 if (e.type !== EntityType.ENEMY_POSITRON) return false;
                 const dx = Math.abs(e.position.x - gameState.playerPos.x);
                 const dy = Math.abs(e.position.y - gameState.playerPos.y);
                 return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
             });
-            if (neighborProtons.length > 0) {
-                const targetProton = neighborProtons[Math.floor(Math.random() * neighborProtons.length)];
-                const targetIndex = currentEntities.findIndex(e => e.id === targetProton.id);
-                if (targetIndex !== -1) {
-                    currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
-                    additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
-                    actionBonusScore += 1000;
-                    extraMessages.push("⚡ p + e- → n ? (+1000 PTS)");
-                }
-            } else if (neighborPositrons.length > 0) {
-                // ANNIHILATION via BETA_MINUS is initially/always possible (annihilationEnabled check not required for β-)
+            
+            if (neighborPositrons.length > 0) {
                 const target = neighborPositrons[Math.floor(Math.random() * neighborPositrons.length)];
                 currentEntities = currentEntities.filter(e => e.id !== target.id);
                 const dx = target.position.x - gameState.playerPos.x;

@@ -100,7 +100,6 @@ export const calculateMoveResult = (
 
         if (entity.type === EntityType.PROTON) { 
             const isFusionDisabled = prev.disabledSkills.includes("Fusion");
-            const coulombBarrierActive = prev.unlockedGroups.includes("Coulomb barrier") && !prev.disabledSkills.includes("Coulomb barrier");
             if (isFusionDisabled) {
                 dZ = 0; dA = 0;
                 scatteredMessage = "Proton was blocked by Coulomb barrier";
@@ -110,10 +109,7 @@ export const calculateMoveResult = (
                     dZ = 0; dA = 1; 
                     nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
                 }
-                else if (isMagic && coulombBarrierActive) {
-                    isCoulombScattered = true;
-                    scatteredMessage = "Proton was deflected by Coulomb barrier (Magic Shell Protection)";
-                }
+                // Deflection logic tied to "Coulomb barrier" skill removed.
                 else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
                     dZ = 1; dA = 1; 
                     if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
@@ -204,12 +200,12 @@ export const calculateMoveResult = (
         if (newData.exists) {
             const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
             const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered && !prev.disabledSkills.includes("Coulomb barrier"), isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved);
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered, isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
-            const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+42,000 PTS)"] : [];
+            const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+420,000 PTS)"] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
             const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-5);
-            nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 42000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
+            nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 420000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
             if (nextState.hp <= 0) { 
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
                     // Handled in App.tsx moveStep but we check here to prevent game over in logic if possible

@@ -279,16 +279,19 @@ function App() {
                     method: "Nucleosynthesis"
                 }]);
                 
+                // NEW FORMULA: (targetZ) * 10,000 pts
+                const synthBonus = nextZ * 10000;
+
                 return {
                     ...prev,
                     currentNuclide: newData,
                     hp: prev.maxHp,
                     energyPoints: prev.energyPoints - NUCLEOSYNTHESIS_COST,
-                    score: prev.score + 10000000 + unlockResult.scoreBonus,
+                    score: prev.score + synthBonus + unlockResult.scoreBonus,
                     effects: [...prev.effects, zapEffect],
                     unlockedElements: unlockResult.updatedElements,
                     unlockedGroups: unlockResult.updatedGroups,
-                    messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+10M Score)`, ...unlockResult.messages].slice(-5),
+                    messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...unlockResult.messages].slice(-5),
                     isTimeStopped: false,
                     consecutiveProtons: 0,
                     consecutiveNeutrons: 0,
@@ -401,7 +404,7 @@ function App() {
                     }
 
                     if (inversionMatched) {
-                        const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, nextState.decayStats[DecayMode.BETA_PLUS]);
+                        const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, nextState.decayStats[DecayMode.BETA_PLUS], nextState.decayStats[DecayMode.BETA_MINUS]);
                         nextState.score += unlockResult.scoreBonus;
                         nextState.unlockedGroups = unlockResult.updatedGroups;
                         nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-5);
@@ -498,13 +501,17 @@ function App() {
       // Skill Toggles check
       const isPairUnlocked = gameState.unlockedGroups.includes("Pair anihilation");
       const isPairEnabled = !gameState.disabledSkills.includes("Pair anihilation");
+      
+      const isNeutronStarUnlocked = gameState.unlockedGroups.includes("Neutron star");
+      const isNeutronStarEnabled = !gameState.disabledSkills.includes("Neutron star");
+
       // NEW ANNIHILATION RULES: 
       // Beta Minus can ALWAYS annihilate. 
       // Beta Plus needs skill UNLOCKED and ON.
       const annihilationEnabled = actualMode === DecayMode.BETA_MINUS ? true : (isPairUnlocked && isPairEnabled);
       const fissionEnabled = !gameState.disabledSkills.includes("Fission");
 
-      const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled, fissionEnabled);
+      const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled, fissionEnabled, isNeutronStarUnlocked && isNeutronStarEnabled);
       if (decayResult.dZ === 0 && decayResult.dA === 0 && decayResult.trigger === "") return; 
       
       // Map SPONTANEOUS_FISSION visuals to ALPHA if fission skill is disabled
@@ -542,7 +549,8 @@ function App() {
           }
 
           const nextBetaPlusCount = prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0);
-          const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, decayResult.isAnnihilation, false, inversionMatched, nextComboScore, false, false, false, false, false, nextBetaPlusCount);
+          const nextBetaMinusCount = prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0);
+          const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, decayResult.isAnnihilation, false, inversionMatched, nextComboScore, false, false, false, false, false, nextBetaPlusCount, nextBetaMinusCount);
           const totalScoreIncrease = scoreIncrease + unlockResult.scoreBonus;
 
           let finalComboCount = rawCombo;
@@ -671,7 +679,7 @@ function App() {
           setLastDecayEvent(null);
           // FIX: Use newData.z and newData.a to ensure correct positioning in EvolutionMap at the current center
           // Keeping method name "Transmutation" for evolution history as requested
-          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
+          setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: gameState.currentNuclide.z, a: gameState.currentNuclide.a, method: "Transmutation" }]);
           setGameState(prev => ({
               ...prev,
               currentNuclide: newData,
