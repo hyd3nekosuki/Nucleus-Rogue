@@ -167,7 +167,7 @@ export const calculateMoveResult = (
             const bremsActive = prev.unlockedGroups.includes("Bremsstrahlung") && !prev.disabledSkills.includes("Bremsstrahlung");
             if (bremsActive) {
                 dZ = 0; dA = 0;
-                scatteredMessage = "Electron emission (Bremsstrahlung) prevents capture";
+                scatteredMessage = "Bremsstrahlung prevents electron capture";
             } else {
                 // BREMSSTRAHLUNG CONDITION: HP <= 10 AND consecutive electron capture count >= 5
                 if (prev.hp <= 10 && cE >= 5) {

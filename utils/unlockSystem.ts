@@ -32,10 +32,10 @@ export const processUnlocks = (
         let trophyBonus = 0;
         if (newZ === 0) {
             trophyBonus = 100000;
-            messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus} PTS)`);
+            messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus.toLocaleString()} PTS)`);
         } else {
             trophyBonus = newZ * 1000;
-            messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus} PTS)`);
+            messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus.toLocaleString()} PTS)`);
         }
         scoreBonus += trophyBonus;
     }
@@ -57,7 +57,7 @@ export const processUnlocks = (
     if (!updatedGroups.includes("Neutron star") && betaMinusCount >= 20) {
         updatedGroups = [...updatedGroups, "Neutron star"];
         scoreBonus += 50000;
-        messages.push(` ⚪ HIDDEN TITLE: Neutron star! (Mastered p + e- → n  reaction) (+50,000 PTS)`);
+        messages.push(` ⚪ HIDDEN TITLE: Neutron star! (Mastered p + e- → n reaction) (+50,000 PTS)`);
     }
 
     // 3. Special Hidden Title: Exp. Replicate
@@ -141,7 +141,7 @@ export const processUnlocks = (
     const isMagicN = MAGIC_NUMBERS.includes(newN);
 
     if (isMagicZ && isMagicN) {
-        scoreBonus += 50000;
+        scoreBonus += 5000;
         messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+50,000 PTS)`);
     } else {
         if (isMagicZ) {

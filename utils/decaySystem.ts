@@ -135,7 +135,7 @@ export const calculateDecayEffects = (
                         currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
                         additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
                         actionBonusScore += 1000;
-                        extraMessages.push("⚡ p + e- → n ? (+1000 PTS)");
+                        extraMessages.push("⚡ p + e- → n (+1000 PTS)");
                     }
                 }
             }
