@@ -11,9 +11,11 @@ interface GameOverOverlayProps {
 
 const formatPreciseHalfLife = (seconds: number): string => {
     if (seconds === Infinity) return "Stable";
-    if (seconds === 0) return "Very Short (< 1ns)";
+    
+    // Handle 'V' flag (mapped to 1e-9) or extremely short/unmeasured measurements
+    if (seconds <= 1e-9) return "< 1 ns";
 
-    // Use scientific notation for very fast decays
+    // Use scientific notation for very fast decays (less than 1ms but greater than 1ns)
     if (seconds < 1e-3) {
         return `${seconds.toExponential(3)} s`;
     }

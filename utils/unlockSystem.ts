@@ -53,11 +53,11 @@ export const processUnlocks = (
         }
     }
 
-    // NEW: Special Hidden Title: Neutron star
-    if (!updatedGroups.includes("Neutron star") && betaMinusCount >= 20) {
-        updatedGroups = [...updatedGroups, "Neutron star"];
+    // NEW: Special Hidden Title: Neutronization (formerly Neutron star)
+    if (!updatedGroups.includes("Neutronization") && betaMinusCount >= 20) {
+        updatedGroups = [...updatedGroups, "Neutronization"];
         scoreBonus += 50000;
-        messages.push(` ⚪ HIDDEN TITLE: Neutron star! (Mastered p + e- → n reaction) (+50,000 PTS)`);
+        messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+50,000 PTS)`);
     }
 
     // 3. Special Hidden Title: Exp. Replicate
@@ -116,11 +116,11 @@ export const processUnlocks = (
         messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+500,000 PTS)`);
     }
 
-    // 11. Special Hidden Title: Bremsstrahlung
-    if (isBremsAchieved && !updatedGroups.includes("Bremsstrahlung")) {
-        updatedGroups = [...updatedGroups, "Bremsstrahlung"];
+    // 11. Special Hidden Title: Electron scattering (formerly Bremsstrahlung)
+    if (isBremsAchieved && !updatedGroups.includes("Electron scattering")) {
+        updatedGroups = [...updatedGroups, "Electron scattering"];
         scoreBonus += 100000;
-        messages.push(` ⤵️ HIDDEN TITLE: Bremsstrahlung! Continuous electron capture at HP ≤ 10! (+100,000 PTS)`);
+        messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+100,000 PTS)`);
     }
 
     // 12. Group Unlock Check

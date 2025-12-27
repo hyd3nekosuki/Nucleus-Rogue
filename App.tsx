@@ -502,8 +502,8 @@ function App() {
       const isPairUnlocked = gameState.unlockedGroups.includes("Pair anihilation");
       const isPairEnabled = !gameState.disabledSkills.includes("Pair anihilation");
       
-      const isNeutronStarUnlocked = gameState.unlockedGroups.includes("Neutron star");
-      const isNeutronStarEnabled = !gameState.disabledSkills.includes("Neutron star");
+      const isNeutronStarUnlocked = gameState.unlockedGroups.includes("Neutronization");
+      const isNeutronStarEnabled = !gameState.disabledSkills.includes("Neutronization");
 
       // NEW ANNIHILATION RULES: 
       // Beta Minus can ALWAYS annihilate. 
@@ -677,8 +677,6 @@ function App() {
       if (newData.exists) {
           const unlockResult = processUnlocks(gameState.unlockedElements, gameState.unlockedGroups, selectedZ, randomA, true);
           setLastDecayEvent(null);
-          // FIX: Use newData.z and newData.a to ensure correct positioning in EvolutionMap at the current center
-          // Keeping method name "Transmutation" for evolution history as requested
           setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: gameState.currentNuclide.z, a: gameState.currentNuclide.a, method: "Transmutation" }]);
           setGameState(prev => ({
               ...prev,

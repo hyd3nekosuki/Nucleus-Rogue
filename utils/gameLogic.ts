@@ -109,7 +109,6 @@ export const calculateMoveResult = (
                     dZ = 0; dA = 1; 
                     nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
                 }
-                // Deflection logic tied to "Coulomb barrier" skill removed.
                 else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
                     dZ = 1; dA = 1; 
                     if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
@@ -164,12 +163,11 @@ export const calculateMoveResult = (
                 }
             }
         } else if (entity.type === EntityType.ENEMY_ELECTRON) { 
-            const bremsActive = prev.unlockedGroups.includes("Bremsstrahlung") && !prev.disabledSkills.includes("Bremsstrahlung");
-            if (bremsActive) {
+            const scatteringActive = prev.unlockedGroups.includes("Electron scattering") && !prev.disabledSkills.includes("Electron scattering");
+            if (scatteringActive) {
                 dZ = 0; dA = 0;
-                scatteredMessage = "Bremsstrahlung prevents electron capture";
+                scatteredMessage = "Electron scattering prevents capture";
             } else {
-                // BREMSSTRAHLUNG CONDITION: HP <= 10 AND consecutive electron capture count >= 5
                 if (prev.hp <= 10 && cE >= 5) {
                     isBremsAchieved = true;
                 }
@@ -208,14 +206,12 @@ export const calculateMoveResult = (
             nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 420000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
             if (nextState.hp <= 0) { 
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                    // Handled in App.tsx moveStep but we check here to prevent game over in logic if possible
                 } else {
                     nextState.gameOver = true; nextState.gameOverReason = "TRANSFORMATION_SHOCK"; nextState.combo = 0; 
                 }
             }
             if (newData.isStable && (dZ !== 0 || dA !== 0 || isPpFusion || isPositronAbsorption)) nextState.combo = 0;
         } else {
-            // BREMSSTRAHLUNG: Allow unlock even if transmutation fails (e.g. Z=-1)
             if (isBremsAchieved) {
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
                 nextState.unlockedGroups = unlockResult.updatedGroups;
@@ -225,7 +221,6 @@ export const calculateMoveResult = (
             nextState.hp = Math.max(0, prev.hp - hpPenalty);
             if (nextState.hp <= 0 && hpPenalty > 0) { 
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                   // Survival by Temporal Inversion
                 } else {
                     nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; 
                 }
