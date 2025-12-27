@@ -31,19 +31,19 @@ const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
 };
 
 /**
- * Returns a human-readable label for a DecayMode.
+ * Returns a human-readable scientific symbol for a DecayMode.
  */
 export const getDecayModeLabel = (mode: DecayMode): string => {
     switch (mode) {
         case DecayMode.STABLE: return "Stable";
-        case DecayMode.ALPHA: return "Alpha";
-        case DecayMode.BETA_MINUS: return "Beta minus";
-        case DecayMode.BETA_PLUS: return "Beta plus";
-        case DecayMode.ELECTRON_CAPTURE: return "Electron capture";
-        case DecayMode.SPONTANEOUS_FISSION: return "Spontaneous fission";
-        case DecayMode.PROTON_EMISSION: return "Proton emission";
-        case DecayMode.NEUTRON_EMISSION: return "Neutron emission";
-        case DecayMode.GAMMA: return "Gamma";
+        case DecayMode.ALPHA: return "α";
+        case DecayMode.BETA_MINUS: return "β-";
+        case DecayMode.BETA_PLUS: return "β+";
+        case DecayMode.ELECTRON_CAPTURE: return "EC";
+        case DecayMode.SPONTANEOUS_FISSION: return "SF";
+        case DecayMode.PROTON_EMISSION: return "p";
+        case DecayMode.NEUTRON_EMISSION: return "n";
+        case DecayMode.GAMMA: return "γ";
         default: return "Unknown";
     }
 };

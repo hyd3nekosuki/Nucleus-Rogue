@@ -202,7 +202,7 @@ export const calculateMoveResult = (
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+420,000 PTS)"] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
-            const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-5);
+            const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);
             nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 420000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
             if (nextState.hp <= 0) { 
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
@@ -216,7 +216,7 @@ export const calculateMoveResult = (
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
                 nextState.unlockedGroups = unlockResult.updatedGroups;
                 nextState.score += unlockResult.scoreBonus;
-                nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-5);
+                nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
             }
             nextState.hp = Math.max(0, prev.hp - hpPenalty);
             if (nextState.hp <= 0 && hpPenalty > 0) { 
@@ -231,9 +231,9 @@ export const calculateMoveResult = (
         const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
         if (isZeroBarnAchieved) {
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
-            nextState = { ...nextState, unlockedGroups: unlockResult.updatedGroups, messages: [...prev.messages, ...unlockResult.messages].slice(-5), score: nextState.score + unlockResult.scoreBonus };
+            nextState = { ...nextState, unlockedGroups: unlockResult.updatedGroups, messages: [...prev.messages, ...unlockResult.messages].slice(-10), score: nextState.score + unlockResult.scoreBonus };
         }
-        if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-5);
+        if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-10);
     }
 
     if (Math.random() < 0.15) nextState.gridEntities = generateEntities(1, nextState.gridEntities, nextState.playerPos, nextState.turn);

@@ -20,6 +20,7 @@ const NUCLEOSYNTHESIS_COST = 200;
 function App() {
   const [showTable, setShowTable] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
 
   // Core Hooks
@@ -33,6 +34,13 @@ function App() {
   useEffect(() => {
     if (containerRef.current) containerRef.current.focus();
   }, []);
+
+  // Auto-scroll messages: Newest is at top, so scroll to top
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [gameState.messages]);
 
   // Keyboard controls
   useEffect(() => {
@@ -61,6 +69,9 @@ function App() {
     setShowTable(false);
   };
 
+  const energyCost = isNucleosynthesisReady ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
+  const energyPointsAvailable = gameState.energyPoints >= energyCost;
+
   return (
     <div ref={containerRef} tabIndex={0} className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${flashColor} mix-blend-screen transition-opacity duration-500 ${isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -80,44 +91,12 @@ function App() {
         />
       )}
 
-      {!showTable && (
-        <div className="md:hidden absolute top-3 right-3 z-50 flex items-center gap-2">
-          <TrefoilIndicator level={gameState.playerLevel} />
-          {gameState.playerLevel >= 2 && (
-            <button onClick={engine.handleStabilize} disabled={gameState.energyPoints < STABILIZE_COST} className={`bg-gray-900/90 border border-yellow-400/50 px-3 py-2 rounded-lg flex items-center gap-2 backdrop-blur-md shadow-lg transition-all ${gameState.energyPoints >= STABILIZE_COST ? 'opacity-100' : 'opacity-40 grayscale'} ${isNucleosynthesisReady ? 'text-white bg-blue-600/50 ring-2 ring-neon-blue animate-pulse' : 'text-yellow-400'}`}>
-                <span className="text-lg">{isNucleosynthesisReady ? '🌟' : '🔬'}</span>
-            </button>
-          )}
-          <button onClick={() => setShowTable(true)} className={`bg-gray-900/90 text-neon-purple border border-neon-purple/50 px-3 py-2 rounded-lg flex items-center gap-2 backdrop-blur-md shadow-lg transition-all ${transmutationReady ? 'animate-pulse ring-2 ring-yellow-400 !text-yellow-400' : ''}`}>
-            <span className="text-lg">{transmutationReady ? '🔮' : '🏆'}</span>
-          </button>
-        </div>
-      )}
-
       {/* Side Panel */}
       <div className="order-2 md:order-1 w-full md:w-80 lg:w-96 bg-panel-bg border-r border-gray-800 flex flex-col h-auto md:h-screen overflow-y-auto z-20">
           <div className="hidden md:flex pt-2 pb-1.5 px-6 items-center justify-center border-b border-gray-800 shrink-0">
              <h1 className="text-lg font-black text-neon-blue tracking-tighter italic drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">NUCLEUS<span className="text-white text-[9px] not-italic font-normal tracking-widest ml-1 opacity-70">ROGUE</span></h1>
           </div>
           
-          {!showTable && (
-            <div className="hidden md:flex p-1.5 border-b border-gray-800 shrink-0 justify-center gap-2 items-center bg-black/10">
-                 <TrefoilIndicator level={gameState.playerLevel} />
-                 {gameState.playerLevel >= 2 ? (
-                    <button onClick={engine.handleStabilize} disabled={gameState.energyPoints < STABILIZE_COST} className={`flex-1 py-1 rounded flex items-center justify-center gap-2 shadow-lg transition-all border ${isNucleosynthesisReady ? 'bg-blue-600/30 hover:bg-blue-500/50 text-white border-neon-blue ring-1 ring-neon-blue animate-pulse' : 'bg-gray-900/50 hover:bg-yellow-400/20 text-yellow-400 border-yellow-400/50'} ${gameState.energyPoints >= STABILIZE_COST ? 'opacity-100' : 'opacity-40 grayscale cursor-not-allowed'}`}>
-                        <span className="text-sm">{isNucleosynthesisReady ? '🌟' : '🔬'}</span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider">{isNucleosynthesisReady ? 'Synth' : 'Stabilize'}</span>
-                    </button>
-                 ) : (
-                    <div className="flex-1 py-1 rounded flex items-center justify-center gap-2 bg-gray-900/30 border border-gray-800 text-gray-700 cursor-not-allowed opacity-50"><span className="text-sm">🔒</span><span className="text-[9px] font-bold uppercase">Locked</span></div>
-                 )}
-                 <button onClick={() => setShowTable(true)} className={`flex-1 bg-gray-900/50 hover:bg-neon-purple/20 text-neon-purple border border-neon-purple/50 py-1 rounded flex items-center justify-center gap-2 shadow-lg transition-all ${transmutationReady ? 'animate-pulse ring-2 ring-yellow-400 !text-yellow-400 bg-yellow-400/10' : ''}`}>
-                    <span className="text-sm">{transmutationReady ? '🔮' : '🏆'}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider">Titles</span>
-                 </button>
-            </div>
-          )}
-
           <InfoPanel 
             nuclide={gameState.currentNuclide} 
             hp={gameState.hp} 
@@ -127,12 +106,21 @@ function App() {
             score={gameState.score} 
             onDecay={engine.handleDecayAction}
             disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped}
+            // Props for action dock
+            playerLevel={gameState.playerLevel}
+            isNucleosynthesisReady={isNucleosynthesisReady}
+            transmutationReady={transmutationReady}
+            energyPointsAvailable={energyPointsAvailable}
+            onStabilize={engine.handleStabilize}
+            onShowTable={() => setShowTable(true)}
+            onUltimateSynthesis={engine.handleUltimateSynthesis}
           />
           
           <ControlPanel 
             combo={gameState.combo} 
             isTimeStopped={gameState.isTimeStopped} 
             lastComboTime={gameState.lastComboTime} 
+            description={gameState.currentNuclide.description}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
@@ -144,12 +132,17 @@ function App() {
              {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={evolutionHistory} currentNuclide={gameState.currentNuclide} />}
           </div>
 
-          <div className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col-reverse min-h-[200px]">
-              {gameState.messages.map((msg, i) => (
-                  <div key={i} className={`mb-1 border-b border-gray-800 pb-1 last:border-0 opacity-80 ${msg.includes('✨') || msg.includes('☢️') || msg.includes('⚛️') || msg.includes('⏱') ? 'text-neon-blue font-bold animate-pulse' : ''}`}>
-                      <span className="text-neon-purple mr-2">[{gameState.turn - i > 0 ? gameState.turn - i : 0}]</span>{msg}
-                  </div>
-              ))}
+          {/* Message Log: Newest at top using .slice().reverse() */}
+          <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth">
+              {[...gameState.messages].reverse().map((msg, i) => {
+                  // msg[0] is newest, so turn is turn - i
+                  const msgTurn = gameState.turn - i;
+                  return (
+                    <div key={i} className={`mb-1 border-b border-gray-800 pb-1 last:border-0 opacity-80 ${msg.includes('✨') || msg.includes('☢️') || msg.includes('⚛️') || msg.includes('⏱') ? 'text-neon-blue font-bold animate-pulse' : ''}`}>
+                        <span className="text-neon-purple mr-2">[{msgTurn > 0 ? msgTurn : 0}]</span>{msg}
+                    </div>
+                  );
+              })}
           </div>
 
           <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
@@ -159,7 +152,7 @@ function App() {
       </div>
 
       {/* Main Game Area */}
-      <div className="order-1 md:order-2 flex-1 flex flex-col items-center justify-start md:justify-center p-4 relative pt-16 md:pt-0 z-10">
+      <div className="order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto">
          <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} />
          
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden">

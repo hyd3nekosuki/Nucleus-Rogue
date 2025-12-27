@@ -2,6 +2,7 @@
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { formatDecayModes } from '../services/nuclideService';
+import TrefoilIndicator from './TrefoilIndicator';
 
 interface InfoPanelProps {
   nuclide: NuclideData;
@@ -12,17 +13,30 @@ interface InfoPanelProps {
   energyPoints: number;
   onDecay?: (mode: DecayMode) => void;
   disabled?: boolean;
+  // New props for action dock
+  playerLevel: number;
+  isNucleosynthesisReady: boolean;
+  transmutationReady: boolean;
+  energyPointsAvailable: boolean;
+  onStabilize: () => void;
+  onShowTable: () => void;
+  onUltimateSynthesis: () => void;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ 
   nuclide, 
-  hp, 
-  maxHp, 
   turn, 
   score, 
   energyPoints,
   onDecay,
-  disabled = false
+  disabled = false,
+  playerLevel,
+  isNucleosynthesisReady,
+  transmutationReady,
+  energyPointsAvailable,
+  onStabilize,
+  onShowTable,
+  onUltimateSynthesis
 }) => {
 
   // Significant Figures Score Formatter (4 digits)
@@ -93,11 +107,8 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
           </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-          <div className="bg-black/40 p-2 rounded border border-gray-800">
-              <div className="text-gray-500 text-[10px] uppercase">Half-Life</div>
-              <div className="text-white truncate">{nuclide.halfLifeText}</div>
-          </div>
+      <div className="grid grid-cols-2 gap-4 text-sm mb-0">
+          {/* Decay Modes Button */}
           <button 
             onClick={handleDecayClick}
             disabled={nuclide.isStable || disabled}
@@ -114,12 +125,44 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
                   {formatDecayModes(nuclide)}
               </div>
           </button>
-      </div>
-      
-      <div className="text-xs text-gray-400 italic border-l-2 border-gray-700 pl-2">
-          "{nuclide.description}"
-      </div>
 
+          {/* Action Dock - Fixed Order: Left(Lv), Middle(🔬), Right(🏆) */}
+          <div className="bg-black/40 p-1 rounded border border-gray-800 flex items-center transition-all shadow-inner">
+             {/* ☢️ Radioactivity Lv Slot */}
+             <div className="flex-1 flex justify-center min-w-0">
+                <TrefoilIndicator level={playerLevel} onClick={onUltimateSynthesis} />
+             </div>
+             
+             {/* 🔬 Stabilize Slot */}
+             <div className="flex-1 flex justify-center min-w-0">
+                <button 
+                    onClick={onStabilize}
+                    disabled={!energyPointsAvailable || playerLevel < 2}
+                    className={`text-xl transition-all duration-300 hover:scale-125 active:scale-95 
+                        ${energyPointsAvailable ? 'opacity-100' : 'opacity-20 grayscale cursor-not-allowed'}
+                        ${isNucleosynthesisReady ? 'text-white drop-shadow-[0_0_10px_#00f3ff] animate-pulse' : 'text-yellow-400'}
+                        ${playerLevel < 2 ? 'invisible' : ''}
+                    `}
+                    title={isNucleosynthesisReady ? "Nucleosynthesis Ready" : "Stabilize Nucleus"}
+                >
+                    {isNucleosynthesisReady ? '🌟' : '🔬'}
+                </button>
+             </div>
+
+             {/* 🏆 Titles Slot */}
+             <div className="flex-1 flex justify-center min-w-0">
+                <button 
+                    onClick={onShowTable}
+                    className={`text-xl transition-all duration-300 hover:scale-125 active:scale-95
+                        ${transmutationReady ? 'text-yellow-400 drop-shadow-[0_0_10px_gold] animate-bounce' : 'text-neon-purple opacity-80'}
+                    `}
+                    title={transmutationReady ? "Transmutation Ready" : "Periodic Table / Titles"}
+                >
+                    {transmutationReady ? '🔮' : '🏆'}
+                </button>
+             </div>
+          </div>
+      </div>
     </div>
   );
 };

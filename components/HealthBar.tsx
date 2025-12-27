@@ -2,6 +2,7 @@
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { MAGIC_NUMBERS } from '../constants';
+import { formatDecayModes } from '../services/nuclideService';
 
 interface HealthBarProps {
     hp: number;
@@ -30,26 +31,10 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
     if (hpPercent < 20) hpColor = "bg-neon-red";
 
     const getDecayDisplay = () => {
-        if (nuclide.z === 0 && nuclide.a === 4) return `[${nuclide.halfLifeText}, Unknown]`;
+        const modes = formatDecayModes(nuclide);
+        
         if (nuclide.isStable) return `[${nuclide.halfLifeText}]`;
-        
-        const modes = nuclide.decayModes
-          .filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN)
-          .map(m => {
-              switch(m) {
-                  case DecayMode.ALPHA: return "α";
-                  case DecayMode.BETA_MINUS: return "β-";
-                  case DecayMode.BETA_PLUS: return "β+";
-                  case DecayMode.ELECTRON_CAPTURE: return "EC";
-                  case DecayMode.SPONTANEOUS_FISSION: return "SF";
-                  case DecayMode.PROTON_EMISSION: return "p";
-                  case DecayMode.NEUTRON_EMISSION: return "n";
-                  default: return "";
-              }
-          })
-          .join(", ");
-        
-        return modes ? `[${nuclide.halfLifeText}, ${modes}]` : `[${nuclide.halfLifeText}]`;
+        return `[${nuclide.halfLifeText}, ${modes}]`;
     };
 
     const getMagicLabel = () => {
@@ -65,7 +50,7 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
     return (
         <div 
             onClick={canUseTimeStop ? onToggleTimeStop : undefined}
-            className={`w-full max-w-[95vw] md:w-[450px] mb-3 relative z-30 mt-0 md:mt-0 p-1 rounded-lg transition-all 
+            className={`w-full max-w-[95vw] md:w-[450px] mb-1 relative z-30 p-1 rounded-lg transition-all 
                 ${isAnyMagic ? (isTimeStopped ? 'bg-neon-blue/20 ring-2 ring-neon-blue shadow-[0_0_20px_#00f3ff] cursor-pointer' : 
                    canUseTimeStop ? 'bg-gray-800/30 hover:bg-neon-blue/10 ring-1 ring-neon-blue/40 shadow-[0_0_10px_#00f3ff44] cursor-pointer animate-pulse' : 
                    'bg-gray-800/20 ring-1 ring-gray-700/40 cursor-default') : 'bg-transparent'}`}

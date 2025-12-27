@@ -5,9 +5,10 @@ interface ControlPanelProps {
   combo: number;
   isTimeStopped: boolean;
   lastComboTime: number;
+  description?: string;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const showCombo = combo > 0;
 
@@ -37,48 +38,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   }, [showCombo, gaugeValue, isTimeStopped]);
 
   return (
-    <div className="p-4 border-b border-gray-800 bg-black/20 min-h-[80px] flex flex-col justify-center">
-      <div className="flex justify-between items-center mb-2 px-1">
-          <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold">
-            {showCombo ? "Chain Reaction" : "System Status"}
-          </h3>
-          {showCombo && (
-            <span className="text-neon-blue font-black italic text-sm animate-pulse">
-               ACTIVE
-            </span>
-          )}
+    <div className={`border-b border-gray-800 bg-black/60 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono transition-colors duration-500`}>
+      
+      <div className="relative z-10 w-full h-full flex flex-col justify-start">
+        {showCombo ? (
+          /* CHAIN COMBO TERMINAL VIEW */
+          <div className="animate-fade-in w-full">
+               {/* CHAIN TEXT (TOP) - Same size as description */}
+               <div className="text-[#00ff41] text-[11px] md:text-xs font-bold leading-tight animate-pulse drop-shadow-[0_0_2px_#00ff41] mb-3">
+                  <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
+                  CHAIN x{combo} ACTIVE
+                  <span className="inline-block w-1.5 h-3 bg-[#00ff41] ml-1 align-middle animate-[pulse_0.6s_infinite]"></span>
+               </div>
+
+               {/* DEPLETION BAR (BOTTOM) */}
+               <div className="h-2 bg-black rounded-sm border border-[#00ff41]/30 overflow-hidden relative shadow-[inset_0_0_5px_rgba(0,0,0,1)]">
+                  <div 
+                      className="h-full bg-[#00ff41] transition-all duration-100 ease-linear shadow-[0_0_15px_#00ff41]"
+                      style={{ width: `${gaugeValue}%` }}
+                  >
+                      {/* Scanline pattern on the bar */}
+                      <div className="w-full h-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.1)_50%,transparent_100%)] animate-[spin_4s_linear_infinite]"></div>
+                  </div>
+               </div>
+          </div>
+        ) : (
+          /* DESCRIPTION TERMINAL VIEW */
+          <div className="text-[#00ff41] text-[11px] md:text-xs leading-tight animate-pulse drop-shadow-[0_0_2px_#00ff41] pt-0">
+             <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
+             {description || "Analyzing atomic structure..."}
+             {/* Retro cursor */}
+             <span className="inline-block w-1.5 h-3 bg-[#00ff41] ml-1 align-middle animate-[pulse_0.6s_infinite]"></span>
+          </div>
+        )}
       </div>
 
-      {showCombo ? (
-        <div className="relative">
-             <div className="flex justify-between items-end mb-1 px-1">
-                 <div className="text-neon-blue font-black italic text-xl tracking-tighter drop-shadow-[0_0_10px_rgba(0,243,255,0.6)]">
-                    CHAIN x{combo}
-                 </div>
-                 <div className="text-[10px] text-gray-400 font-mono">
-                    SYNC: {Math.ceil(gaugeValue)}%
-                 </div>
-             </div>
-             
-             {/* Progress Bar Container */}
-             <div className="h-3 bg-gray-900 rounded border border-neon-blue/30 overflow-hidden shadow-inner relative">
-                <div 
-                    className="absolute inset-0 bg-neon-blue/10 animate-pulse"
-                ></div>
-                <div 
-                    className="h-full bg-neon-blue transition-all duration-100 ease-linear shadow-[0_0_15px_#00f3ff]"
-                    style={{ width: `${gaugeValue}%` }}
-                >
-                    <div className="w-full h-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.4)_50%,transparent_100%)] animate-[spin_3s_linear_infinite]"></div>
-                </div>
-             </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center gap-3 py-2 border border-gray-800/50 rounded bg-black/40 opacity-60">
-             <div className="w-2 h-2 bg-neon-green rounded-full animate-pulse shadow-[0_0_8px_#00ff9d]"></div>
-             <span className="text-xs text-neon-green font-bold tracking-widest uppercase">System Ready</span>
-        </div>
-      )}
+      {/* CRT Scanline effect (Consistent across both views) */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(0,255,65,0.03),rgba(0,255,65,0.01),rgba(0,255,65,0.03))] bg-[length:100%_3px,2px_100%] opacity-40"></div>
+      
+      {/* Subtle green vignette */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,255,65,0.05)_100%)]"></div>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS } from '../constants';
@@ -35,6 +34,7 @@ const getInitialState = (): GameState => ({
     messages: ["Welcome to the Nucleus!", "Master radioactive decays to increase your Mastery Level."],
     gameOver: false,
     gameOverReason: undefined,
+    // Fix: removed invalid type annotation in object literal
     loadingData: false,
     unlockedElements: [], 
     unlockedGroups: [],
@@ -126,7 +126,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                         if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
                         return { 
                             ...prev, score: prev.score + unlockResult.scoreBonus, unlockedGroups: unlockResult.updatedGroups,
-                            messages: [...prev.messages, ...unlockResult.messages].slice(-5), combo: 0, comboScore: 0, comboStartNuclide: undefined 
+                            messages: [...prev.messages, ...unlockResult.messages].slice(-10), combo: 0, comboScore: 0, comboStartNuclide: undefined 
                         };
                     }
                     if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
@@ -157,7 +157,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                         if (prev.unlockedGroups.includes("Temporal Inversion") && !prev.disabledSkills.includes("Temporal Inversion") && prev.energyPoints >= 5) {
                             return {
                                 ...prev, hp: prev.maxHp, energyPoints: prev.energyPoints - 5,
-                                messages: [...prev.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-5),
+                                messages: [...prev.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10),
                                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...prev.playerPos }, timestamp: Date.now() }]
                             };
                         }
@@ -213,7 +213,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                       }
                       if (inversionMatched) {
                           const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, nextState.decayStats[DecayMode.BETA_PLUS], nextState.decayStats[DecayMode.BETA_MINUS]);
-                          nextState.score += unlockResult.scoreBonus; nextState.unlockedGroups = unlockResult.updatedGroups; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-5);
+                          nextState.score += unlockResult.scoreBonus; nextState.unlockedGroups = unlockResult.updatedGroups; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
                       }
                       if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
                       nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
@@ -221,7 +221,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             }
             if (nextState.hp <= 0 && !nextState.gameOver) {
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                    nextState.hp = nextState.maxHp; nextState.energyPoints -= 5; nextState.messages = [...nextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-5);
+                    nextState.hp = nextState.maxHp; nextState.energyPoints -= 5; nextState.messages = [...nextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
                     nextState.effects = [...nextState.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextState.playerPos }, timestamp: Date.now() }];
                 } else {
                     nextState.gameOver = true; nextState.gameOverReason = nextState.gameOverReason || "PARTICLE_COLLISION"; nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
@@ -236,34 +236,36 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         setGameState(prev => {
             const isSynth = prev.energyPoints >= NUCLEOSYNTHESIS_COST && prev.playerLevel >= 5 && !prev.disabledSkills.includes("Nucleosynthesis");
             const cost = isSynth ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
-            if (prev.energyPoints < cost) return { ...prev, messages: [...prev.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-5) };
+            if (prev.energyPoints < cost) return { ...prev, messages: [...prev.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
             const now = Date.now();
             const effectType = isSynth ? DecayMode.NUCLEOSYNTHESIS_ZAP : DecayMode.STABILIZE_ZAP;
             const zapEffect: VisualEffect = { id: Math.random().toString(36).substr(2, 9), type: effectType, position: { ...prev.playerPos }, timestamp: now };
             if (isSynth) {
                 const nextZ = prev.currentNuclide.z + 1;
-                if (nextZ > 118) return { ...prev, messages: [...prev.messages, "⚠️ Oganesson limit reached!"].slice(-5) };
+                if (nextZ > 118) return { ...prev, messages: [...prev.messages, "⚠️ Oganesson limit reached!"].slice(-10) };
                 const validAs = getValidAsForZ(nextZ);
-                if (validAs.length === 0) return { ...prev, messages: [...prev.messages, "⚠️ Synthesis failed: Unstable zone."].slice(-5) };
+                if (validAs.length === 0) return { ...prev, messages: [...prev.messages, "⚠️ Synthesis failed: Unstable zone."].slice(-10) };
                 const randomA = validAs[Math.floor(Math.random() * validAs.length)];
                 const newData = getNuclideDataSync(nextZ, randomA);
                 if (newData.exists) {
+                    const nextTurn = prev.turn + 1;
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
                     triggerTTS("Nucleosynthesis Complete");
                     setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-                    setEvolutionHistory(h => [...h, { turn: prev.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
+                    setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
                     const synthBonus = nextZ * 10000;
                     return {
                         ...prev, currentNuclide: newData, hp: prev.maxHp, energyPoints: prev.energyPoints - NUCLEOSYNTHESIS_COST,
+                        turn: nextTurn,
                         score: prev.score + synthBonus + unlockResult.scoreBonus, effects: [...prev.effects, zapEffect],
                         unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
-                        messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...unlockResult.messages].slice(-5),
+                        messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...unlockResult.messages].slice(-10),
                         isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
                     };
                 }
                 return prev;
             } else {
-                return { ...prev, hp: prev.maxHp, energyPoints: prev.energyPoints - STABILIZE_COST, effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-5) };
+                return { ...prev, hp: prev.maxHp, energyPoints: prev.energyPoints - STABILIZE_COST, effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
             }
         });
     }, [gameState.playerLevel, triggerTTS]);
@@ -322,26 +324,102 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Exp. Replicate unlocked.");
                 if (nextLevel === 5) levelUpMessages.push("☢️ MASTERY Lv 5: Nucleosynthesis [🌟] unlocked.");
             }
-            if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: prev.turn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
+            const nextTurn = prev.turn + 1;
+            if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
             const nextStateCandidate = { 
                 ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: prev.energyPoints + (decayResult.energyBonus || 0),
+                turn: nextTurn,
                 unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, gridEntities: decayResult.newGridEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects],
                 score: prev.score + scoreIncrease + unlockResult.scoreBonus, hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
-                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...levelUpMessages, ...unlockResult.messages, ...decayResult.extraMessages].slice(-5), 
+                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...levelUpMessages, ...unlockResult.messages, ...decayResult.extraMessages].slice(-10), 
                 combo: finalComboCount, maxCombo: Math.max(prev.maxCombo, rawCombo), lastComboTime: currentTime, playerLevel: nextLevel, masteredDecays: nextMastered,
                 comboScore: (newData.isStable) ? 0 : nextComboScore, comboStartNuclide: (newData.isStable) ? undefined : nextComboStartNuclide,
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 }
             };
             if (nextStateCandidate.hp <= 0 && !nextStateCandidate.gameOver) {
                 if (nextStateCandidate.unlockedGroups.includes("Temporal Inversion") && !nextStateCandidate.disabledSkills.includes("Temporal Inversion") && nextStateCandidate.energyPoints >= 5) {
-                    nextStateCandidate.hp = nextStateCandidate.maxHp; nextStateCandidate.energyPoints -= 5; nextStateCandidate.messages = [...nextStateCandidate.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-5);
+                    nextStateCandidate.hp = nextStateCandidate.maxHp; nextStateCandidate.energyPoints -= 5; nextStateCandidate.messages = [...nextStateCandidate.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
                     nextStateCandidate.effects = [...nextStateCandidate.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextStateCandidate.playerPos }, timestamp: Date.now() }];
                 } else { nextStateCandidate.gameOver = true; nextStateCandidate.gameOverReason = "TRANSFORMATION_SHOCK"; nextStateCandidate.combo = 0; }
             }
             return nextStateCandidate;
         });
     }, [gameState.disabledSkills, gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, triggerTTS, gameState.unlockedGroups]);
+
+    const handleUltimateSynthesis = useCallback(() => {
+        if (gameState.playerLevel < 5) return;
+        
+        setGameState(prev => {
+            // Restriction: Cannot trigger during Frozen Time
+            if (prev.isTimeStopped) {
+                return {
+                    ...prev,
+                    messages: [...prev.messages, "⚠️ System Error: Spacetime stabilization prevents accretion."].slice(-10)
+                };
+            }
+
+            let absorbedP = 0;
+            let absorbedN = 0;
+            let absorbedE = 0;
+            
+            prev.gridEntities.forEach(e => {
+                if (e.type === EntityType.PROTON) absorbedP++;
+                else if (e.type === EntityType.NEUTRON) absorbedN++;
+                else if (e.type === EntityType.ENEMY_ELECTRON) absorbedE++;
+            });
+            
+            const totalAbsorbed = absorbedP + absorbedN + absorbedE;
+            if (totalAbsorbed === 0) return prev;
+
+            const nextZ = prev.currentNuclide.z + absorbedP - absorbedE;
+            const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
+            
+            setFlashColor('bg-white');
+            setIsFlashBang(true);
+            setTimeout(() => setIsFlashBang(false), 800);
+            
+            const newData = getNuclideDataSync(nextZ, nextA);
+            
+            if (!newData.exists || nextZ < 0 || nextZ > 118) {
+                return {
+                    ...prev,
+                    gameOver: true,
+                    gameOverReason: "NUCLEUS COLLAPSE",
+                    gridEntities: [],
+                    energyPoints: 0,
+                    messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10)
+                };
+            }
+
+            const nextTurn = prev.turn + 1;
+            const synthBonus = totalAbsorbed * 50000;
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
+            
+            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "r-process Accretion (Mastery Reset)" }]);
+            triggerTTS("r-process Accretion and Mastery Reset");
+
+            return {
+                ...prev,
+                currentNuclide: newData,
+                hp: prev.maxHp,
+                turn: nextTurn,
+                gridEntities: [],
+                score: prev.score + synthBonus + unlockResult.scoreBonus,
+                unlockedElements: unlockResult.updatedElements,
+                unlockedGroups: unlockResult.updatedGroups,
+                // RESET MASTERY MECHANIC
+                playerLevel: 0,
+                masteredDecays: [],
+                messages: [
+                    ...prev.messages, 
+                    `🌌 r-process ACCRETION: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`,
+                    "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."
+                ].slice(-10),
+                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
+            };
+        });
+    }, [gameState.playerLevel, triggerTTS]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
@@ -359,7 +437,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 const nextState = !prev.isTimeStopped;
                 if (nextState) stopAutoMove();
                 setFinalCombo(null);
-                return { ...prev, isTimeStopped: nextState, effects: [], messages: [...prev.messages, nextState ? "✨ FROZEN TIME: Locked by neutron shell." : "✨ TIME RESTORED."].slice(-5) };
+                return { ...prev, isTimeStopped: nextState, effects: [], messages: [...prev.messages, nextState ? "✨ FROZEN TIME: Locked by neutron shell." : "✨ TIME RESTORED."].slice(-10) };
             });
         }
     }, [gameState.playerLevel, gameState.currentNuclide.a, gameState.currentNuclide.z, stopAutoMove]);
@@ -370,23 +448,30 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         const randomA = validAs[Math.floor(Math.random() * validAs.length)];
         const newData = getNuclideDataSync(selectedZ, randomA);
         if (newData.exists) {
-            const unlockResult = processUnlocks(gameState.unlockedElements, gameState.unlockedGroups, selectedZ, randomA, true);
-            setLastDecayEvent(null);
-            setEvolutionHistory(h => [...h, { turn: gameState.turn, name: newData.name, symbol: newData.symbol, z: gameState.currentNuclide.z, a: gameState.currentNuclide.a, method: "Transmutation" }]);
-            setGameState(prev => ({
-                ...prev, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
-                score: prev.score + 500000 + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-5),
-                isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
-            }));
-            triggerTTS("Nuclear Transmutation"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
+            setGameState(prev => {
+                const nextTurn = prev.turn + 1;
+                const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
+                setLastDecayEvent(null);
+                setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
+                triggerTTS("Nuclear Transmutation"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
+                return {
+                    ...prev, 
+                    currentNuclide: newData, 
+                    turn: nextTurn,
+                    unlockedElements: unlockResult.updatedElements, 
+                    unlockedGroups: unlockResult.updatedGroups,
+                    score: prev.score + 500000 + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
+                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
+                };
+            });
         }
-    }, [gameState, triggerTTS]);
+    }, [gameState.playerLevel, gameState.disabledSkills, triggerTTS]);
 
     const handleToggleHiddenSkill = useCallback((skillName: string) => {
         setGameState(prev => {
             const isDisabled = prev.disabledSkills.includes(skillName);
             const nextDisabled = isDisabled ? prev.disabledSkills.filter(s => s !== skillName) : [...prev.disabledSkills, skillName];
-            return { ...prev, disabledSkills: nextDisabled, messages: [...prev.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-5) };
+            return { ...prev, disabledSkills: nextDisabled, messages: [...prev.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10) };
         });
     }, []);
 
@@ -410,7 +495,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             ...newState, disabledSkills: currentDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
             unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
-            messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages]
+            messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
         });
     };
 
@@ -436,6 +521,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     return {
         gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
-        handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove
+        handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
+        handleUltimateSynthesis
     };
 };
