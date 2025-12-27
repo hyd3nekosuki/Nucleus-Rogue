@@ -57,14 +57,16 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
         if (isDoubleMagic) return '✨ DOUBLE MAGIC SHELL ACTIVE';
         if (isMagicZ && !isMagicN) return '✨ MAGIC PROTON SHELL ACTIVE';
         if (isMagicN) return '✨ MAGIC NEUTRON SHELL ACTIVE';
-        return '';
+        return '\u00A0'; // Non-breaking space to maintain layout height
     };
+
+    const isAnyMagic = isMagicZ || isMagicN || isTimeStopped;
 
     return (
         <div 
             onClick={canUseTimeStop ? onToggleTimeStop : undefined}
             className={`w-full max-w-[95vw] md:w-[450px] mb-3 relative z-30 mt-0 md:mt-0 p-1 rounded-lg transition-all 
-                ${(isMagicZ || isMagicN) ? (isTimeStopped ? 'bg-neon-blue/20 ring-2 ring-neon-blue shadow-[0_0_20px_#00f3ff] cursor-pointer' : 
+                ${isAnyMagic ? (isTimeStopped ? 'bg-neon-blue/20 ring-2 ring-neon-blue shadow-[0_0_20px_#00f3ff] cursor-pointer' : 
                    canUseTimeStop ? 'bg-gray-800/30 hover:bg-neon-blue/10 ring-1 ring-neon-blue/40 shadow-[0_0_10px_#00f3ff44] cursor-pointer animate-pulse' : 
                    'bg-gray-800/20 ring-1 ring-gray-700/40 cursor-default') : 'bg-transparent'}`}
         >
@@ -74,11 +76,10 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
                         <span className="text-neon-blue font-bold text-sm md:text-base">{nuclide.name}</span>
                         <span className="text-xs text-gray-500 font-mono">{getDecayDisplay()}</span>
                     </div>
-                    {(isMagicZ || isMagicN) && (
-                        <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] ${isDoubleMagic ? 'text-yellow-400' : 'text-neon-blue'}`}>
-                            {getMagicLabel()}
-                        </span>
-                    )}
+                    {/* Reserve space vertically using min-height and conditional opacity */}
+                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic ? 'text-yellow-400 opacity-100' : 'text-neon-blue opacity-100') : 'opacity-0'}`}>
+                        {getMagicLabel()}
+                    </span>
                 </div>
                 <div className={`font-mono font-bold text-sm text-right ${hpPercent < 30 ? "text-neon-red animate-pulse" : "text-neon-green"}`}>
                     {Math.round(hp)}% {isTimeStopped ? 'FROZEN' : 'STABILITY'}
