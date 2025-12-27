@@ -30,6 +30,42 @@ const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
     }
 };
 
+/**
+ * Returns a human-readable label for a DecayMode.
+ */
+export const getDecayModeLabel = (mode: DecayMode): string => {
+    switch (mode) {
+        case DecayMode.STABLE: return "Stable";
+        case DecayMode.ALPHA: return "Alpha";
+        case DecayMode.BETA_MINUS: return "Beta minus";
+        case DecayMode.BETA_PLUS: return "Beta plus";
+        case DecayMode.ELECTRON_CAPTURE: return "Electron capture";
+        case DecayMode.SPONTANEOUS_FISSION: return "Spontaneous fission";
+        case DecayMode.PROTON_EMISSION: return "Proton emission";
+        case DecayMode.NEUTRON_EMISSION: return "Neutron emission";
+        case DecayMode.GAMMA: return "Gamma";
+        default: return "Unknown";
+    }
+};
+
+/**
+ * Formats the decay modes of a nuclide into a single string.
+ * Handles special cases like Tetraneutrons and Stable nuclei.
+ */
+export const formatDecayModes = (nuclide: NuclideData): string => {
+    // Special check for Tetraneutron anomaly (Z=0, A=4)
+    if (nuclide.z === 0 && nuclide.a === 4) return "Unknown";
+    
+    if (nuclide.isStable) return "Stable";
+
+    const modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
+    if (modes.length === 0) {
+        return nuclide.decayModes.includes(DecayMode.UNKNOWN) ? "Unknown" : "Stable";
+    }
+    
+    return modes.map(getDecayModeLabel).join(", ");
+};
+
 const createNuclide = (
     z: number, 
     a: number, 

@@ -5,9 +5,8 @@ export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
 
-export const APP_VERSION = "1.2.5";
+export const APP_VERSION = "1.2.6";
 
-// Fix: Added KNOWN_Z_LIMIT export to satisfy App.tsx import
 export const KNOWN_Z_LIMIT = 118;
 
 export const MAGIC_NUMBERS = [2, 8, 20, 28, 50, 82, 126];
@@ -48,7 +47,6 @@ export const ELEMENT_NAMES = [
   "Mendelevium", "Nobelium", "Lawrencium", "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium", "Roentgenium", "Copernicium", "Nihonium", "Flerovium", "Moscovium", "Livermorium", "Tennessine", "Oganesson"
 ];
 
-// Definition of Chemical Groups for Achievements
 export const ELEMENT_GROUPS: Record<string, number[]> = {
     "Non-metal": [1, 6, 7, 8, 15, 16, 34],
     "Noble Gas": [2, 10, 18, 36, 54, 86, 118],
@@ -67,14 +65,12 @@ export const ELEMENT_GROUPS: Record<string, number[]> = {
     "Actinide": Array.from({length: 15}, (_, i) => 89 + i)    // 89-103
 };
 
-// Helper to get symbol
 export const getSymbol = (z: number): string => {
   if (z === 0) return "n";
   if (z < ELEMENT_SYMBOLS.length) return ELEMENT_SYMBOLS[z];
   return `E${z}`;
 };
 
-// Helper to get full name
 export const getName = (z: number): string => {
   if (z === 0) return "Neutron";
   if (z < ELEMENT_NAMES.length) return ELEMENT_NAMES[z];

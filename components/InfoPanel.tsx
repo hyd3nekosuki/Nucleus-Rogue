@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { NuclideData } from '../types';
+import React from 'react';
+import { NuclideData, DecayMode } from '../types';
+import { formatDecayModes } from '../services/nuclideService';
 
 interface InfoPanelProps {
   nuclide: NuclideData;
@@ -9,8 +10,8 @@ interface InfoPanelProps {
   turn: number;
   score: number;
   energyPoints: number;
-  combo?: number;
-  isTimeStopped?: boolean;
+  onDecay?: (mode: DecayMode) => void;
+  disabled?: boolean;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ 
@@ -20,37 +21,9 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   turn, 
   score, 
   energyPoints,
-  combo = 0, 
-  isTimeStopped = false 
+  onDecay,
+  disabled = false
 }) => {
-  const showCombo = combo > 0;
-  const [gaugeValue, setGaugeValue] = useState(0);
-
-  // Reset gauge when combo starts or increments
-  useEffect(() => {
-    if (combo > 0) {
-      setGaugeValue(100);
-    } else {
-      setGaugeValue(0);
-    }
-  }, [combo]);
-
-  // Handle gauge depletion over time
-  useEffect(() => {
-    // If combo is active, gauge > 0, and time is NOT stopped, deplete the bar
-    if (!showCombo || gaugeValue <= 0 || isTimeStopped) return;
-    
-    const depletionInterval = setInterval(() => {
-      setGaugeValue(prev => {
-        // Total window is 8000ms. 100 units / 8000ms = 0.0125 units per ms.
-        // At 50ms interval: 0.0125 * 50 = 0.625 units per step.
-        const next = prev - 0.625;
-        return next > 0 ? next : 0;
-      });
-    }, 50);
-
-    return () => clearInterval(depletionInterval);
-  }, [showCombo, gaugeValue, isTimeStopped]);
 
   // Significant Figures Score Formatter (4 digits)
   const formatScore = (val: number): string => {
@@ -68,15 +41,22 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
     for (const unit of units) {
       if (val >= unit.v) {
         const scaled = val / unit.v;
-        // proposal 1: Significant Figures (4 digits)
         return Number(scaled.toPrecision(4)).toString() + " " + unit.s;
       }
     }
     return val.toLocaleString();
   };
+
+  const handleDecayClick = () => {
+    if (nuclide.isStable || !onDecay || disabled) return;
+    const primaryMode = nuclide.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) || (nuclide.decayModes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : null);
+    if (primaryMode) {
+      onDecay(primaryMode);
+    }
+  };
   
   return (
-    <div className="p-6 border-b border-gray-800">
+    <div className="px-6 pb-4 pt-0.5 border-b border-gray-800">
       
       <div className="flex justify-between items-end mb-4 gap-2">
           {/* Score - Left aligned */}
@@ -113,29 +93,27 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
           </div>
       </div>
 
-      {showCombo && (
-        <div className="mb-4 relative overflow-hidden bg-gray-900 rounded border border-neon-blue/30 p-2 text-center animate-pulse">
-             <div className="text-neon-blue font-black italic text-lg tracking-tighter drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]">
-                 CHAIN COMBO {combo >= 2 ? `x${combo}` : 'START'}
-             </div>
-             {/* Progress Bar for Combo Timer */}
-             <div className="absolute bottom-0 left-0 h-1 bg-neon-blue transition-all duration-100 ease-linear"
-                  style={{ width: `${gaugeValue}%` }}
-             ></div>
-        </div>
-      )}
-
       <div className="grid grid-cols-2 gap-4 text-sm mb-4">
           <div className="bg-black/40 p-2 rounded border border-gray-800">
               <div className="text-gray-500 text-[10px] uppercase">Half-Life</div>
               <div className="text-white truncate">{nuclide.halfLifeText}</div>
           </div>
-          <div className="bg-black/40 p-2 rounded border border-gray-800">
-              <div className="text-gray-500 text-[10px] uppercase">Decay Modes</div>
-              <div className="text-neon-green text-xs truncate">
-                  {(nuclide.z === 0 && nuclide.a === 4) ? "Unknown" : nuclide.decayModes.join(", ")}
+          <button 
+            onClick={handleDecayClick}
+            disabled={nuclide.isStable || disabled}
+            className={`bg-black/40 p-2 rounded border text-left flex flex-col transition-all duration-200 
+                ${nuclide.isStable || disabled 
+                    ? 'border-gray-800 cursor-default opacity-80' 
+                    : 'border-neon-green/40 hover:bg-neon-green/10 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,255,157,0.15)]'}`}
+          >
+              <div className="text-gray-500 text-[10px] uppercase flex justify-between">
+                <span>Decay Modes</span>
+                {!nuclide.isStable && !disabled && <span className="text-neon-green animate-pulse">●</span>}
               </div>
-          </div>
+              <div className={`text-xs truncate font-bold ${nuclide.isStable ? 'text-neon-green/50' : 'text-neon-green'}`}>
+                  {formatDecayModes(nuclide)}
+              </div>
+          </button>
       </div>
       
       <div className="text-xs text-gray-400 italic border-l-2 border-gray-700 pl-2">

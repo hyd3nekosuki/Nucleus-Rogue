@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
+import { formatDecayModes } from '../services/nuclideService';
 
 interface GameOverOverlayProps {
     isVisible: boolean;
@@ -55,12 +56,6 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
     const isTransformFail = reason === "TRANSFORMATION_FAILED";
     const title = isTransformFail ? "TRANSFORMATION FAILED" : "RADIOACTIVE DECAY";
 
-    const formatDecayModes = () => {
-        const modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
-        if (modes.length === 0) return "Stable";
-        return modes.map(m => m.replace(/_/g, ' ')).join(", ");
-    };
-
     // Use precise formatting for Game Over screen, regardless of the simplified text used in-game
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
 
@@ -88,7 +83,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
                         
                         <div className="text-gray-400">Mode:</div>
                         <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full">
-                            {formatDecayModes()}
+                            {formatDecayModes(nuclide)}
                         </div>
 
                         <div className="text-gray-400">Protons (Z):</div>
