@@ -758,12 +758,23 @@ function App() {
       if (x === gameState.playerPos.x && y === gameState.playerPos.y) { handlePlayerInteract(); return; }
       stopAutoMove();
       if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
+      
+      const dx = x - gameState.playerPos.x;
+      const dy = y - gameState.playerPos.y;
+      const adx = Math.abs(dx);
+      const ady = Math.abs(dy);
+
+      // Support 1-step diagonal movement for adjacent diagonal cells
+      if (adx === 1 && ady === 1) {
+          moveStep(dx, dy);
+          return;
+      }
+
       const path: {dx: number, dy: number}[] = [];
-      const dx = x - gameState.playerPos.x, dy = y - gameState.playerPos.y;
-      for (let i = 0; i < Math.abs(dx); i++) path.push({dx: dx > 0 ? 1 : -1, dy: 0});
-      for (let i = 0; i < Math.abs(dy); i++) path.push({dx: 0, dy: dy > 0 ? 1 : -1});
+      for (let i = 0; i < adx; i++) path.push({dx: dx > 0 ? 1 : -1, dy: 0});
+      for (let i = 0; i < ady; i++) path.push({dx: 0, dy: dy > 0 ? 1 : -1});
       if (path.length > 0) startPathMove(path);
-  }, [gameState, handlePlayerInteract, stopAutoMove, startPathMove]);
+  }, [gameState, handlePlayerInteract, stopAutoMove, startPathMove, moveStep]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

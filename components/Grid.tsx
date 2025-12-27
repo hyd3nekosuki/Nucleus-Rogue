@@ -18,7 +18,8 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       const isPlayer = x === gameState.playerPos.x && y === gameState.playerPos.y;
       const dx = Math.abs(x - gameState.playerPos.x);
       const dy = Math.abs(y - gameState.playerPos.y);
-      const isAdjacent = (dx + dy === 1);
+      // Support diagonal adjacency: dx <= 1 AND dy <= 1
+      const isAdjacent = (dx <= 1 && dy <= 1) && !(dx === 0 && dy === 0);
       
       const entity = gameState.gridEntities.find(e => e.position.x === x && e.position.y === y);
       
