@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { NuclideData } from '../types';
 
 export const useTTS = (nuclide: NuclideData, gameOver: boolean) => {
@@ -24,9 +24,10 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean) => {
         return () => { window.speechSynthesis.onvoiceschanged = null; };
     }, []);
 
-    const triggerOverride = (text: string) => {
+    // Stable trigger function that engine can safely reference
+    const triggerOverride = useCallback((text: string) => {
         speechOverrideRef.current = text;
-    };
+    }, []);
 
     useEffect(() => {
         const currentName = nuclide.name;

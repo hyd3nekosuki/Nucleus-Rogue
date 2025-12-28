@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { formatDecayModes } from '../services/nuclideService';
@@ -112,7 +111,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
           <button 
             onClick={handleDecayClick}
             disabled={nuclide.isStable || disabled}
-            className={`bg-black/40 p-2 rounded border text-left flex flex-col transition-all duration-200 
+            className={`select-none bg-black/40 p-2 rounded border text-left flex flex-col transition-all duration-200 
                 ${nuclide.isStable || disabled 
                     ? 'border-gray-800 cursor-default opacity-80' 
                     : 'border-neon-green/40 hover:bg-neon-green/10 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,255,157,0.15)]'}`}
@@ -138,7 +137,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
                 <button 
                     onClick={onStabilize}
                     disabled={!energyPointsAvailable || playerLevel < 2}
-                    className={`text-xl transition-all duration-300 hover:scale-125 active:scale-95 
+                    className={`select-none text-xl transition-all duration-300 hover:scale-125 active:scale-95 
                         ${energyPointsAvailable ? 'opacity-100' : 'opacity-20 grayscale cursor-not-allowed'}
                         ${isNucleosynthesisReady ? 'text-white drop-shadow-[0_0_10px_#00f3ff] animate-pulse' : 'text-yellow-400'}
                         ${playerLevel < 2 ? 'invisible' : ''}
@@ -153,8 +152,8 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
              <div className="flex-1 flex justify-center min-w-0">
                 <button 
                     onClick={onShowTable}
-                    className={`text-xl transition-all duration-300 hover:scale-125 active:scale-95
-                        ${transmutationReady ? 'text-yellow-400 drop-shadow-[0_0_10px_gold] animate-bounce' : 'text-neon-purple opacity-80'}
+                    className={`select-none text-xl transition-all duration-300 hover:scale-125 active:scale-95
+                        ${transmutationReady ? 'text-yellow-400 drop-shadow-[0_0_10px_gold]' : 'text-neon-purple opacity-80'}
                     `}
                     title={transmutationReady ? "Transmutation Ready" : "Periodic Table / Titles"}
                 >

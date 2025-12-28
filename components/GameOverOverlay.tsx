@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { formatDecayModes } from '../services/nuclideService';
@@ -54,7 +53,11 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
     if (!isVisible) return null;
 
     const isTransformFail = reason === "TRANSFORMATION_FAILED";
-    const title = isTransformFail ? "TRANSFORMATION FAILED" : "RADIOACTIVE DECAY";
+    const isCollapse = reason === "NUCLEUS COLLAPSE";
+    
+    let title = "RADIOACTIVE DECAY";
+    if (isTransformFail) title = "TRANSFORMATION FAILED";
+    if (isCollapse) title = "NUCLEUS COLLAPSE";
 
     // Use precise formatting for Game Over screen, regardless of the simplified text used in-game
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
@@ -66,6 +69,10 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
                 {isTransformFail ? (
                     <>
                         <span className="font-bold text-neon-blue">{nuclide.name}</span> does not exist or is outside the drip lines.
+                    </>
+                ) : isCollapse ? (
+                    <>
+                        Accretion reached an <span className="font-bold text-neon-blue">impossible configuration</span>.
                     </>
                 ) : (
                     <>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS } from '../constants';
@@ -34,7 +35,6 @@ const getInitialState = (): GameState => ({
     messages: ["Welcome to the Nucleus!", "Master radioactive decays to increase your Mastery Level."],
     gameOver: false,
     gameOverReason: undefined,
-    // Fix: removed invalid type annotation in object literal
     loadingData: false,
     unlockedElements: [], 
     unlockedGroups: [],
@@ -250,7 +250,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (newData.exists) {
                     const nextTurn = prev.turn + 1;
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
-                    triggerTTS("Nucleosynthesis Complete");
+                    triggerTTS("Nucleosynthesis");
                     setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
                     setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
                     const synthBonus = nextZ * 10000;
@@ -362,17 +362,19 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             let absorbedP = 0;
             let absorbedN = 0;
             let absorbedE = 0;
+            let absorbedPos = 0;
             
             prev.gridEntities.forEach(e => {
                 if (e.type === EntityType.PROTON) absorbedP++;
                 else if (e.type === EntityType.NEUTRON) absorbedN++;
                 else if (e.type === EntityType.ENEMY_ELECTRON) absorbedE++;
+                else if (e.type === EntityType.ENEMY_POSITRON) absorbedPos++;
             });
             
-            const totalAbsorbed = absorbedP + absorbedN + absorbedE;
+            const totalAbsorbed = absorbedP + absorbedN + absorbedE + absorbedPos;
             if (totalAbsorbed === 0) return prev;
 
-            const nextZ = prev.currentNuclide.z + absorbedP - absorbedE;
+            const nextZ = prev.currentNuclide.z + absorbedP - absorbedE + absorbedPos;
             const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
             
             setFlashColor('bg-white');
@@ -396,8 +398,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
             
-            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "r-process Accretion (Mastery Reset)" }]);
-            triggerTTS("r-process Accretion and Mastery Reset");
+            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "r-process nucleosynthesis" }]);
+            triggerTTS("r-process nucleosynthesis");
 
             return {
                 ...prev,
@@ -413,7 +415,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 masteredDecays: [],
                 messages: [
                     ...prev.messages, 
-                    `🌌 r-process ACCRETION: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`,
+                    `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`,
                     "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."
                 ].slice(-10),
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
@@ -453,7 +455,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
                 setLastDecayEvent(null);
                 setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
-                triggerTTS("Nuclear Transmutation"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
+                triggerTTS("Experimental Replicate"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
                 return {
                     ...prev, 
                     currentNuclide: newData, 
@@ -478,7 +480,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     const restartGame = (randomStart: boolean = false) => {
         const currentTitles = gameState.unlockedElements;
         const currentGroups = gameState.unlockedGroups;
-        const currentDisabledSkills = gameState.disabledSkills;
         const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
         const newState = getInitialState();
         let startNuclide = INITIAL_NUCLIDE;
@@ -486,13 +487,18 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             let coords = getRandomKnownNuclideCoordinates(); 
             if (coords) { const data = getNuclideDataSync(coords.z, coords.a); if (data.exists) startNuclide = data; }
         }
+
+        // Reset disabledSkills to an empty array for H-1 restart to ensure the player 
+        // starts with a completely clean state, similar to the first launch.
+        let nextDisabledSkills = randomStart ? gameState.disabledSkills : [];
+
         let nextUnlockedElements = randomStart ? [...currentTitles] : [];
         let nextUnlockedGroups = randomStart ? [...currentGroups] : [];
         const unlockResult = processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a);
         setLastDecayEvent(null); setFinalCombo(null);
         setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: "Origin" }]);
         setGameState({
-            ...newState, disabledSkills: currentDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
+            ...newState, disabledSkills: nextDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
             unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
             messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)

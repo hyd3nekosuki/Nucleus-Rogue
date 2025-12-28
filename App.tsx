@@ -13,9 +13,11 @@ import TrefoilIndicator from './components/TrefoilIndicator';
 import EvolutionMap from './components/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusEngine } from './hooks/useNucleusEngine';
+import { fetchNuclideDescription } from './services/geminiService';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
+const DESCRIPTION_COOLDOWN_MS = 10 * 60 * 1000; // Increased to 10 minutes to be safer
 
 function App() {
   const [showTable, setShowTable] = useState(false);
@@ -23,19 +25,60 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
 
-  // Core Hooks
-  const { triggerOverride } = useTTS({ name: 'INIT' } as any, false); // Initial TTS instance
-  const engine = useNucleusEngine(triggerOverride);
+  // Dynamic Description Logic
+  const [enrichedDescriptions, setEnrichedDescriptions] = useState<Map<string, string>>(new Map());
+  const lastFetchTimeRef = useRef<number>(0);
+
+  // --- TTS Bridging Logic ---
+  // We use a ref to bridge the TTS trigger from the engine back to the active useTTS instance.
+  const ttsTriggerRef = useRef<(text: string) => void>(() => {});
+  
+  // Core Engine Initialization with the stable ref wrapper
+  const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
 
-  // Actual TTS linked to state
-  const { triggerOverride: engineTTS } = useTTS(gameState.currentNuclide, gameState.gameOver);
+  // Actual TTS instance reacting to the game state
+  const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver);
+
+  // Sync the bridge ref with the latest trigger from the active hook
+  useEffect(() => {
+    ttsTriggerRef.current = activeTTSTrigger;
+  }, [activeTTSTrigger]);
+  // --------------------------
+
+  // Effect to handle dynamic description fetching
+  useEffect(() => {
+    if (gameState.gameOver || !gameState.currentNuclide) return;
+
+    const nuclideKey = `${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`;
+    
+    if (enrichedDescriptions.has(nuclideKey)) return;
+
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < DESCRIPTION_COOLDOWN_MS) return;
+
+    lastFetchTimeRef.current = now;
+    
+    const updateDescription = async () => {
+      const desc = await fetchNuclideDescription(
+        gameState.currentNuclide.z, 
+        gameState.currentNuclide.a, 
+        gameState.currentNuclide.name
+      );
+      setEnrichedDescriptions(prev => {
+        const next = new Map(prev);
+        next.set(nuclideKey, desc);
+        return next;
+      });
+    };
+
+    updateDescription();
+  }, [gameState.currentNuclide.z, gameState.currentNuclide.a, gameState.gameOver]);
 
   useEffect(() => {
     if (containerRef.current) containerRef.current.focus();
   }, []);
 
-  // Auto-scroll messages: Newest is at top, so scroll to top
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = 0;
@@ -72,6 +115,9 @@ function App() {
   const energyCost = isNucleosynthesisReady ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
 
+  const nuclideKey = `${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`;
+  const currentDescription = enrichedDescriptions.get(nuclideKey) || gameState.currentNuclide.description;
+
   return (
     <div ref={containerRef} tabIndex={0} className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${flashColor} mix-blend-screen transition-opacity duration-500 ${isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -106,7 +152,6 @@ function App() {
             score={gameState.score} 
             onDecay={engine.handleDecayAction}
             disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped}
-            // Props for action dock
             playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={isNucleosynthesisReady}
             transmutationReady={transmutationReady}
@@ -120,7 +165,7 @@ function App() {
             combo={gameState.combo} 
             isTimeStopped={gameState.isTimeStopped} 
             lastComboTime={gameState.lastComboTime} 
-            description={gameState.currentNuclide.description}
+            description={currentDescription}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
@@ -132,10 +177,8 @@ function App() {
              {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={evolutionHistory} currentNuclide={gameState.currentNuclide} />}
           </div>
 
-          {/* Message Log: Newest at top using .slice().reverse() */}
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth">
               {[...gameState.messages].reverse().map((msg, i) => {
-                  // msg[0] is newest, so turn is turn - i
                   const msgTurn = gameState.turn - i;
                   return (
                     <div key={i} className={`mb-1 border-b border-gray-800 pb-1 last:border-0 opacity-80 ${msg.includes('✨') || msg.includes('☢️') || msg.includes('⚛️') || msg.includes('⏱') ? 'text-neon-blue font-bold animate-pulse' : ''}`}>
