@@ -38,9 +38,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   }, [showCombo, gaugeValue, isTimeStopped]);
 
   return (
-    <div className={`border-b border-gray-800 bg-black/60 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono transition-colors duration-500`}>
+    <div className={`border-b border-gray-800 bg-black/60 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono transition-colors duration-500 select-none touch-none`}>
       
-      <div className="relative z-10 w-full h-full flex flex-col justify-start">
+      <div className="relative z-10 w-full h-full flex flex-col justify-start pointer-events-none">
         {showCombo ? (
           /* CHAIN COMBO TERMINAL VIEW */
           <div className="animate-fade-in w-full">
@@ -66,7 +66,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
           /* DESCRIPTION TERMINAL VIEW */
           <div className="text-[#00ff41] text-[11px] md:text-xs leading-tight animate-pulse drop-shadow-[0_0_2px_#00ff41] pt-0">
              <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
-             {description || "Analyzing atomic structure..."}
+             {description || "Accessing IAEA database..."}
              {/* Retro cursor */}
              <span className="inline-block w-1.5 h-3 bg-[#00ff41] ml-1 align-middle animate-[pulse_0.6s_infinite]"></span>
           </div>

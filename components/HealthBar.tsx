@@ -50,7 +50,7 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
     return (
         <div 
             onClick={canUseTimeStop ? onToggleTimeStop : undefined}
-            className={`w-full max-w-[95vw] md:w-[450px] mb-1 relative z-30 p-1 rounded-lg transition-all 
+            className={`w-full max-w-[95vw] md:w-[450px] mb-1 relative z-30 p-1 rounded-lg transition-all select-none
                 ${isAnyMagic ? (isTimeStopped ? 'bg-neon-blue/20 ring-2 ring-neon-blue shadow-[0_0_20px_#00f3ff] cursor-pointer' : 
                    canUseTimeStop ? 'bg-gray-800/30 hover:bg-neon-blue/10 ring-1 ring-neon-blue/40 shadow-[0_0_10px_#00f3ff44] cursor-pointer animate-pulse' : 
                    'bg-gray-800/20 ring-1 ring-gray-700/40 cursor-default') : 'bg-transparent'}`}
