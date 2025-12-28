@@ -154,6 +154,7 @@ function App() {
             disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped}
             playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={isNucleosynthesisReady}
+            isNucleosynthesisEnabled={isNucleosynthesisEnabled}
             transmutationReady={transmutationReady}
             energyPointsAvailable={energyPointsAvailable}
             onStabilize={engine.handleStabilize}

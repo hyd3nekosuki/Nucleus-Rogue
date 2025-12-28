@@ -3,15 +3,22 @@ import React from 'react';
 
 interface Props {
   level: number;
+  enabled?: boolean;
   onClick?: () => void;
 }
 
-const TrefoilIndicator: React.FC<Props> = ({ level, onClick }) => {
+const TrefoilIndicator: React.FC<Props> = ({ level, enabled = true, onClick }) => {
   if (level <= 0) return null;
 
   const color = "#facc15"; // Neon Yellow
-  const glowClass = level >= 5 ? "drop-shadow-[0_0_10px_rgba(250,204,21,1)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]";
-  const isInteractive = level >= 5;
+  const glowClass = (level >= 5 && enabled) ? "drop-shadow-[0_0_10px_rgba(250,204,21,1)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]";
+  const isInteractive = level >= 5 && enabled;
+
+  const getTitle = () => {
+    if (level < 5) return `Nuclear Mastery: Level ${level}/5`;
+    if (!enabled) return `r-process Disabled (Toggle in Skills)`;
+    return `r-process nucleosynthesis Available (Level 5/5)`;
+  };
 
   /**
    * 扇形（ブレード）を描画するパスを生成
@@ -47,8 +54,8 @@ const TrefoilIndicator: React.FC<Props> = ({ level, onClick }) => {
 
   return (
     <div 
-      className={`flex items-center justify-center transition-all duration-700 hover:scale-110 ${glowClass} ${isInteractive ? 'cursor-pointer' : 'cursor-default'}`} 
-      title={isInteractive ? `r-process Accretion Available (Level ${level}/5)` : `Nuclear Mastery: Level ${level}/5`}
+      className={`flex items-center justify-center transition-all duration-700 hover:scale-110 ${glowClass} ${isInteractive ? 'cursor-pointer' : 'cursor-default'} ${!enabled && level >= 5 ? 'opacity-50 grayscale-[0.5]' : ''}`} 
+      title={getTitle()}
       onClick={isInteractive ? onClick : undefined}
     >
       <svg width="32" height="32" viewBox="0 0 100 100" className="w-6 h-6 md:w-8 md:h-8 overflow-visible">

@@ -348,7 +348,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     }, [gameState.disabledSkills, gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, triggerTTS, gameState.unlockedGroups]);
 
     const handleUltimateSynthesis = useCallback(() => {
-        if (gameState.playerLevel < 5) return;
+        if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
         
         setGameState(prev => {
             // Restriction: Cannot trigger during Frozen Time
@@ -421,7 +421,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
             };
         });
-    }, [gameState.playerLevel, triggerTTS]);
+    }, [gameState.playerLevel, gameState.disabledSkills, triggerTTS]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;

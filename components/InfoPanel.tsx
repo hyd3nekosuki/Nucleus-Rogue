@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { formatDecayModes } from '../services/nuclideService';
@@ -15,6 +16,7 @@ interface InfoPanelProps {
   // New props for action dock
   playerLevel: number;
   isNucleosynthesisReady: boolean;
+  isNucleosynthesisEnabled: boolean;
   transmutationReady: boolean;
   energyPointsAvailable: boolean;
   onStabilize: () => void;
@@ -31,6 +33,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   disabled = false,
   playerLevel,
   isNucleosynthesisReady,
+  isNucleosynthesisEnabled,
   transmutationReady,
   energyPointsAvailable,
   onStabilize,
@@ -129,7 +132,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
           <div className="bg-black/40 p-1 rounded border border-gray-800 flex items-center transition-all shadow-inner">
              {/* ☢️ Radioactivity Lv Slot */}
              <div className="flex-1 flex justify-center min-w-0">
-                <TrefoilIndicator level={playerLevel} onClick={onUltimateSynthesis} />
+                <TrefoilIndicator level={playerLevel} enabled={isNucleosynthesisEnabled} onClick={onUltimateSynthesis} />
              </div>
              
              {/* 🔬 Stabilize Slot */}
