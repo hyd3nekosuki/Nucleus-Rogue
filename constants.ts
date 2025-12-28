@@ -1,10 +1,11 @@
+
 import { DecayMode, NuclideData, NuclideCategory } from './types';
 
 export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
 
-export const APP_VERSION = "1.2.9.1";
+export const APP_VERSION = "1.3.0";
 
 export const KNOWN_Z_LIMIT = 118;
 

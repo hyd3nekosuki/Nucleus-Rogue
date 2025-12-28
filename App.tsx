@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DecayMode } from './types';
+import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
 import Grid from './components/Grid';
 import InfoPanel from './components/InfoPanel';
@@ -114,6 +114,23 @@ function App() {
   // Final display priority: AI Enriched > Base Description (which now includes Static Facts)
   const currentDescription = enrichedDescriptions.get(nuclideKey) || gameState.currentNuclide.description;
 
+  // GRID PARTICLE COUNTER (Hidden Information)
+  const gridTotals = gameState.gridEntities.reduce((acc, entity) => {
+    if (entity.type === EntityType.PROTON) acc.p++;
+    else if (entity.type === EntityType.NEUTRON) acc.n++;
+    else if (entity.type === EntityType.ENEMY_ELECTRON) acc.e++;
+    else if (entity.type === EntityType.ENEMY_POSITRON) acc.pos++;
+    return acc;
+  }, { p: 0, n: 0, e: 0, pos: 0 });
+
+  // STREAK LOGIC: Only show if a count is active
+  const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : 
+                          gameState.consecutiveNeutrons > 0 ? 'n' : 
+                          gameState.consecutiveElectrons > 0 ? 'e-' : null;
+  const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons :
+                           activeStreakType === 'n' ? gameState.consecutiveNeutrons :
+                           activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
+
   return (
     <div ref={containerRef} tabIndex={0} className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${flashColor} mix-blend-screen transition-opacity duration-500 ${isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -213,13 +230,26 @@ function App() {
                     <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
                     <span className="text-white font-light">e-: (Z-1, A)</span>
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none">
-                    <span className="text-neon-purple font-black tracking-widest mr-3 italic">STREAK:</span>
-                    <div className="flex items-center gap-4">
-                        <span className="text-neon-red font-bold">p: {gameState.consecutiveProtons}</span>
-                        <span className="text-neon-blue font-bold">n: {gameState.consecutiveNeutrons}</span>
-                        <span className="text-yellow-400 font-bold">e: {gameState.consecutiveElectrons}</span>
+                
+                {/* DYNAMIC STATISTICS OVERLAY: GRID prioritized, STREAK shown conditionally */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
+                    <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-neon-red/80 font-bold">p={gridTotals.p}</span>
+                        <span className="text-neon-blue/80 font-bold">n={gridTotals.n}</span>
+                        <span className="text-yellow-400/80 font-bold">e-={gridTotals.e}</span>
+                        <span className="text-neon-purple/80 font-bold">e+={gridTotals.pos}</span>
                     </div>
+                    
+                    {activeStreakType && (
+                        <>
+                            <span className="mx-2 text-gray-700 font-black">|</span>
+                            <span className="text-neon-purple font-black tracking-normal mr-2 italic">STREAK:</span>
+                            <span className={`font-bold ${activeStreakType === 'p' ? 'text-neon-red' : activeStreakType === 'n' ? 'text-neon-blue' : 'text-yellow-400'}`}>
+                                {activeStreakType}={activeStreakCount}
+                            </span>
+                        </>
+                    )}
                 </div>
             </div>
             
