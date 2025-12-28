@@ -22,7 +22,7 @@ export const INITIAL_NUCLIDE: NuclideData = {
   category: NuclideCategory.STABLE,
   isStable: true,
   exists: true,
-  description: 'The most abundant element in the universe.'
+  description: 'The most abundant element in the universe, making up 75% of baryonic mass.'
 };
 
 export const ELEMENT_SYMBOLS = [

@@ -2,6 +2,7 @@
 import { NuclideData, DecayMode, NuclideCategory } from "../types";
 import { getSymbol, getName } from "../constants";
 import { getAllNuclides } from "../data/staticNuclides";
+import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 
 const nuclideMap = new Map<string, { mode: DecayMode, hl: number, cat: NuclideCategory }>();
 let isCacheInitialized = false;
@@ -96,10 +97,11 @@ const createNuclide = (
     else if (halfLife < 31536000) hlText = `${Math.round(halfLife/86400)} d`;
     else hlText = `${(halfLife/31536000).toExponential(2)} y`;
 
-    let description = getDecayDescription(mainMode, isStable);
-    if (z === 0 && a === 1) description = 'A free neutron. Essential constituent of atomic nuclei.';
-    else if (z === 1 && a === 1) description = 'The most abundant element in the universe.';
-    else if (z === 0 && a === 4) description = '⚠ ANOMALY DETECTED: Tetraneutron.';
+    // Hybrid description logic: check static database first
+    let description = NUCLIDE_FACTS[`${z}-${a}`] || getDecayDescription(mainMode, isStable);
+    
+    // Special ANOMALY overrides (preserving Tetraneutron as requested)
+    if (z === 0 && a === 4) description = '⚠ ANOMALY DETECTED: Tetraneutron.';
 
     return {
         z, a, symbol, name: baseName, halfLifeText: hlText,

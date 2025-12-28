@@ -14,10 +14,11 @@ import EvolutionMap from './components/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusEngine } from './hooks/useNucleusEngine';
 import { fetchNuclideDescription } from './services/geminiService';
+import { NUCLIDE_FACTS } from './data/nuclideFacts';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
-const DESCRIPTION_COOLDOWN_MS = 10 * 60 * 1000; // Increased to 10 minutes to be safer
+const DESCRIPTION_COOLDOWN_MS = 10 * 60 * 1000; 
 
 function App() {
   const [showTable, setShowTable] = useState(false);
@@ -25,34 +26,32 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
 
-  // Dynamic Description Logic
+  // Dynamic Description Logic (Map stores only AI-enriched results)
   const [enrichedDescriptions, setEnrichedDescriptions] = useState<Map<string, string>>(new Map());
   const lastFetchTimeRef = useRef<number>(0);
 
   // --- TTS Bridging Logic ---
-  // We use a ref to bridge the TTS trigger from the engine back to the active useTTS instance.
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
-  
-  // Core Engine Initialization with the stable ref wrapper
   const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
-
-  // Actual TTS instance reacting to the game state
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver);
 
-  // Sync the bridge ref with the latest trigger from the active hook
   useEffect(() => {
     ttsTriggerRef.current = activeTTSTrigger;
   }, [activeTTSTrigger]);
   // --------------------------
 
-  // Effect to handle dynamic description fetching
+  // Effect to handle dynamic description fetching (AI Enrichment)
   useEffect(() => {
     if (gameState.gameOver || !gameState.currentNuclide) return;
 
-    const nuclideKey = `${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`;
+    const { z, a, name } = gameState.currentNuclide;
+    const key = `${z}-${a}`;
     
-    if (enrichedDescriptions.has(nuclideKey)) return;
+    // Skip if we already have an AI response or if it's a known static fact/anomaly
+    if (enrichedDescriptions.has(key)) return;
+    if (NUCLIDE_FACTS[key]) return;
+    if (z === 0 && a === 4) return; // Tetraneutron special handling
 
     const now = Date.now();
     if (now - lastFetchTimeRef.current < DESCRIPTION_COOLDOWN_MS) return;
@@ -60,14 +59,10 @@ function App() {
     lastFetchTimeRef.current = now;
     
     const updateDescription = async () => {
-      const desc = await fetchNuclideDescription(
-        gameState.currentNuclide.z, 
-        gameState.currentNuclide.a, 
-        gameState.currentNuclide.name
-      );
+      const desc = await fetchNuclideDescription(z, a, name);
       setEnrichedDescriptions(prev => {
         const next = new Map(prev);
-        next.set(nuclideKey, desc);
+        next.set(key, desc);
         return next;
       });
     };
@@ -116,6 +111,7 @@ function App() {
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
 
   const nuclideKey = `${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`;
+  // Final display priority: AI Enriched > Base Description (which now includes Static Facts)
   const currentDescription = enrichedDescriptions.get(nuclideKey) || gameState.currentNuclide.description;
 
   return (

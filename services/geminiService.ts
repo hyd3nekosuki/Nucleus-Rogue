@@ -2,6 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { NuclideData, NuclideCategory } from "../types";
 import { getSymbol } from "../constants";
+import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 
 /**
  * Service to enrich nuclide data with dynamic descriptions using Gemini API.
@@ -10,6 +11,13 @@ import { getSymbol } from "../constants";
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const fetchNuclideDescription = async (z: number, a: number, name: string): Promise<string> => {
+  // Check static database first to avoid unnecessary API calls
+  const key = `${z}-${a}`;
+  if (NUCLIDE_FACTS[key]) {
+    return NUCLIDE_FACTS[key];
+  }
+
+  // Fallback to Gemini API for rare nuclides
   let attempts = 0;
   const maxAttempts = 2; // Retry once if it fails with a transient error
 
