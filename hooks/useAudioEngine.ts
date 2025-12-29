@@ -24,117 +24,105 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
     };
 
-    // --- SF Techno Sound Generators ---
+    // --- Electronic Music Sound Generators ---
 
-    const createDeepKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
+    const createKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, sub: boolean = false) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        const click = ctx.createOscillator();
-        const clickGain = ctx.createGain();
-
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(power > 1.2 ? 52 : 60, time);
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.frequency.setValueAtTime(sub ? 45 : 55, time);
+        osc.frequency.exponentialRampToValueAtTime(0.001, time + 0.4);
+        
+        gain.gain.setValueAtTime(0.8 * power, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
 
-        gain.gain.setValueAtTime(0.7, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+        if (!sub) {
+            const click = ctx.createOscillator();
+            const clickGain = ctx.createGain();
+            click.type = 'square';
+            click.frequency.setValueAtTime(2000, time);
+            clickGain.gain.setValueAtTime(0.1, time);
+            clickGain.gain.linearRampToValueAtTime(0, time + 0.01);
+            click.connect(clickGain); clickGain.connect(dest);
+            click.start(time); click.stop(time + 0.01);
+        }
 
-        click.type = 'square';
-        click.frequency.setValueAtTime(180, time);
-        clickGain.gain.setValueAtTime(0.15, time);
-        clickGain.gain.linearRampToValueAtTime(0, time + 0.015);
-
-        osc.connect(gain);
-        click.connect(clickGain);
-        gain.connect(dest);
-        clickGain.connect(dest);
-
-        osc.start(time);
-        click.start(time);
-        osc.stop(time + 0.5);
-        click.stop(time + 0.015);
+        osc.connect(gain); gain.connect(dest);
+        osc.start(time); osc.stop(time + 0.4);
     };
 
-    const createVoidSweep = (ctx: AudioContext, dest: AudioNode, time: number, duration: number) => {
-        // Black Hole Suction Effect
-        const bufferSize = ctx.sampleRate * duration;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, color: 'sharp' | 'deep' = 'sharp') => {
+        const noise = ctx.createBufferSource();
+        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
         const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buffer;
 
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        
         const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(color === 'sharp' ? 1500 : 800, time);
+        
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(dest);
+        noise.start(time);
+    };
+
+    const createHat = (ctx: AudioContext, dest: AudioNode, time: number, weight: number = 1.0) => {
+        const noise = ctx.createBufferSource();
+        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(8000, time);
+        
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.15 * weight, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(dest);
+        noise.start(time);
+    };
+
+    const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, type: 'pulse' | 'pad' | 'acid' = 'pulse') => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = type === 'pad' ? 'sawtooth' : (type === 'acid' ? 'sawtooth' : 'square');
+        osc.frequency.setValueAtTime(freq, time);
+
         filter.type = 'lowpass';
-        filter.Q.setValueAtTime(15, time);
-        filter.frequency.setValueAtTime(4000, time);
-        filter.frequency.exponentialRampToValueAtTime(20, time + duration);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.3, time + duration * 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(dest);
-        source.start(time);
-    };
-
-    const createStellarFM = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, modIndex: number = 2) => {
-        const carrier = ctx.createOscillator();
-        const modulator = ctx.createOscillator();
-        const modGain = ctx.createGain();
-        const gain = ctx.createGain();
-        
-        carrier.frequency.setValueAtTime(freq, time);
-        modulator.frequency.setValueAtTime(freq * 1.618, time);
-        modGain.gain.setValueAtTime(freq * modIndex, time);
+        if (type === 'acid') {
+            filter.frequency.setValueAtTime(freq, time);
+            filter.frequency.exponentialRampToValueAtTime(freq * 8, time + 0.05);
+            filter.Q.setValueAtTime(15, time);
+        } else if (type === 'pad') {
+            filter.frequency.setValueAtTime(400, time);
+            filter.frequency.linearRampToValueAtTime(1200, time + duration * 0.5);
+        } else {
+            filter.frequency.setValueAtTime(2000, time);
+        }
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.2, time + 0.01);
+        gain.gain.linearRampToValueAtTime(type === 'pad' ? 0.1 : 0.15, time + (type === 'pad' ? duration * 0.3 : 0.005));
         gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
-        modulator.connect(modGain);
-        modGain.connect(carrier.frequency);
-        carrier.connect(gain);
-        gain.connect(dest);
-
-        carrier.start(time);
-        modulator.start(time);
-        carrier.stop(time + duration);
-        modulator.stop(time + duration);
-    };
-
-    const createQuantumHiss = (ctx: AudioContext, dest: AudioNode, time: number, duration: number, color: 'white' | 'dark') => {
-        const bufferSize = ctx.sampleRate * duration;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        const filter = ctx.createBiquadFilter();
-        const gain = ctx.createGain();
-
-        filter.type = color === 'white' ? 'highpass' : 'bandpass';
-        filter.frequency.setValueAtTime(color === 'white' ? 14000 : 600, time);
-        
-        gain.gain.setValueAtTime(color === 'white' ? 0.08 : 0.2, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(dest);
-        source.start(time);
+        osc.connect(filter); filter.connect(gain); gain.connect(dest);
+        osc.start(time); osc.stop(time + duration);
     };
 
     const scheduler = useCallback(() => {
         if (!audioCtxRef.current || !compressorRef.current) return;
         
         const hpFactor = 1.0 - (hpRef.current / 100);
-        const currentBpm = 126 + (hpFactor * 34); 
+        const baseBpm = 132;
+        const currentBpm = baseBpm + (hpFactor * 32); 
         const secondsPerStep = 60 / currentBpm / 4;
 
         while (nextNoteTimeRef.current < audioCtxRef.current.currentTime + 0.1) {
@@ -145,67 +133,61 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
             switch (primaryMode) {
                 case DecayMode.STABLE:
-                    if (step % 4 === 0) createDeepKick(audioCtxRef.current, dest, time, 0.9);
-                    if (step % 8 === 2 || step % 8 === 6) createQuantumHiss(audioCtxRef.current, dest, time, 0.04, 'white');
-                    if (step % 16 === 14) createStellarFM(audioCtxRef.current, dest, time, 110, 0.15, 0.5);
+                    // Minimal Techno: Precision and Sub
+                    if (step % 4 === 0) createKick(audioCtxRef.current, dest, time, 0.8);
+                    if (step % 4 === 2) createHat(audioCtxRef.current, dest, time, 0.5);
+                    if (step % 8 === 6) createHat(audioCtxRef.current, dest, time, 0.8);
+                    if (step % 16 === 14) createSynth(audioCtxRef.current, dest, time, 110, 0.1, 'pulse');
                     break;
 
                 case DecayMode.BETA_MINUS:
-                    if (step % 4 === 0 || step % 16 === 10) createDeepKick(audioCtxRef.current, dest, time, 1.1);
-                    if (step % 2 === 1) createQuantumHiss(audioCtxRef.current, dest, time, 0.03, 'white');
-                    if (step % 4 !== 0) {
-                        const osc = audioCtxRef.current.createOscillator();
-                        const g = audioCtxRef.current.createGain();
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(step % 8 < 4 ? 50 : 45, time);
-                        g.gain.setValueAtTime(0.15, time);
-                        g.gain.exponentialRampToValueAtTime(0.001, time + secondsPerStep * 0.9);
-                        osc.connect(g); g.connect(dest);
-                        osc.start(time); osc.stop(time + secondsPerStep * 0.9);
-                    }
+                    // Driving Techno: Harder and Acidic
+                    if (step % 4 === 0) createKick(audioCtxRef.current, dest, time, 1.1);
+                    if (step % 2 === 1) createHat(audioCtxRef.current, dest, time, 1.2);
+                    const acidFreq = [110, 110, 220, 110, 164.81, 110, 110, 220][step % 8];
+                    if (step % 2 === 0) createSynth(audioCtxRef.current, dest, time, acidFreq, 0.15, 'acid');
                     break;
 
                 case DecayMode.BETA_PLUS:
-                    // Shivering Nervous Glitch (Original Style)
-                    if (step % 8 === 0) createDeepKick(audioCtxRef.current, dest, time, 0.8);
-                    if (step % 2 === 1) createQuantumHiss(audioCtxRef.current, dest, time, 0.03, 'white');
-                    // Melodic nervous arpeggio
-                    const bpScale = [1200, 1600, 880, 2200];
-                    createStellarFM(audioCtxRef.current, dest, time, bpScale[step % 4], 0.08, 6 + Math.sin(step) * 4);
-                    if (step % 4 === 0) createStellarFM(audioCtxRef.current, dest, time, 440, 0.1, 1);
+                    // Cyber Breakbeats: Syncopated Kick & Snare
+                    if ([0, 3, 6, 9, 13].includes(step)) createKick(audioCtxRef.current, dest, time, 1.0);
+                    if (step === 4 || step === 12) createSnare(audioCtxRef.current, dest, time, 'sharp');
+                    if (step % 2 === 1) createHat(audioCtxRef.current, dest, time, 0.7);
+                    if (step % 16 === 7) createSynth(audioCtxRef.current, dest, time, 440, 0.05, 'pulse');
                     break;
 
                 case DecayMode.ELECTRON_CAPTURE:
-                    // Black Hole / Singularity Suction
-                    if (step % 16 === 0) createDeepKick(audioCtxRef.current, dest, time, 1.5); // Heavy sub kick
-                    if (step % 8 === 0) createVoidSweep(audioCtxRef.current, dest, time, secondsPerStep * 6); // Suction
-                    if (step % 4 === 2) createQuantumHiss(audioCtxRef.current, dest, time, 0.2, 'dark'); // Distant void noise
-                    // Low gravity hum
-                    if (step % 16 === 8) createStellarFM(audioCtxRef.current, dest, time, 35, 1.2, 10);
+                    // Deep Ambient: No rhythm, pure textures
+                    if (step % 16 === 0) {
+                        const root = 164.81; // E3
+                        createSynth(audioCtxRef.current, dest, time, root, secondsPerStep * 15, 'pad');
+                        createSynth(audioCtxRef.current, dest, time, root * 1.5, secondsPerStep * 15, 'pad');
+                    }
+                    if (step % 8 === 4) {
+                        createSynth(audioCtxRef.current, dest, time, 880 + Math.random() * 880, 0.4, 'pad');
+                    }
                     break;
 
                 case DecayMode.ALPHA:
-                    if (step % 8 === 0 || step % 8 === 4) createDeepKick(audioCtxRef.current, dest, time, 1.4);
-                    if (step % 8 === 2 || step % 8 === 6) createQuantumHiss(audioCtxRef.current, dest, time, 0.1, 'dark');
-                    if (step % 16 === 0) createStellarFM(audioCtxRef.current, dest, time, 40, 0.8, 8);
+                    // Drum'n'Bass: High speed 2-step
+                    // Since DnB is effectively twice as fast, we use every 16th at high BPM
+                    if (step === 0 || step === 10) createKick(audioCtxRef.current, dest, time, 1.2);
+                    if (step === 4 || step === 12) createSnare(audioCtxRef.current, dest, time, 'deep');
+                    createHat(audioCtxRef.current, dest, time, 0.8);
+                    // Rolling sub-bass (Reese-ish)
+                    const reeseFreq = step % 8 < 4 ? 55 : 48.99;
+                    createSynth(audioCtxRef.current, dest, time, reeseFreq, secondsPerStep * 0.9, 'acid');
                     break;
 
                 case DecayMode.SPONTANEOUS_FISSION:
-                    createDeepKick(audioCtxRef.current, dest, time, 1.6);
-                    createQuantumHiss(audioCtxRef.current, dest, time, 0.2, 'dark');
-                    createStellarFM(audioCtxRef.current, dest, time, 20 + Math.random() * 800, 0.1, 25);
-                    break;
-
-                case DecayMode.PROTON_EMISSION:
-                case DecayMode.NEUTRON_EMISSION:
-                    if (step % 12 === 0) createDeepKick(audioCtxRef.current, dest, time, 0.6);
-                    if (step % 16 === 8) createQuantumHiss(audioCtxRef.current, dest, time, 0.5, 'dark');
-                    const droneFreq = primaryMode === DecayMode.PROTON_EMISSION ? 1800 : 32;
-                    createStellarFM(audioCtxRef.current, dest, time, droneFreq, secondsPerStep * 3, 1);
+                    // Chaos/Hardcore: Overdrive everything
+                    createKick(audioCtxRef.current, dest, time, 1.5);
+                    createSnare(audioCtxRef.current, dest, time, 'sharp');
+                    createSynth(audioCtxRef.current, dest, time, Math.random() * 1000 + 40, 0.05, 'acid');
                     break;
 
                 default:
-                    if (step % 4 === 0) createDeepKick(audioCtxRef.current, dest, time, 1.0);
+                    if (step % 4 === 0) createKick(audioCtxRef.current, dest, time, 1.0);
                     break;
             }
 
@@ -221,11 +203,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             audioCtxRef.current = ctx;
 
             const compressor = ctx.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(-26, ctx.currentTime);
+            // Intense pumping threshold
+            compressor.threshold.setValueAtTime(-34, ctx.currentTime);
             compressor.knee.setValueAtTime(30, ctx.currentTime);
-            compressor.ratio.setValueAtTime(12, ctx.currentTime);
+            compressor.ratio.setValueAtTime(16, ctx.currentTime);
             compressor.attack.setValueAtTime(0.003, ctx.currentTime);
-            compressor.release.setValueAtTime(0.25, ctx.currentTime);
+            compressor.release.setValueAtTime(0.12, ctx.currentTime);
             
             const masterGain = ctx.createGain();
             masterGain.gain.setValueAtTime(0.75, ctx.currentTime);
@@ -289,7 +272,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     return { 
         isMuted, 
         toggleMute, 
-        bpm: Math.round(126 + ((1 - hp / 100) * 34)), 
+        bpm: Math.round(132 + ((1 - hp / 100) * 32)), 
         primaryMode: getPrimaryMode() 
     };
 };
