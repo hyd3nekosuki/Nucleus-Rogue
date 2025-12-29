@@ -8,96 +8,109 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const currentStepRef = useRef(0);
     const timerIDRef = useRef<number | null>(null);
 
-    // Get primary decay mode for musical influence
+    // Get primary decay mode for musical influence (Dynamically updated after nuclide state change)
     const primaryMode = decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) 
                        || (decayModes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
 
     const bpm = 122 + (1 - hp / 100) * 33;
     const secondsPerStep = 60 / bpm / 4;
 
-    // --- Sound Synthesis Functions ---
+    // --- specialized Synthesis Routines ---
 
     const createKick = (ctx: AudioContext, time: number, isAlpha: boolean) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-
-        // Alpha decay makes the kick heavier/deeper
-        const startFreq = isAlpha ? 180 : 120;
+        const startFreq = isAlpha ? 160 : 110;
         osc.frequency.setValueAtTime(startFreq, time);
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + (isAlpha ? 0.3 : 0.15));
-        
-        gain.gain.setValueAtTime(1, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + (isAlpha ? 0.3 : 0.15));
-
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + (isAlpha ? 0.25 : 0.15));
+        gain.gain.setValueAtTime(0.8, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + (isAlpha ? 0.25 : 0.15));
         osc.start(time);
         osc.stop(time + 0.3);
     };
 
-    const createHiHat = (ctx: AudioContext, time: number, volume: number, isBetaMinus: boolean) => {
-        const bufferSize = ctx.sampleRate * 0.02;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        // Beta- makes hats brighter and "electric"
-        filter.frequency.setValueAtTime(isBetaMinus ? 8000 : 10000, time);
-
+    // Beta Plus Shimmer (Light, Ethereal)
+    const createPositronShimmer = (ctx: AudioContext, time: number) => {
+        const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        noise.connect(filter);
-        filter.connect(gain);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2000 + Math.random() * 1000, time);
+        osc.connect(gain);
         gain.connect(ctx.destination);
-
-        gain.gain.setValueAtTime(isBetaMinus ? volume * 1.5 : volume, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-
-        noise.start(time);
-        noise.stop(time + 0.05);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.03, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+        osc.start(time);
+        osc.stop(time + 0.1);
     };
 
-    const createDecayFx = (ctx: AudioContext, time: number, mode: DecayMode) => {
+    // Electron Capture Pop (Mechanical, Mid-range)
+    const createEcPop = (ctx: AudioContext, time: number) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const filter = ctx.createBiquadFilter();
-        
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, time);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(800, time);
+        filter.Q.setValueAtTime(10, time);
         osc.connect(filter);
         filter.connect(gain);
         gain.connect(ctx.destination);
-
-        if (mode === DecayMode.BETA_PLUS || mode === DecayMode.ELECTRON_CAPTURE) {
-            // Positron/EC: "Vacuum" whoosh
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(200, time);
-            osc.frequency.exponentialRampToValueAtTime(2000, time + 0.2);
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(1000, time);
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.1, time + 0.1);
-            gain.gain.linearRampToValueAtTime(0, time + 0.2);
-        } else if (mode === DecayMode.SPONTANEOUS_FISSION) {
-            // Fission: Harsh glitch
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(Math.random() * 100 + 50, time);
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(2000, time);
-            gain.gain.setValueAtTime(0.1, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-        } else if (mode === DecayMode.UNKNOWN) {
-            // Unknown: Dissonant metallic ring
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(880, time);
-            osc.frequency.linearRampToValueAtTime(890, time + 0.4); // Detuning
-            gain.gain.setValueAtTime(0.03, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
-        }
-
+        gain.gain.setValueAtTime(0.05, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
         osc.start(time);
-        osc.stop(time + 0.5);
+        osc.stop(time + 0.05);
+    };
+
+    // Neutron Emission Thud (Heavy, Mass-carrying)
+    const createNeutronThud = (ctx: AudioContext, time: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(60, time);
+        osc.frequency.exponentialRampToValueAtTime(30, time + 0.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.15, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+        osc.start(time);
+        osc.stop(time + 0.2);
+    };
+
+    // Proton Emission Spark (High-energy, Sharp)
+    const createProtonSpark = (ctx: AudioContext, time: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(3000, time);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.04, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+        osc.start(time);
+        osc.stop(time + 0.03);
+    };
+
+    const createBetaPulse = (ctx: AudioContext, time: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1200, time);
+        osc.frequency.exponentialRampToValueAtTime(400, time + 0.04);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1500, time);
+        filter.Q.setValueAtTime(10, time);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.06, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+        osc.start(time);
+        osc.stop(time + 0.04);
     };
 
     const scheduler = () => {
@@ -106,62 +119,63 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const time = nextNoteTimeRef.current;
             const step = currentStepRef.current;
 
-            // --- Pattern Influenced by Decay Mode ---
-            const isStable = primaryMode === DecayMode.STABLE;
+            // --- Dynamic Pattern Switch (Determined after nuclide change) ---
             const isAlpha = primaryMode === DecayMode.ALPHA;
             const isBetaMinus = primaryMode === DecayMode.BETA_MINUS;
+            const isBetaPlus = primaryMode === DecayMode.BETA_PLUS;
+            const isEC = primaryMode === DecayMode.ELECTRON_CAPTURE;
+            const isNeutron = primaryMode === DecayMode.NEUTRON_EMISSION;
+            const isProton = primaryMode === DecayMode.PROTON_EMISSION;
             const isFission = primaryMode === DecayMode.SPONTANEOUS_FISSION;
 
-            // 1. Kick Logic
-            if (step % 4 === 0) {
-                createKick(audioCtxRef.current, time, isAlpha);
-            }
-            // Double kick for Alpha
-            if (isAlpha && step % 4 === 1 && Math.random() > 0.5) {
-                createKick(audioCtxRef.current, time, true);
-            }
+            // 1. Kick (Foundation)
+            if (step % 4 === 0) createKick(audioCtxRef.current, time, isAlpha);
+            
+            // 2. Neutron Thud (Head of the bar, heavy)
+            if (isNeutron && step === 0) createNeutronThud(audioCtxRef.current, time);
 
-            // 2. Hat Logic (Beta- increases density)
-            const hatProb = isBetaMinus ? 0.8 : 0.4;
-            if (step % 2 === 0 || Math.random() < hatProb) {
-                createHiHat(audioCtxRef.current, time, 0.05, isBetaMinus);
-            }
+            // 3. Proton Spark (Off-beat accents)
+            if (isProton && (step === 3 || step === 11)) createProtonSpark(audioCtxRef.current, time);
 
-            // 3. Fx/Glitch Logic
-            if (!isStable) {
-                if (isFission && Math.random() > 0.7) {
-                    createDecayFx(audioCtxRef.current, time, DecayMode.SPONTANEOUS_FISSION);
-                } else if (step % 8 === 6) {
-                    createDecayFx(audioCtxRef.current, time, primaryMode);
-                }
-            }
+            // 4. Beta Minus Pulse
+            if (isBetaMinus && step % 4 === 2) createBetaPulse(audioCtxRef.current, time);
 
-            // 4. Bass Line
-            if (step % 4 !== 0) {
+            // 5. Beta Plus Shimmer (Continuous high-freq decoration)
+            if (isBetaPlus && step % 2 === 1) createPositronShimmer(audioCtxRef.current, time);
+
+            // 6. EC Pop (Steady mechanical clicks)
+            if (isEC && (step === 4 || step === 12)) createEcPop(audioCtxRef.current, time);
+
+            // 7. Fission Glitch (Aggressive randomized chaos)
+            if (isFission && Math.random() > 0.6) {
                 const osc = audioCtxRef.current.createOscillator();
-                const gain = audioCtxRef.current.createGain();
-                const filter = audioCtxRef.current.createBiquadFilter();
-
                 osc.type = 'sawtooth';
-                // Unknown mode detunes the bass
-                const detune = primaryMode === DecayMode.UNKNOWN ? Math.random() * 10 - 5 : 0;
-                osc.frequency.setValueAtTime(55 + detune, time); // A1
-                
-                const filterFreq = 100 + (1 - hp/100) * 1000 + (isFission ? 500 : 0);
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(filterFreq, time);
-                filter.Q.setValueAtTime(isFission ? 15 : 5, time);
-
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(audioCtxRef.current.destination);
-
-                gain.gain.setValueAtTime(0.08, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + secondsPerStep * 0.8);
-
-                osc.start(time);
-                osc.stop(time + secondsPerStep * 0.8);
+                osc.frequency.setValueAtTime(Math.random() * 100, time);
+                const g = audioCtxRef.current.createGain();
+                osc.connect(g); g.connect(audioCtxRef.current.destination);
+                g.gain.setValueAtTime(0.05, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                osc.start(time); osc.stop(time + 0.05);
             }
+
+            // 8. Bassline (Classic Dark Techno)
+            const osc = audioCtxRef.current.createOscillator();
+            const gain = audioCtxRef.current.createGain();
+            const filter = audioCtxRef.current.createBiquadFilter();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(55, time); // A1
+            const filterFreq = 150 + (1 - hp/100) * 800;
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(filterFreq, time);
+            filter.Q.setValueAtTime(4, time);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtxRef.current.destination);
+            const isBassNote = step % 4 !== 0;
+            gain.gain.setValueAtTime(isBassNote ? 0.07 : 0, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + secondsPerStep * 0.7);
+            osc.start(time);
+            osc.stop(time + secondsPerStep * 0.7);
 
             nextNoteTimeRef.current += secondsPerStep;
             currentStepRef.current = (currentStepRef.current + 1) % 16;
