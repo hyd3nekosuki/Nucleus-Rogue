@@ -12,12 +12,10 @@ import TrefoilIndicator from './components/TrefoilIndicator';
 import EvolutionMap from './components/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusEngine } from './hooks/useNucleusEngine';
-import { fetchNuclideDescription } from './services/geminiService';
-import { NUCLIDE_FACTS } from './data/nuclideFacts';
+import { useAudioEngine } from './hooks/useAudioEngine';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
-const DESCRIPTION_COOLDOWN_MS = 10 * 60 * 1000; 
 
 function App() {
   const [showTable, setShowTable] = useState(false);
@@ -25,49 +23,24 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
 
-  // Dynamic Description Logic (Map stores only AI-enriched results)
-  const [enrichedDescriptions, setEnrichedDescriptions] = useState<Map<string, string>>(new Map());
-  const lastFetchTimeRef = useRef<number>(0);
-
   // --- TTS Bridging Logic ---
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
   const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
+  
+  // --- Audio Logic with Dynamic Resonance ---
+  const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
+      gameState.hp, 
+      gameState.gameOver, 
+      gameState.currentNuclide.decayModes
+  );
+  
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver);
 
   useEffect(() => {
     ttsTriggerRef.current = activeTTSTrigger;
   }, [activeTTSTrigger]);
   // --------------------------
-
-  // Effect to handle dynamic description fetching (AI Enrichment)
-  useEffect(() => {
-    if (gameState.gameOver || !gameState.currentNuclide) return;
-
-    const { z, a, name } = gameState.currentNuclide;
-    const key = `${z}-${a}`;
-    
-    // Skip if we already have an AI response or if it's a known static fact/anomaly
-    if (enrichedDescriptions.has(key)) return;
-    if (NUCLIDE_FACTS[key]) return;
-    if (z === 0 && a === 4) return; // Tetraneutron special handling
-
-    const now = Date.now();
-    if (now - lastFetchTimeRef.current < DESCRIPTION_COOLDOWN_MS) return;
-
-    lastFetchTimeRef.current = now;
-    
-    const updateDescription = async () => {
-      const desc = await fetchNuclideDescription(z, a, name);
-      setEnrichedDescriptions(prev => {
-        const next = new Map(prev);
-        next.set(key, desc);
-        return next;
-      });
-    };
-
-    updateDescription();
-  }, [gameState.currentNuclide.z, gameState.currentNuclide.a, gameState.gameOver]);
 
   useEffect(() => {
     if (containerRef.current) containerRef.current.focus();
@@ -90,11 +63,12 @@ function App() {
         case 'ArrowLeft': case 'a': engine.moveStep(-1, 0); break;
         case 'ArrowRight': case 'd': engine.moveStep(1, 0); break;
         case 'Enter': case ' ': case 'Spacebar': engine.handlePlayerInteract(); break;
+        case 'm': toggleMute(); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [engine]);
+  }, [engine, toggleMute]);
 
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
@@ -109,11 +83,8 @@ function App() {
   const energyCost = isNucleosynthesisReady ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
 
-  const nuclideKey = `${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`;
-  // Final display priority: AI Enriched > Base Description (which now includes Static Facts)
-  const currentDescription = enrichedDescriptions.get(nuclideKey) || gameState.currentNuclide.description;
+  const currentDescription = gameState.currentNuclide.description;
 
-  // GRID PARTICLE COUNTER (Hidden Information)
   const gridTotals = gameState.gridEntities.reduce((acc, entity) => {
     if (entity.type === EntityType.PROTON) acc.p++;
     else if (entity.type === EntityType.NEUTRON) acc.n++;
@@ -122,7 +93,6 @@ function App() {
     return acc;
   }, { p: 0, n: 0, e: 0, pos: 0 });
 
-  // STREAK LOGIC: Only show if a count is active
   const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : 
                           gameState.consecutiveNeutrons > 0 ? 'n' : 
                           gameState.consecutiveElectrons > 0 ? 'e-' : null;
@@ -151,8 +121,21 @@ function App() {
 
       {/* Side Panel */}
       <div className="order-2 md:order-1 w-full md:w-80 lg:w-96 bg-panel-bg border-r border-gray-800 flex flex-col h-auto md:h-screen overflow-y-auto z-20 select-none">
-          <div className="hidden md:flex pt-2 pb-1.5 px-6 items-center justify-center border-b border-gray-800 shrink-0">
+          <div className="hidden md:flex pt-2 pb-1.5 px-6 items-center justify-between border-b border-gray-800 shrink-0">
              <h1 className="text-lg font-black text-neon-blue tracking-tighter italic drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">NUCLEUS<span className="text-white text-[9px] not-italic font-normal tracking-widest ml-1 opacity-70">ROGUE</span></h1>
+             <button 
+                onClick={toggleMute} 
+                className={`p-1 rounded border transition-all ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_8px_#00f3ff]'}`}
+                title="Toggle BGM (M)"
+             >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {isMuted ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    )}
+                </svg>
+             </button>
           </div>
           
           <InfoPanel 
@@ -203,7 +186,13 @@ function App() {
           </div>
 
           <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
-                <div className="flex flex-col"><span className="font-bold uppercase">v{APP_VERSION}</span><a href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" target="_blank" rel="noopener noreferrer" className="hover:text-neon-blue underline transition-colors">Data: IAEA Chart</a></div>
+                <div className="flex flex-col">
+                    <span className="font-bold uppercase">v{APP_VERSION}</span>
+                    <div className="flex gap-2">
+                        <a href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" target="_blank" rel="noopener noreferrer" className="hover:text-neon-blue underline transition-colors">IAEA Data</a>
+                        {!isMuted && <span className="text-neon-blue animate-pulse font-bold tracking-tighter">BPM:{bpm} RES:{primaryMode.slice(0,3)}</span>}
+                    </div>
+                </div>
                 <div className="text-right italic">Nucleus Rogue</div>
           </div>
       </div>
@@ -231,7 +220,6 @@ function App() {
                     <span className="text-white font-light">e-: (Z-1, A)</span>
                 </div>
                 
-                {/* DYNAMIC STATISTICS OVERLAY: GRID prioritized, STREAK shown conditionally */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
                     <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
                     <div className="flex items-center gap-2">
