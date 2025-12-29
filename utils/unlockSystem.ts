@@ -1,5 +1,6 @@
 import { ELEMENT_GROUPS, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
 import { DecayMode } from '../types';
+import { getNuclideDataSync } from '../services/nuclideService';
 
 export const processUnlocks = (
     currentUnlockedElements: number[], 
@@ -24,6 +25,8 @@ export const processUnlocks = (
     let updatedGroups = currentUnlockedGroups;
     let scoreBonus = 0;
     let messages: string[] = [];
+
+    const nuclideData = getNuclideDataSync(newZ, newA);
 
     // 1. Element Unlock
     if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
@@ -74,11 +77,12 @@ export const processUnlocks = (
         messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
     }
 
-    // 5. Special Hidden Title: Unknown (formerly Tetraneutron)
-    if (newZ === 0 && newA === 4 && !updatedGroups.includes("Unknown")) {
+    // 5. Special Hidden Title: Unknown
+    // Triggered when entering a nuclide with unmeasured/unspecified decay mode ('?') for the first time
+    if (nuclideData.exists && nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
         updatedGroups = [...updatedGroups, "Unknown"];
         scoreBonus += BONUS_SCORES.UNKNOWN;
-        messages.push(` ❔ HIDDEN TITLE: Unknown! Unexplained phenomena. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
+        messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
     }
 
     // 6. Special Hidden Title: Temporal Inversion
