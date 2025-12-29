@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
 import { DecayMode } from '../types';
@@ -227,11 +226,11 @@ const PeriodicTable: React.FC<Props> = ({
                                 : item.name === "Fission"
                                 ? "Active: Allows neutron-induced fission and SF. Disabled: Replaces fission with alpha decay."
                                 : item.name === "zero barn"
-                                ? "Active: Allows neutron capture. Disabled: Prevents A increase from neutrons."
+                                ? "Active: Prevents A increase by no reaction to neutron. Disabled: Allows neutron capture."
                                 : item.name === "Exp. Replicate"
                                 ? "Active: Allows manually selecting an element when magic conditions are met. Disabled: Prevents manual transmutation."
                                 : item.name === "Electron scattering"
-                                ? "Active: Prevents electron capture (Z reduction) at low stability. Electrons are scattered away."
+                                ? "Active: Prevents electron capture (Z reduction) by electron scattering. Disabled: Allows electron capture."
                                 : item.name === "Neutronization"
                                 ? "Active: Allows converting adjacent protons to neutrons during β- decay. Disabled: β- decay has no conversion effect."
                                 : item.name === "Pair annihilation"

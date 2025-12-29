@@ -1,4 +1,3 @@
-
 // Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
 import { GameState, EntityType, DecayMode } from '../types';
@@ -34,7 +33,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       if (isPlayer) {
           // Player visual depends on Z (Color shift)
           const isNeutron = gameState.currentNuclide.z === 0;
-          const isTetraneutron = isNeutron && gameState.currentNuclide.a === 4;
+          const isUnknownDecay = gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN);
           
           const hue = (gameState.currentNuclide.z * 10) % 360;
           const isUnstable = !gameState.currentNuclide.isStable;
@@ -45,7 +44,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
           let shadowStyle = isNeutron ? '0 0 20px #ffffff' : undefined;
           let borderStyle = undefined;
 
-          if (isTetraneutron) {
+          if (isUnknownDecay) {
               bgStyle = '#000000';
               textStyle = '#a855f7'; // Neon purple text
               shadowStyle = '0 0 25px #000000, inset 0 0 10px #581c87'; // Deep black shadow + purple inset
@@ -60,7 +59,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
 
           content = (
               <div 
-                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutron && !isTetraneutron && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
+                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
                 style={{
                     backgroundColor: bgStyle,
                     color: textStyle,
@@ -71,17 +70,17 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                  <span className="z-10 relative top-[1px]">{gameState.currentNuclide.symbol}</span>
                  
                  {/* Mass Number (A) - Top Left */}
-                 <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isTetraneutron && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>
+                 <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>
                     {gameState.currentNuclide.a}
                  </div>
                  
                  {/* Atomic Number (Z) - Bottom Left */}
-                 <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isTetraneutron && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>
+                 <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>
                     {gameState.currentNuclide.z}
                  </div>
                  
                  {/* Orbitals ring visual effect */}
-                 <div className={`absolute inset-[-4px] border ${isNeutron && !isTetraneutron ? 'border-gray-400' : (isTetraneutron ? 'border-purple-500/50' : 'border-white/30')} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
+                 <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30')} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
               </div>
           );
       } else if (entity) {

@@ -1,4 +1,3 @@
-
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -146,8 +145,8 @@ export const calculateMoveResult = (
                 }
             }
         } else if (entity.type === EntityType.NEUTRON) { 
-            const isZeroBarnDisabled = prev.disabledSkills.includes("zero barn");
-            if (isZeroBarnDisabled) {
+            const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
+            if (isZeroBarnActive) {
                 dZ = 0; dA = 0;
                 scatteredMessage = "Neutron scattering prevents capture";
             } else {
