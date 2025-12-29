@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -23,6 +22,7 @@
             },
             animation: {
                 'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                'ecg-draw': 'ecg-draw 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards',
             },
             keyframes: {
                 shake: {
@@ -30,6 +30,12 @@
                     '20%, 80%': { transform: 'translate3d(4px, 0, 0)' },
                     '30%, 50%, 70%': { transform: 'translate3d(-8px, 0, 0)' },
                     '40%, 60%': { transform: 'translate3d(8px, 0, 0)' }
+                },
+                'ecg-draw': {
+                    '0%': { 'stroke-dasharray': '300', 'stroke-dashoffset': '300', opacity: 0 },
+                    '20%': { opacity: 1 },
+                    '80%': { opacity: 1 },
+                    '100%': { 'stroke-dashoffset': '0', opacity: 0 }
                 }
             }
           }

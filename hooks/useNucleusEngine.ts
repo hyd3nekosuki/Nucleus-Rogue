@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS } from '../constants';
@@ -97,17 +96,23 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     // Effects cleanup
     useEffect(() => {
-        if (gameState.effects.length === 0) return;
+        if (gameState.effects.length === 0 && !gameState.activeEvent) return;
         const timer = setTimeout(() => {
             setGameState(prev => {
                 const now = Date.now();
                 const remainingEffects = prev.effects.filter(e => now - e.timestamp < 1000);
-                if (remainingEffects.length === prev.effects.length) return prev;
-                return { ...prev, effects: remainingEffects };
+                const eventStillActive = prev.activeEvent && (now - prev.activeEvent.timestamp < 1000);
+                
+                if (remainingEffects.length === prev.effects.length && eventStillActive) return prev;
+                return { 
+                    ...prev, 
+                    effects: remainingEffects,
+                    activeEvent: eventStillActive ? prev.activeEvent : undefined 
+                };
             });
         }, 500);
         return () => clearTimeout(timer);
-    }, [gameState.effects]);
+    }, [gameState.effects, gameState.activeEvent]);
 
     // Combo Timer
     useEffect(() => {
@@ -190,7 +195,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (result.shouldFlash) { setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
                 if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
             } else if (result.shouldFlash) {
-                // Handle Monster House flash (which doesn't have an inducedDecayMode)
                 if (result.flashColor) setFlashColor(result.flashColor);
                 else setFlashColor('bg-neon-blue');
                 setIsFlashBang(true); 

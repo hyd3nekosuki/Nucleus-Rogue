@@ -1,4 +1,3 @@
-
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -104,4 +103,5 @@ export interface GameState {
   lastConsumedType: EntityType | null; // Hidden: Tracker for streak
   decayStats: Record<string, number>; // Total counts of α, β-, β+, EC, SF, n, p, γ
   reactionStats: Record<string, number>; // Counts of (n,γ), (n,p), (n,2n), (n,α), (n,fission)
+  activeEvent?: { type: string; color: string; timestamp: number }; // For subtle background signals
 }

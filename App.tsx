@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
@@ -180,6 +179,7 @@ function App() {
             isTimeStopped={gameState.isTimeStopped} 
             lastComboTime={gameState.lastComboTime} 
             description={currentDescription}
+            activeEvent={gameState.activeEvent}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">

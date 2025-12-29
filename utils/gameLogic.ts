@@ -274,11 +274,13 @@ export const calculateMoveResult = (
         const randEvent = Math.random();
         if (randEvent < 0.02) { // 2% total
             let eventMsg = "";
-            let eventColor = "bg-neon-blue";
+            let signalType = "";
+            let signalColor = "";
             
             if (randEvent < 0.01) { // 1.0%: Quantum Coherence (Inversion)
                 eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!";
-                eventColor = "bg-neon-purple";
+                signalType = "INVERSION";
+                signalColor = "#bc13fe"; // Purple
                 nextState.gridEntities = nextState.gridEntities.map(e => {
                     if (e.type === EntityType.PROTON) return { ...e, type: EntityType.NEUTRON };
                     if (e.type === EntityType.NEUTRON) return { ...e, type: EntityType.PROTON };
@@ -287,26 +289,29 @@ export const calculateMoveResult = (
                 });
             } else if (randEvent < 0.016) { // 0.6%: All Neutrons
                 eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!";
-                eventColor = "bg-neon-blue";
+                signalType = "NEUTRON_STORM";
+                signalColor = "#00f3ff"; // Blue
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.NEUTRON } : e
                 );
             } else if (randEvent < 0.019) { // 0.3%: All Protons
                 eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!";
-                eventColor = "bg-neon-red";
+                signalType = "PROTON_BURST";
+                signalColor = "#ff0055"; // Red
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.PROTON } : e
                 );
             } else { // 0.1%: All Electrons
                 eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!";
-                eventColor = "bg-yellow-400";
+                signalType = "ELECTRON_FLUCTUATION";
+                signalColor = "#facc15"; // Yellow
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.ENEMY_ELECTRON } : e
                 );
             }
             
             nextState.messages = [...nextState.messages, eventMsg].slice(-10);
-            // Removed shouldShakeEvent and shouldFlashEvent for Monster House to avoid eye strain
+            nextState.activeEvent = { type: signalType, color: signalColor, timestamp: Date.now() };
             eventTriggered = true;
         }
     }
