@@ -148,7 +148,7 @@ export const calculateMoveResult = (
             const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
             if (isZeroBarnActive) {
                 dZ = 0; dA = 0;
-                scatteredMessage = "Neutron scattering prevents capture";
+                scatteredMessage = "Neutron was not absorbed due to 0 barn";
             } else {
                 dZ = 0; dA = 1; 
                 if (entity.isHighEnergy) {
