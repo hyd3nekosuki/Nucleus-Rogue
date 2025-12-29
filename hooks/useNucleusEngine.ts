@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
 import { generateEntities, calculateMoveResult } from '../utils/gameLogic';
@@ -362,7 +362,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
         
         setGameState(prev => {
-            // Restriction: Cannot trigger during Frozen Time
             if (prev.isTimeStopped) {
                 return {
                     ...prev,
@@ -421,7 +420,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 score: prev.score + synthBonus + unlockResult.scoreBonus,
                 unlockedElements: unlockResult.updatedElements,
                 unlockedGroups: unlockResult.updatedGroups,
-                // RESET MASTERY MECHANIC
                 playerLevel: 0,
                 masteredDecays: [],
                 messages: [
@@ -473,7 +471,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     turn: nextTurn,
                     unlockedElements: unlockResult.updatedElements, 
                     unlockedGroups: unlockResult.updatedGroups,
-                    score: prev.score + 500000 + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
+                    score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
                     isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
                 };
             });
@@ -499,8 +497,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             if (coords) { const data = getNuclideDataSync(coords.z, coords.a); if (data.exists) startNuclide = data; }
         }
 
-        // Reset disabledSkills to an empty array for H-1 restart to ensure the player 
-        // starts with a completely clean state, similar to the first launch.
         let nextDisabledSkills = randomStart ? gameState.disabledSkills : [];
 
         let nextUnlockedElements = randomStart ? [...currentTitles] : [];

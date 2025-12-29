@@ -1,5 +1,4 @@
-
-import { ELEMENT_GROUPS, MAGIC_NUMBERS } from '../constants';
+import { ELEMENT_GROUPS, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
 import { DecayMode } from '../types';
 
 export const processUnlocks = (
@@ -32,7 +31,7 @@ export const processUnlocks = (
         
         let trophyBonus = 0;
         if (newZ === 0) {
-            trophyBonus = 100000;
+            trophyBonus = BONUS_SCORES.NEUTRON_0;
             messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus.toLocaleString()} PTS)`);
         } else {
             trophyBonus = newZ * 1000;
@@ -45,41 +44,41 @@ export const processUnlocks = (
     if (!updatedGroups.includes("Pair annihilation")) {
         if (isAnnihilation) {
             updatedGroups = [...updatedGroups, "Pair annihilation"];
-            scoreBonus += 20000;
-            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (+20,000 PTS)`);
+            scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
+            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
         } else if (betaPlusCount >= 10) {
             updatedGroups = [...updatedGroups, "Pair annihilation"];
-            scoreBonus += 20000;
-            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (Mastered β+ Emission) (+20,000 PTS)`);
+            scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
+            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (Mastered β+ Emission) (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
         }
     }
 
     // Special Hidden Title: Neutronization
     if (!updatedGroups.includes("Neutronization") && betaMinusCount >= 20) {
         updatedGroups = [...updatedGroups, "Neutronization"];
-        scoreBonus += 50000;
-        messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+50,000 PTS)`);
+        scoreBonus += BONUS_SCORES.NEUTRONIZATION;
+        messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+${BONUS_SCORES.NEUTRONIZATION.toLocaleString()} PTS)`);
     }
 
     // 3. Special Hidden Title: Exp. Replicate
     if (isTransmutation && !updatedGroups.includes("Exp. Replicate")) {
         updatedGroups = [...updatedGroups, "Exp. Replicate"];
-        scoreBonus += 30000;
-        messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+30,000 PTS)`);
+        scoreBonus += BONUS_SCORES.EXP_REPLICATE_TITLE;
+        messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+${BONUS_SCORES.EXP_REPLICATE_TITLE.toLocaleString()} PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
     if (isNucleosynthesis && !updatedGroups.includes("Nucleosynthesis")) {
         updatedGroups = [...updatedGroups, "Nucleosynthesis"];
-        scoreBonus += 2000000;
-        messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+2,000,000 PTS)`);
+        scoreBonus += BONUS_SCORES.NUCLEOSYNTHESIS_TITLE;
+        messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
     }
 
     // 5. Special Hidden Title: Tetraneutron
     if (newZ === 0 && newA === 4 && !updatedGroups.includes("Tetraneutron")) {
         updatedGroups = [...updatedGroups, "Tetraneutron"];
-        scoreBonus += 400000;
-        messages.push(` 🌌 HIDDEN TITLE: Tetraneutron! The Void State. (+400,000 PTS)`);
+        scoreBonus += BONUS_SCORES.TETRANEUTRON;
+        messages.push(` 🌌 HIDDEN TITLE: Tetraneutron! The Void State. (+${BONUS_SCORES.TETRANEUTRON.toLocaleString()} PTS)`);
     }
 
     // 6. Special Hidden Title: Temporal Inversion
@@ -97,36 +96,36 @@ export const processUnlocks = (
     // 8. Special Hidden Title: Fusion
     if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
         updatedGroups = [...updatedGroups, "Fusion"];
-        scoreBonus += 420000;
-        messages.push(` 💥 HIDDEN TITLE: Fusion! (+420,000 PTS)`);
+        scoreBonus += BONUS_SCORES.FUSION_TITLE;
+        messages.push(` 💥 HIDDEN TITLE: Fusion! (+${BONUS_SCORES.FUSION_TITLE.toLocaleString()} PTS)`);
     }
 
     // 9. Special Hidden Title: Fission
     if (isFissionAchieved && !updatedGroups.includes("Fission")) {
         updatedGroups = [...updatedGroups, "Fission"];
-        scoreBonus += 2000000;
-        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+2,000,000 PTS)`);
+        scoreBonus += BONUS_SCORES.FISSION_TITLE;
+        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+${BONUS_SCORES.FISSION_TITLE.toLocaleString()} PTS)`);
     }
 
     // 10. Special Hidden Title: zero barn
     if (isZeroBarnAchieved && !updatedGroups.includes("zero barn")) {
         updatedGroups = [...updatedGroups, "zero barn"];
-        scoreBonus += 500000;
-        messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+500,000 PTS)`);
+        scoreBonus += BONUS_SCORES.ZERO_BARN;
+        messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+${BONUS_SCORES.ZERO_BARN.toLocaleString()} PTS)`);
     }
 
     // 11. Special Hidden Title: Electron scattering
     if (isBremsAchieved && !updatedGroups.includes("Electron scattering")) {
         updatedGroups = [...updatedGroups, "Electron scattering"];
-        scoreBonus += 100000;
-        messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+100,000 PTS)`);
+        scoreBonus += BONUS_SCORES.ELECTRON_SCATTERING;
+        messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+${BONUS_SCORES.ELECTRON_SCATTERING.toLocaleString()} PTS)`);
     }
 
     // NEW: Special Hidden Title: Gluttony
     if (isGluttonyAchieved && !updatedGroups.includes("Gluttony")) {
         updatedGroups = [...updatedGroups, "Gluttony"];
-        scoreBonus += 1000000;
-        messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+1,000,000 PTS)`);
+        scoreBonus += BONUS_SCORES.GLUTTONY;
+        messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+${BONUS_SCORES.GLUTTONY.toLocaleString()} PTS)`);
     }
 
     // 12. Group Unlock Check
@@ -135,8 +134,8 @@ export const processUnlocks = (
             const allFound = groupZs.every(z => updatedElements.includes(z));
             if (allFound) {
                 updatedGroups = [...updatedGroups, groupName];
-                scoreBonus += 1000000;
-                messages.push(` 👑 GRANDMASTER: ${groupName} Series Completed! (+1,000,000 PTS)`);
+                scoreBonus += BONUS_SCORES.GRANDMASTER_SERIES;
+                messages.push(` 👑 GRANDMASTER: ${groupName} Series Completed! (+${BONUS_SCORES.GRANDMASTER_SERIES.toLocaleString()} PTS)`);
             }
         }
     });
@@ -147,16 +146,16 @@ export const processUnlocks = (
     const isMagicN = MAGIC_NUMBERS.includes(newN);
 
     if (isMagicZ && isMagicN) {
-        scoreBonus += 5000;
-        messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+50,000 PTS)`);
+        scoreBonus += BONUS_SCORES.DOUBLE_MAGIC;
+        messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+${BONUS_SCORES.DOUBLE_MAGIC.toLocaleString()} PTS)`);
     } else {
         if (isMagicZ) {
-            scoreBonus += 5000;
-            messages.push(` ✨ MAGIC PROTON SHELL CLOSED (Z=${newZ})! (+5,000 PTS)`);
+            scoreBonus += BONUS_SCORES.MAGIC_SHELL;
+            messages.push(` ✨ MAGIC PROTON SHELL CLOSED (Z=${newZ})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
         }
         if (isMagicN) {
-            scoreBonus += 5000;
-            messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+5,000 PTS)`);
+            scoreBonus += BONUS_SCORES.MAGIC_SHELL;
+            messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
         }
     }
 

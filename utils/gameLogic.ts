@@ -1,5 +1,5 @@
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
 import { calculateDecayEffects } from './decaySystem';
@@ -127,7 +127,7 @@ export const calculateMoveResult = (
                 }
                 else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
                     dZ = 1; dA = 1; 
-                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
+                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
                 }
                 else if (prev.hp > COULOMB_BAR_THRESHOLD) { 
                     hpPenalty = 20; dZ = 1; dA = 1; 
@@ -192,7 +192,7 @@ export const calculateMoveResult = (
                 }
                 if (isMagic || entity.isHighEnergy) { 
                     dZ = -1; dA = 0; 
-                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * 10000;
+                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
                 } else { 
                     hpPenalty = prev.hp * 0.5; dZ = -1; dA = 0; 
                 }
@@ -205,7 +205,6 @@ export const calculateMoveResult = (
     const potentialZ = prev.currentNuclide.z + dZ;
     const potentialA = prev.currentNuclide.a + dA;
     
-    // Updated Evolution Logic: Protons and Electrons toggle energy every 60 turns.
     const evolvedEntities = (chainDecayResult?.newGridEntities || nextEntities).map(e => {
         if (e.type === EntityType.PROTON || e.type === EntityType.ENEMY_ELECTRON) {
             const elapsed = (prev.turn + 1) - e.spawnTurn;
@@ -230,10 +229,10 @@ export const calculateMoveResult = (
             const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered, isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved, 0, 0, isGluttonyAchieved);
             const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
-            const fusionMsg = isPpFusion ? ["✨ STELLAR FUSION: p + p → D + e+ (+420,000 PTS)"] : [];
+            const fusionMsg = isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
             const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);
-            nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? 420000 : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
+            nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
             if (nextState.hp <= 0) { 
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
                 } else {
@@ -266,45 +265,44 @@ export const calculateMoveResult = (
         if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-10);
     }
 
-    // Check for Tetraneutron "Monster House" Event (Total 2% chance)
     const isTetraneutronActive = nextState.unlockedGroups.includes("Tetraneutron") && !nextState.disabledSkills.includes("Tetraneutron");
     let eventTriggered = false;
 
     if (isTetraneutronActive) {
         const randEvent = Math.random();
-        if (randEvent < 0.02) { // 2% total
+        if (randEvent < 0.02) {
             let eventMsg = "";
             let signalType = "";
             let signalColor = "";
             
-            if (randEvent < 0.01) { // 1.0%: Quantum Coherence (Inversion)
+            if (randEvent < 0.01) {
                 eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!";
                 signalType = "INVERSION";
-                signalColor = "#bc13fe"; // Purple
+                signalColor = "#bc13fe";
                 nextState.gridEntities = nextState.gridEntities.map(e => {
                     if (e.type === EntityType.PROTON) return { ...e, type: EntityType.NEUTRON };
                     if (e.type === EntityType.NEUTRON) return { ...e, type: EntityType.PROTON };
                     if (e.type === EntityType.ENEMY_ELECTRON) return { ...e, isHighEnergy: !e.isHighEnergy };
                     return e;
                 });
-            } else if (randEvent < 0.016) { // 0.6%: All Neutrons
+            } else if (randEvent < 0.016) {
                 eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!";
                 signalType = "NEUTRON_STORM";
-                signalColor = "#00f3ff"; // Blue
+                signalColor = "#00f3ff";
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.NEUTRON } : e
                 );
-            } else if (randEvent < 0.019) { // 0.3%: All Protons
+            } else if (randEvent < 0.019) {
                 eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!";
                 signalType = "PROTON_BURST";
-                signalColor = "#ff0055"; // Red
+                signalColor = "#ff0055";
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.PROTON } : e
                 );
-            } else { // 0.1%: All Electrons
+            } else {
                 eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!";
                 signalType = "ELECTRON_FLUCTUATION";
-                signalColor = "#facc15"; // Yellow
+                signalColor = "#facc15";
                 nextState.gridEntities = nextState.gridEntities.map(e => 
                     e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.ENEMY_ELECTRON } : e
                 );
@@ -316,7 +314,6 @@ export const calculateMoveResult = (
         }
     }
 
-    // Check Gluttony Skill: Prevent normal spawning if Active
     const isGluttonySkillActive = nextState.unlockedGroups.includes("Gluttony") && !nextState.disabledSkills.includes("Gluttony");
 
     if (!isGluttonySkillActive && !eventTriggered && Math.random() < 0.15) {
