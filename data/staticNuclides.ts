@@ -8,7 +8,7 @@ import { DecayMode, NuclideCategory } from "../types";
 // HalfLife: 'S' for stable, '?' for unknown/missing, or scientific string (e.g. 1.2e3)
 
 const DATABASE_RAW: Record<number, string> = {
-  0: "1:B-:6.139e2,4:?:V,6:?:?",
+  0: "1:?:6.139e2,4:?:V,6:?:?",
   1: "1:S:S,2:S:S,3:B-:3.888e8,4:N:?,5:N:V,6:?:V,7:?:V",
   2: "3:S:S,4:S:S,5:N:V,6:B-:8.067e-1,7:N:V,8:B-:1.191e-1,9:N:?,10:N:V",
   3: "4:P:?,5:P:V,6:S:S,7:S:S,8:B-:8.399e-1,9:B-:1.783e-1,10:N:?,11:B-:8.750e-3,12:N:?",

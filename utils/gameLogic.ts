@@ -306,9 +306,7 @@ export const calculateMoveResult = (
             }
             
             nextState.messages = [...nextState.messages, eventMsg].slice(-10);
-            shouldShakeEvent = true;
-            shouldFlashEvent = true;
-            resultFlashColor = eventColor;
+            // Removed shouldShakeEvent and shouldFlashEvent for Monster House to avoid eye strain
             eventTriggered = true;
         }
     }

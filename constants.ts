@@ -4,7 +4,7 @@ export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
 
-export const APP_VERSION = "1.3.1.3";
+export const APP_VERSION = "1.3.1.4";
 
 export const KNOWN_Z_LIMIT = 118;
 
