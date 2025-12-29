@@ -62,7 +62,7 @@ const PeriodicTable: React.FC<Props> = ({
         if (ELEMENT_GROUPS["Non-metal"].includes(z)) return { name: "Non-metal", class: "bg-blue-900/40 border-blue-500/50 text-blue-300" };
         if (ELEMENT_GROUPS["Post-Transition"].includes(z)) return { name: "Post-Transition", class: "bg-emerald-900/40 border-emerald-500/50 text-emerald-300" };
         if (ELEMENT_GROUPS["Transition"].includes(z)) return { name: "Transition", class: "bg-yellow-900/40 border-yellow-500/50 text-yellow-300" };
-        return { name: "Unknown", class: "bg-gray-900 border-gray-500 text-gray-300" };
+        return { name: "Other", class: "bg-gray-900 border-gray-500 text-gray-300" };
     };
 
     const renderPeriodicTable = () => {
@@ -128,7 +128,7 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "Exp. Replicate", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
         { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
         { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
-        { name: "Tetraneutron", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
+        { name: "Unknown", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
         { name: "Gluttony", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
     ];
 
@@ -218,7 +218,7 @@ const PeriodicTable: React.FC<Props> = ({
                             else if (item.name === "Exp. Replicate") icon = "⚛️";
                             else if (item.name === "Nucleosynthesis") icon = "🌟";
                             else if (item.name === "Temporal Inversion") icon = "⏱";
-                            else if (item.name === "Tetraneutron") icon = "🌌";
+                            else if (item.name === "Unknown") icon = "❔";
                             else if (item.name === "Gluttony") icon = "🕳️";
 
                             const tooltipText = item.name === "Fusion" 

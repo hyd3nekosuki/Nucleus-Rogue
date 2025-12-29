@@ -105,6 +105,7 @@ export const calculateMoveResult = (
         if (entity.type === EntityType.PROTON) {
             if (lT === EntityType.PROTON) cP++;
             else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+        // Fix: Use EntityType.NEUTRON instead of EntityMode.NEUTRON
         } else if (entity.type === EntityType.NEUTRON) {
             if (lT === EntityType.NEUTRON) cN++;
             else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
@@ -265,10 +266,10 @@ export const calculateMoveResult = (
         if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-10);
     }
 
-    const isTetraneutronActive = nextState.unlockedGroups.includes("Tetraneutron") && !nextState.disabledSkills.includes("Tetraneutron");
+    const isUnknownSkillActive = nextState.unlockedGroups.includes("Unknown") && !nextState.disabledSkills.includes("Unknown");
     let eventTriggered = false;
 
-    if (isTetraneutronActive) {
+    if (isUnknownSkillActive) {
         const randEvent = Math.random();
         if (randEvent < 0.02) {
             let eventMsg = "";

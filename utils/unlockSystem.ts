@@ -74,11 +74,11 @@ export const processUnlocks = (
         messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
     }
 
-    // 5. Special Hidden Title: Tetraneutron
-    if (newZ === 0 && newA === 4 && !updatedGroups.includes("Tetraneutron")) {
-        updatedGroups = [...updatedGroups, "Tetraneutron"];
-        scoreBonus += BONUS_SCORES.TETRANEUTRON;
-        messages.push(` 🌌 HIDDEN TITLE: Tetraneutron! The Void State. (+${BONUS_SCORES.TETRANEUTRON.toLocaleString()} PTS)`);
+    // 5. Special Hidden Title: Unknown (formerly Tetraneutron)
+    if (newZ === 0 && newA === 4 && !updatedGroups.includes("Unknown")) {
+        updatedGroups = [...updatedGroups, "Unknown"];
+        scoreBonus += BONUS_SCORES.UNKNOWN;
+        messages.push(` ❔ HIDDEN TITLE: Unknown! Unexplained phenomena. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
     }
 
     // 6. Special Hidden Title: Temporal Inversion
