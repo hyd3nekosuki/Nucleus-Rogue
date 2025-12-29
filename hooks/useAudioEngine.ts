@@ -5,8 +5,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
     const compressorRef = useRef<DynamicsCompressorNode | null>(null);
-    // Default BGM to ON (false means NOT muted)
-    const [isMuted, setIsMuted] = useState(false);
+    // Default BGM to OFF (true means muted)
+    const [isMuted, setIsMuted] = useState(true);
     const nextNoteTimeRef = useRef(0);
     const currentStepRef = useRef(0);
     const timerIDRef = useRef<number | null>(null);
