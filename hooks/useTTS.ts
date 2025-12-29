@@ -1,8 +1,7 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { NuclideData } from '../types';
 
-export const useTTS = (nuclide: NuclideData, gameOver: boolean) => {
+export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean) => {
     const prevNuclideNameRef = useRef<string>(nuclide.name);
     const speechOverrideRef = useRef<string | null>(null);
     const fixedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
@@ -35,7 +34,7 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean) => {
         if (currentName !== prevNuclideNameRef.current) {
             prevNuclideNameRef.current = currentName;
     
-            if ('speechSynthesis' in window && !gameOver) {
+            if ('speechSynthesis' in window && !gameOver && !isMuted) {
                 window.speechSynthesis.cancel();
     
                 let targetVoice = fixedVoiceRef.current;
@@ -95,9 +94,11 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean) => {
                 utterance.pitch = 0.7; 
                 
                 window.speechSynthesis.speak(utterance);
+            } else if (isMuted) {
+                window.speechSynthesis.cancel();
             }
         }
-    }, [nuclide.name, gameOver]);
+    }, [nuclide.name, gameOver, isMuted]);
 
     return { triggerOverride };
 };
