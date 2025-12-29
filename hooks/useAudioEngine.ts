@@ -30,7 +30,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(sub ? 45 : 55, time);
+        osc.frequency.setValueAtTime(sub ? 42 : 55, time);
         osc.frequency.exponentialRampToValueAtTime(0.001, time + 0.4);
         
         gain.gain.setValueAtTime(0.8 * power, time);
@@ -89,12 +89,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         noise.start(time);
     };
 
-    const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, type: 'pulse' | 'pad' | 'acid' = 'pulse') => {
+    const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, type: 'pulse' | 'pad' | 'acid' | 'glitch' = 'pulse') => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const filter = ctx.createBiquadFilter();
 
-        osc.type = type === 'pad' ? 'sawtooth' : (type === 'acid' ? 'sawtooth' : 'square');
+        osc.type = type === 'pad' || type === 'glitch' ? 'sawtooth' : (type === 'acid' ? 'sawtooth' : 'square');
         osc.frequency.setValueAtTime(freq, time);
 
         filter.type = 'lowpass';
@@ -102,6 +102,10 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             filter.frequency.setValueAtTime(freq, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 8, time + 0.05);
             filter.Q.setValueAtTime(15, time);
+        } else if (type === 'glitch') {
+            filter.frequency.setValueAtTime(2000, time);
+            filter.frequency.exponentialRampToValueAtTime(40, time + duration);
+            filter.Q.setValueAtTime(20, time);
         } else if (type === 'pad') {
             filter.frequency.setValueAtTime(400, time);
             filter.frequency.linearRampToValueAtTime(1200, time + duration * 0.5);
@@ -110,7 +114,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         }
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(type === 'pad' ? 0.1 : 0.15, time + (type === 'pad' ? duration * 0.3 : 0.005));
+        const attack = type === 'pad' ? duration * 0.4 : 0.005;
+        gain.gain.linearRampToValueAtTime(type === 'pad' ? 0.1 : 0.15, time + attack);
         gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
         osc.connect(filter); filter.connect(gain); gain.connect(dest);
@@ -133,15 +138,15 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
             switch (primaryMode) {
                 case DecayMode.STABLE:
-                    // Minimal Techno: Precision and Sub
+                    // Minimal Techno
                     if (step % 4 === 0) createKick(audioCtxRef.current, dest, time, 0.8);
                     if (step % 4 === 2) createHat(audioCtxRef.current, dest, time, 0.5);
                     if (step % 8 === 6) createHat(audioCtxRef.current, dest, time, 0.8);
-                    if (step % 16 === 14) createSynth(audioCtxRef.current, dest, time, 110, 0.1, 'pulse');
+                    if (step % 16 === 14) createSynth(audioCtxRef.current, dest, time, 110, 0.12, 'pulse');
                     break;
 
                 case DecayMode.BETA_MINUS:
-                    // Driving Techno: Harder and Acidic
+                    // Driving Techno
                     if (step % 4 === 0) createKick(audioCtxRef.current, dest, time, 1.1);
                     if (step % 2 === 1) createHat(audioCtxRef.current, dest, time, 1.2);
                     const acidFreq = [110, 110, 220, 110, 164.81, 110, 110, 220][step % 8];
@@ -149,41 +154,44 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                     break;
 
                 case DecayMode.BETA_PLUS:
-                    // Cyber Breakbeats: Syncopated Kick & Snare
+                    // Cyber Breakbeats
                     if ([0, 3, 6, 9, 13].includes(step)) createKick(audioCtxRef.current, dest, time, 1.0);
                     if (step === 4 || step === 12) createSnare(audioCtxRef.current, dest, time, 'sharp');
                     if (step % 2 === 1) createHat(audioCtxRef.current, dest, time, 0.7);
-                    if (step % 16 === 7) createSynth(audioCtxRef.current, dest, time, 440, 0.05, 'pulse');
+                    if (step % 16 === 7) createSynth(audioCtxRef.current, dest, time, 440, 0.08, 'pulse');
                     break;
 
                 case DecayMode.ELECTRON_CAPTURE:
-                    // Deep Ambient: No rhythm, pure textures
-                    if (step % 16 === 0) {
-                        const root = 164.81; // E3
-                        createSynth(audioCtxRef.current, dest, time, root, secondsPerStep * 15, 'pad');
-                        createSynth(audioCtxRef.current, dest, time, root * 1.5, secondsPerStep * 15, 'pad');
+                    // Rival Breakbeats (Competitive/Inverted pattern vs Beta+)
+                    // Syncopated heavy kicks on steps that clash with Beta+
+                    if ([1, 4, 7, 10, 14].includes(step)) createKick(audioCtxRef.current, dest, time, 1.2, true);
+                    // Snare on 2 and 11 to disrupt the standard 4/12 break
+                    if (step === 2 || step === 11) createSnare(audioCtxRef.current, dest, time, 'sharp');
+                    
+                    // High-pitch intake glitches simulating electron absorption
+                    if (step % 4 === 1) {
+                        createSynth(audioCtxRef.current, dest, time, 1760 + Math.random() * 880, 0.05, 'glitch');
                     }
-                    if (step % 8 === 4) {
-                        createSynth(audioCtxRef.current, dest, time, 880 + Math.random() * 880, 0.4, 'pad');
+                    // Industrial grinding textures
+                    if (step % 8 === 0) {
+                        createSynth(audioCtxRef.current, dest, time, 82.41, secondsPerStep * 2, 'acid');
                     }
                     break;
 
                 case DecayMode.ALPHA:
-                    // Drum'n'Bass: High speed 2-step
-                    // Since DnB is effectively twice as fast, we use every 16th at high BPM
-                    if (step === 0 || step === 10) createKick(audioCtxRef.current, dest, time, 1.2);
+                    // Drum'n'Bass
+                    if (step === 0 || step === 10) createKick(audioCtxRef.current, dest, time, 1.3);
                     if (step === 4 || step === 12) createSnare(audioCtxRef.current, dest, time, 'deep');
-                    createHat(audioCtxRef.current, dest, time, 0.8);
-                    // Rolling sub-bass (Reese-ish)
+                    createHat(audioCtxRef.current, dest, time, 0.9);
                     const reeseFreq = step % 8 < 4 ? 55 : 48.99;
-                    createSynth(audioCtxRef.current, dest, time, reeseFreq, secondsPerStep * 0.9, 'acid');
+                    createSynth(audioCtxRef.current, dest, time, reeseFreq, secondsPerStep * 1.1, 'acid');
                     break;
 
                 case DecayMode.SPONTANEOUS_FISSION:
-                    // Chaos/Hardcore: Overdrive everything
+                    // Hardcore Chaos
                     createKick(audioCtxRef.current, dest, time, 1.5);
                     createSnare(audioCtxRef.current, dest, time, 'sharp');
-                    createSynth(audioCtxRef.current, dest, time, Math.random() * 1000 + 40, 0.05, 'acid');
+                    createSynth(audioCtxRef.current, dest, time, Math.random() * 1200 + 40, 0.05, 'acid');
                     break;
 
                 default:
@@ -203,7 +211,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             audioCtxRef.current = ctx;
 
             const compressor = ctx.createDynamicsCompressor();
-            // Intense pumping threshold
             compressor.threshold.setValueAtTime(-34, ctx.currentTime);
             compressor.knee.setValueAtTime(30, ctx.currentTime);
             compressor.ratio.setValueAtTime(16, ctx.currentTime);
