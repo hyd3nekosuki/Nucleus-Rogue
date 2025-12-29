@@ -121,7 +121,7 @@ const PeriodicTable: React.FC<Props> = ({
     // Special hidden titles / skills
     const hiddenSkills = [
         { name: "Neutronization", class: "bg-white/10 border-gray-300 text-white font-bold shadow-[0_0_10px_white]" },
-        { name: "Pair anihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
+        { name: "Pair annihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
         { name: "Fission", class: "bg-red-600/20 border-red-500 text-red-400 font-bold shadow-[0_0_10px_#ef4444]" },
         { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
         { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
@@ -129,7 +129,8 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "Exp. Replicate", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
         { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
         { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
-        { name: "Tetraneutron", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" }
+        { name: "Tetraneutron", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
+        { name: "Gluttony", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
     ];
 
     hiddenSkills.forEach(skill => {
@@ -210,7 +211,7 @@ const PeriodicTable: React.FC<Props> = ({
                             // Icon mapping
                             let icon = "👑";
                             if (item.name === "Neutronization") icon = "⚪";
-                            else if (item.name === "Pair anihilation") icon = "☯";
+                            else if (item.name === "Pair annihilation") icon = "☯";
                             else if (item.name === "Fission") icon = "☢️";
                             else if (item.name === "Fusion") icon = "💥";
                             else if (item.name === "zero barn") icon = "🌑";
@@ -219,21 +220,24 @@ const PeriodicTable: React.FC<Props> = ({
                             else if (item.name === "Nucleosynthesis") icon = "🌟";
                             else if (item.name === "Temporal Inversion") icon = "⏱";
                             else if (item.name === "Tetraneutron") icon = "🌌";
+                            else if (item.name === "Gluttony") icon = "🕳️";
 
                             const tooltipText = item.name === "Fusion" 
                                 ? "Active: Allows proton capture. Disabled: Prevents Z increase from protons."
                                 : item.name === "Fission"
-                                ? "Active: Gain massive points and energy when neutron-induced fission occurs. Disabled: Replaces fission with alpha decay (Restriction mode)."
+                                ? "Active: Allows neutron-induced fission and SF. Disabled: Replaces fission with alpha decay."
                                 : item.name === "zero barn"
-                                ? "Active: Neutrons flow through without being captured. Prevents A increase from neutrons."
+                                ? "Active: Allows neutron capture. Disabled: Prevents A increase from neutrons."
                                 : item.name === "Exp. Replicate"
                                 ? "Active: Allows manually selecting an element when magic conditions are met. Disabled: Prevents manual transmutation."
                                 : item.name === "Electron scattering"
                                 ? "Active: Prevents electron capture (Z reduction) at low stability. Electrons are scattered away."
                                 : item.name === "Neutronization"
-                                ? "Active: Allows converting adjacent protons to neutrons during Beta Minus decay. Disabled: Beta Minus decay has no conversion effect."
-                                : item.name === "Pair anihilation"
-                                ? "Active: Beta Plus decay can annihilate adjacent electrons to emit gamma rays."
+                                ? "Active: Allows converting adjacent protons to neutrons during β- decay. Disabled: β- decay has no conversion effect."
+                                : item.name === "Pair annihilation"
+                                ? "Active: β+ decay can annihilate adjacent electrons to emit gamma rays. Disabled: No pair annihilation."
+                                : item.name === "Gluttony"
+                                ? "Active: Prevents new particles from spawning on the grid. Disabled: Particles spawn normally."
                                 : "";
 
                             return (

@@ -18,7 +18,8 @@ export const processUnlocks = (
     isZeroBarnAchieved: boolean = false,
     isBremsAchieved: boolean = false,
     betaPlusCount: number = 0,
-    betaMinusCount: number = 0
+    betaMinusCount: number = 0,
+    isGluttonyAchieved: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -40,20 +41,20 @@ export const processUnlocks = (
         scoreBonus += trophyBonus;
     }
 
-    // 2. Special Hidden Title: Pair anihilation
-    if (!updatedGroups.includes("Pair anihilation")) {
+    // 2. Special Hidden Title: Pair annihilation
+    if (!updatedGroups.includes("Pair annihilation")) {
         if (isAnnihilation) {
-            updatedGroups = [...updatedGroups, "Pair anihilation"];
+            updatedGroups = [...updatedGroups, "Pair annihilation"];
             scoreBonus += 20000;
-            messages.push(` ☯️ HIDDEN TITLE: Pair anihilation! (+20,000 PTS)`);
+            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (+20,000 PTS)`);
         } else if (betaPlusCount >= 10) {
-            updatedGroups = [...updatedGroups, "Pair anihilation"];
+            updatedGroups = [...updatedGroups, "Pair annihilation"];
             scoreBonus += 20000;
-            messages.push(` ☯️ HIDDEN TITLE: Pair anihilation! (Mastered β+ Emission) (+20,000 PTS)`);
+            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (Mastered β+ Emission) (+20,000 PTS)`);
         }
     }
 
-    // NEW: Special Hidden Title: Neutronization (formerly Neutron star)
+    // Special Hidden Title: Neutronization
     if (!updatedGroups.includes("Neutronization") && betaMinusCount >= 20) {
         updatedGroups = [...updatedGroups, "Neutronization"];
         scoreBonus += 50000;
@@ -93,8 +94,6 @@ export const processUnlocks = (
         scoreBonus += inversionBonus;
     }
 
-    // 7. Coulomb barrier title removed as requested.
-
     // 8. Special Hidden Title: Fusion
     if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
         updatedGroups = [...updatedGroups, "Fusion"];
@@ -116,11 +115,18 @@ export const processUnlocks = (
         messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+500,000 PTS)`);
     }
 
-    // 11. Special Hidden Title: Electron scattering (formerly Bremsstrahlung)
+    // 11. Special Hidden Title: Electron scattering
     if (isBremsAchieved && !updatedGroups.includes("Electron scattering")) {
         updatedGroups = [...updatedGroups, "Electron scattering"];
         scoreBonus += 100000;
         messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+100,000 PTS)`);
+    }
+
+    // NEW: Special Hidden Title: Gluttony
+    if (isGluttonyAchieved && !updatedGroups.includes("Gluttony")) {
+        updatedGroups = [...updatedGroups, "Gluttony"];
+        scoreBonus += 1000000;
+        messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+1,000,000 PTS)`);
     }
 
     // 12. Group Unlock Check

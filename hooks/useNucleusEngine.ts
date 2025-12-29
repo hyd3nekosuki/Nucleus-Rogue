@@ -189,6 +189,13 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
                 if (result.shouldFlash) { setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
                 if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
+            } else if (result.shouldFlash) {
+                // Handle Monster House flash (which doesn't have an inducedDecayMode)
+                if (result.flashColor) setFlashColor(result.flashColor);
+                else setFlashColor('bg-neon-blue');
+                setIsFlashBang(true); 
+                setTimeout(() => setIsFlashBang(false), 500);
+                if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
             }
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
                   if (!result.inducedDecayMode) setLastDecayEvent(null);
@@ -285,8 +292,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             }
             if (!found) return;
         }
-        const isPairUnlocked = gameState.unlockedGroups.includes("Pair anihilation");
-        const isPairEnabled = !gameState.disabledSkills.includes("Pair anihilation");
+        const isPairUnlocked = gameState.unlockedGroups.includes("Pair annihilation");
+        const isPairEnabled = !gameState.disabledSkills.includes("Pair annihilation");
         const isNeutronStarUnlocked = gameState.unlockedGroups.includes("Neutronization");
         const isNeutronStarEnabled = !gameState.disabledSkills.includes("Neutronization");
         const annihilationEnabled = actualMode === DecayMode.BETA_MINUS ? true : (isPairUnlocked && isPairEnabled);

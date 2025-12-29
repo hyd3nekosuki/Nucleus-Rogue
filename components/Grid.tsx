@@ -1,4 +1,5 @@
 
+// Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
 import { GameState, EntityType, DecayMode } from '../types';
 
@@ -117,7 +118,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                       {entity.isHighEnergy && (
                         <div className={`absolute inset-[-5px] border ${electronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]'} opacity-75`}></div>
                       )}
-                      <div className={`w-2 h-2 bg-yellow-400 rounded-full ${gameState.isTimeStopped ? '' : 'animate-bounce'}`}></div>
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
                     </div>
                   );
                   break;
