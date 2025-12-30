@@ -13,7 +13,6 @@ import TrefoilIndicator from './components/TrefoilIndicator';
 import EvolutionMap from './components/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusEngine } from './hooks/useNucleusEngine';
-import { useAudioEngine } from './hooks/useAudioEngine';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
@@ -30,13 +29,6 @@ function App() {
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
   const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
-  
-  // --- Audio Logic with Dynamic Resonance ---
-  const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
-      gameState.hp, 
-      gameState.gameOver, 
-      gameState.currentNuclide.decayModes
-  );
   
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, isVoiceMuted);
 
@@ -66,13 +58,12 @@ function App() {
         case 'ArrowLeft': case 'a': engine.moveStep(-1, 0); break;
         case 'ArrowRight': case 'd': engine.moveStep(1, 0); break;
         case 'Enter': case ' ': case 'Spacebar': engine.handlePlayerInteract(); break;
-        case 'm': toggleMute(); break;
         case 'v': setIsVoiceMuted(!isVoiceMuted); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [engine, toggleMute, isVoiceMuted]);
+  }, [engine, isVoiceMuted]);
 
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
@@ -142,20 +133,6 @@ function App() {
                         )}
                     </svg>
                 </button>
-                {/* BGM Toggle */}
-                <button 
-                    onClick={toggleMute} 
-                    className={`p-1 rounded border transition-all ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_8px_#00f3ff]'}`}
-                    title="Toggle BGM (M)"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {isMuted ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        )}
-                    </svg>
-                </button>
              </div>
           </div>
           
@@ -211,7 +188,6 @@ function App() {
                     <span className="font-bold uppercase">v{APP_VERSION}</span>
                     <div className="flex gap-2">
                         <a href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" target="_blank" rel="noopener noreferrer" className="hover:text-neon-blue underline transition-colors">IAEA Data</a>
-                        {!isMuted && <span className="text-neon-blue animate-pulse font-bold tracking-tighter">BPM:{bpm} RES:{primaryMode.slice(0,3)}</span>}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -223,13 +199,6 @@ function App() {
                             title="Toggle Voice (V)"
                         >
                             <span className="text-[8px] font-bold">V</span>
-                        </button>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); toggleMute(); }}
-                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'}`}
-                            title="Toggle BGM (M)"
-                        >
-                            <span className="text-[8px] font-bold">M</span>
                         </button>
                     </div>
                 </div>
