@@ -154,7 +154,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 12, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 24, time + duration);
-            filter.Q.setValueAtTime(30, time); // High resonance for "chirpy" SF sound
+            filter.Q.setValueAtTime(30, time); 
         } else if (type === 'void') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 2, time);
@@ -226,27 +226,16 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.ALPHA:
-                // --- INTENSE SF DRUM 'N' BASS ---
-                // Kick Pattern: 2-step heavy foundation
                 if (step === 0 || step === 10) createKick(ctx, dest, time, 1.4 * power, 'dnb-punch');
-                
-                // Snare Pattern: Snappy cracks on 4 and 12 + ghost notes for roll
                 if (step === 4 || step === 12) {
                     createSnare(ctx, dest, time, 1.6 * power, 'dnb-crack');
                 } else if ([2, 6, 7, 14, 15].includes(step)) {
-                    // Shuffling ghost snares to create breakbeat texture
                     createSnare(ctx, dest, time, 0.25 * power, 'sharp');
                 }
-
-                // High-Speed Metallic Hats
                 createHat(ctx, dest, time, power * (step % 2 === 0 ? 1.0 : 0.4), 1.3);
                 if (step % 4 === 2) createHat(ctx, dest, time, power * 1.5, 1.8);
-
-                // Rolling Low-End (Future Bass growl feel)
-                const alphaBassFreq = step % 8 < 4 ? 41.2 : 38.8; // E1 to Eb1 modulated
+                const alphaBassFreq = step % 8 < 4 ? 41.2 : 38.8; 
                 createSynth(ctx, dest, time, alphaBassFreq, secondsPerStep * 2.8, 1.4 * synthPower, 'dark');
-
-                // SF Futuristic Lead Blips (High-frequency data chirps)
                 if (step % 4 === 1) {
                     createSynth(ctx, dest, time, 1760 + (Math.sin(time * 10) * 440), 0.04, 0.5 * synthPower, 'dnb-lead');
                 }
@@ -278,13 +267,24 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.UNKNOWN:
-                if (step === 0) createKick(ctx, dest, time, 0.5 * power, 'sub-thud');
-                if (step % 8 === 0) {
-                    const droneFreq = 48.99 + (Math.sin(time * 0.5) * 8); 
-                    createSynth(ctx, dest, time, droneFreq, secondsPerStep * 16, 0.5 * power, 'void');
+                // --- SILENT AMBIENT SPACE ---
+                // No Kick, No Snare, No Rhythm. Just abstract textures.
+                if (step % 16 === 0) {
+                    // Deep shifting sub-drone
+                    const ambientDrone = 32.70 + (Math.sin(time * 0.2) * 2); // C1 baseline with very slow wobble
+                    createSynth(ctx, dest, time, ambientDrone, secondsPerStep * 24, 0.4 * power, 'void');
                 }
-                if (Math.random() > 0.95) {
-                    createSynth(ctx, dest, time, 2000 + Math.random() * 4000, 1.0, 0.2 * power, 'pulse');
+                
+                if (step % 12 === 0) {
+                    // Spectral overtones (Harmonics)
+                    const harmonicFreq = 130.81 * (Math.floor(Math.random() * 4) + 1);
+                    createSynth(ctx, dest, time, harmonicFreq, secondsPerStep * 12, 0.15 * power, 'void');
+                }
+
+                if (Math.random() > 0.97) {
+                    // Occasional "Crystalline" blips representing quantum fluctuations
+                    const glitchFreq = 3000 + (Math.random() * 5000);
+                    createSynth(ctx, dest, time, glitchFreq, 0.8, 0.08 * power, 'pulse');
                 }
                 break;
 
