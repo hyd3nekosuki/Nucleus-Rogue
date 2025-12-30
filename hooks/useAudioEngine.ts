@@ -29,7 +29,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
     };
 
-    // --- High-End SF Synthesis Generators ---
+    // --- High-End SF Synthesis Generators with Anti-Pop Smoothing ---
 
     const createKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, mode: 'standard' | 'heavy-gabber' | 'sharp-gabber' | 'sub-thud' | 'dnb-punch' = 'standard') => {
         if (power <= 0) return;
@@ -41,7 +41,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         click.type = 'square';
         click.frequency.setValueAtTime(mode === 'dnb-punch' ? 5000 : 4000, time);
         click.frequency.exponentialRampToValueAtTime(100, time + 0.015);
-        clickGain.gain.setValueAtTime(0.2 * power, time); 
+        clickGain.gain.setValueAtTime(0, time);
+        clickGain.gain.linearRampToValueAtTime(0.2 * power, time + 0.002); // Smooth start
         clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.015);
         
         osc.type = 'sine';
@@ -52,14 +53,15 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         osc.frequency.setValueAtTime(startFreq, time);
         osc.frequency.exponentialRampToValueAtTime(0.001, time + decayTime);
         
-        // Safety: Balanced internal gain to prevent clipping before master chain
-        gain.gain.setValueAtTime(0.8 * power, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + decayTime);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.8 * power, time + 0.005); // Anti-pop start
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + decayTime);
+        gain.gain.linearRampToValueAtTime(0, time + decayTime + 0.005); // Absolute zero finish
 
         if (isGabber) {
             const shaper = ctx.createWaveShaper();
             const curve = new Float32Array(44100);
-            const dist = mode === 'heavy-gabber' ? 30 : 20; // Reduced for clarity
+            const dist = mode === 'heavy-gabber' ? 30 : 20;
             for (let i = 0; i < 44100; i++) {
                 const x = (i / 44100) * 2 - 1;
                 curve[i] = (Math.PI + dist) * x / (Math.PI + dist * Math.abs(x));
@@ -73,8 +75,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         gain.connect(dest);
         click.connect(clickGain); clickGain.connect(dest);
 
-        osc.start(time); osc.stop(time + decayTime);
-        click.start(time); click.stop(time + 0.015);
+        osc.start(time); osc.stop(time + decayTime + 0.01);
+        click.start(time); click.stop(time + 0.016);
     };
 
     const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, color: 'sharp' | 'heavy' | 'industrial' | 'dnb-crack' = 'sharp') => {
@@ -91,8 +93,10 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         filter.Q.setValueAtTime(color === 'dnb-crack' ? 1.0 : 4.0, time);
         
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime((color === 'dnb-crack' ? 0.7 : 0.5) * power, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + (color === 'dnb-crack' ? 0.1 : 0.15));
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime((color === 'dnb-crack' ? 0.7 : 0.5) * power, time + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + (color === 'dnb-crack' ? 0.1 : 0.15));
+        gain.gain.linearRampToValueAtTime(0, time + (color === 'dnb-crack' ? 0.11 : 0.16));
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
         noise.start(time);
@@ -112,8 +116,10 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         filter.Q.setValueAtTime(1.0, time);
         
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.12 * weight * power, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.12 * weight * power, time + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+        gain.gain.linearRampToValueAtTime(0, time + 0.055);
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
         noise.start(time);
@@ -140,7 +146,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         if (type === 'dark') {
             filter.frequency.setValueAtTime(freq * 3, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 0.8, time + duration);
-            filter.Q.setValueAtTime(4.0, time); // Reduced resonance to avoid 100-200Hz peaks
+            filter.Q.setValueAtTime(4.0, time); 
         } else if (type === 'gabber') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 8, time);
@@ -166,10 +172,11 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         gain.gain.setValueAtTime(0, time);
         gain.gain.linearRampToValueAtTime((type === 'sub' ? 0.3 : (type === 'gabber' ? 0.2 : (type === 'void' ? 0.2 : 0.15))) * power, time + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+        gain.gain.linearRampToValueAtTime(0, time + duration + 0.005); // Absolute zero finish
 
         osc.connect(shaper); shaper.connect(filter); filter.connect(gain); gain.connect(dest);
-        osc.start(time); osc.stop(time + duration);
+        osc.start(time); osc.stop(time + duration + 0.01);
     };
 
     // --- Core Rhythm Logic ---
@@ -325,9 +332,9 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioCtxRef.current = ctx;
 
-            // --- MASTER SIGNAL CHAIN FOR CLARITY ---
+            // --- MASTER SIGNAL CHAIN FOR CLARITY & NOISE SUPPRESSION ---
             
-            // 1. High Pass Filter (Sub-bass cut < 40Hz)
+            // 1. High Pass Filter (Sub-bass cut < 42Hz)
             const hpFilter = ctx.createBiquadFilter();
             hpFilter.type = 'highpass';
             hpFilter.frequency.setValueAtTime(42, ctx.currentTime);
@@ -336,20 +343,20 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const eqFilter = ctx.createBiquadFilter();
             eqFilter.type = 'peaking';
             eqFilter.frequency.setValueAtTime(160, ctx.currentTime);
-            eqFilter.Q.setValueAtTime(0.8, ctx.currentTime); // Broad bandwidth
-            eqFilter.gain.setValueAtTime(-5.0, ctx.currentTime); // Attenuate problematic range
+            eqFilter.Q.setValueAtTime(0.8, ctx.currentTime); 
+            eqFilter.gain.setValueAtTime(-5.0, ctx.currentTime); 
 
-            // 3. Dynamics Compressor (Musical settings)
+            // 3. Dynamics Compressor (Smooth & Musical)
             const compressor = ctx.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(-22, ctx.currentTime);
-            compressor.knee.setValueAtTime(15, ctx.currentTime);
+            compressor.knee.setValueAtTime(25, ctx.currentTime); // Softer knee for transparent gain reduction
             compressor.ratio.setValueAtTime(6, ctx.currentTime); 
-            compressor.attack.setValueAtTime(0.005, ctx.currentTime);
+            compressor.attack.setValueAtTime(0.01, ctx.currentTime); // Slightly slower attack to avoid thumps
             compressor.release.setValueAtTime(0.18, ctx.currentTime);
             
-            // 4. Final Master Gain with safe headroom
+            // 4. Final Master Gain with ample headroom
             const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.65, ctx.currentTime); 
+            masterGain.gain.setValueAtTime(0.55, ctx.currentTime); // Lowered from 0.65 for headroom
 
             // Connect: HP -> EQ -> Compressor -> MasterGain -> Destination
             hpFilter.connect(eqFilter);
