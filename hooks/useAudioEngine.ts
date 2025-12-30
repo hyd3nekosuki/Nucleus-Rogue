@@ -5,7 +5,7 @@ import { DecayMode } from '../types';
 export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[]) => {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
-    const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+    const masterEntryRef = useRef<BiquadFilterNode | null>(null);
     const [isMuted, setIsMuted] = useState(true);
     const nextNoteTimeRef = useRef(0);
     const currentStepRef = useRef(0);
@@ -38,29 +38,28 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         const click = ctx.createOscillator();
         const clickGain = ctx.createGain();
 
-        // Standard kick click transient
         click.type = 'square';
         click.frequency.setValueAtTime(mode === 'dnb-punch' ? 5000 : 4000, time);
         click.frequency.exponentialRampToValueAtTime(100, time + 0.015);
-        clickGain.gain.setValueAtTime(0.25 * power, time); // Slightly lowered to prevent distortion
+        clickGain.gain.setValueAtTime(0.2 * power, time); 
         clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.015);
         
         osc.type = 'sine';
         const isGabber = mode.includes('gabber');
         const startFreq = mode === 'heavy-gabber' ? 65 : (mode === 'sharp-gabber' ? 95 : (mode === 'sub-thud' ? 45 : (mode === 'dnb-punch' ? 75 : 60)));
-        const decayTime = isGabber ? 0.35 : (mode === 'sub-thud' ? 0.6 : (mode === 'dnb-punch' ? 0.18 : 0.4));
+        const decayTime = isGabber ? 0.3 : (mode === 'sub-thud' ? 0.5 : (mode === 'dnb-punch' ? 0.18 : 0.35));
         
         osc.frequency.setValueAtTime(startFreq, time);
         osc.frequency.exponentialRampToValueAtTime(0.001, time + decayTime);
         
-        // Safety: ensure peak gain is never more than 0.9 before master
-        gain.gain.setValueAtTime(0.9 * power, time);
+        // Safety: Balanced internal gain to prevent clipping before master chain
+        gain.gain.setValueAtTime(0.8 * power, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + decayTime);
 
         if (isGabber) {
             const shaper = ctx.createWaveShaper();
             const curve = new Float32Array(44100);
-            const dist = mode === 'heavy-gabber' ? 50 : 35; // Lowered distortion for mobile safety
+            const dist = mode === 'heavy-gabber' ? 30 : 20; // Reduced for clarity
             for (let i = 0; i < 44100; i++) {
                 const x = (i / 44100) * 2 - 1;
                 curve[i] = (Math.PI + dist) * x / (Math.PI + dist * Math.abs(x));
@@ -92,7 +91,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         filter.Q.setValueAtTime(color === 'dnb-crack' ? 1.0 : 4.0, time);
         
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime((color === 'dnb-crack' ? 0.8 : 0.6) * power, time);
+        gain.gain.setValueAtTime((color === 'dnb-crack' ? 0.7 : 0.5) * power, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + (color === 'dnb-crack' ? 0.1 : 0.15));
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
@@ -113,7 +112,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         filter.Q.setValueAtTime(1.0, time);
         
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.15 * weight * power, time);
+        gain.gain.setValueAtTime(0.12 * weight * power, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
@@ -141,32 +140,32 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         if (type === 'dark') {
             filter.frequency.setValueAtTime(freq * 3, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 0.8, time + duration);
-            filter.Q.setValueAtTime(8, time); // Slightly lowered Q for mobile clarity
+            filter.Q.setValueAtTime(4.0, time); // Reduced resonance to avoid 100-200Hz peaks
         } else if (type === 'gabber') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 8, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 1.5, time + duration);
-            filter.Q.setValueAtTime(15, time); 
+            filter.Q.setValueAtTime(8, time); 
         } else if (type === 'acid') {
-            filter.frequency.setValueAtTime(freq * 12, time);
+            filter.frequency.setValueAtTime(freq * 10, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 0.8, time + duration);
-            filter.Q.setValueAtTime(20, time);
+            filter.Q.setValueAtTime(12, time);
         } else if (type === 'dnb-lead') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 12, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 24, time + duration);
-            filter.Q.setValueAtTime(25, time); 
+            filter.Q.setValueAtTime(15, time); 
         } else if (type === 'void') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 2, time);
-            filter.Q.setValueAtTime(4, time);
+            filter.Q.setValueAtTime(3, time);
         } else {
             filter.frequency.setValueAtTime(2500, time);
             filter.Q.setValueAtTime(2, time);
         }
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime((type === 'sub' ? 0.35 : (type === 'gabber' ? 0.22 : (type === 'void' ? 0.22 : 0.18))) * power, time + 0.01);
+        gain.gain.linearRampToValueAtTime((type === 'sub' ? 0.3 : (type === 'gabber' ? 0.2 : (type === 'void' ? 0.2 : 0.15))) * power, time + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
         osc.connect(shaper); shaper.connect(filter); filter.connect(gain); gain.connect(dest);
@@ -178,7 +177,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         if (power <= 0) return;
 
         let isKickStep = (step % 4 === 0);
-        const sidechainFactor = isKickStep ? 0.3 : 1.0; // Stronger sidechain for mobile clarity
+        const sidechainFactor = isKickStep ? 0.35 : 1.0; 
         const synthPower = power * sidechainFactor;
 
         switch (mode) {
@@ -190,59 +189,48 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.BETA_MINUS:
-                // --- GROOVY TECHNO STYLE ---
-                // Kick on every beat
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.2 * power, 'standard');
-                
-                // Backbeat Snare on 2 and 4 (Steps 4 and 12)
-                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.9 * power, 'sharp');
-                
-                // Driving Hi-hats: Strong off-beat (groove) + soft 16ths
+                if (step % 4 === 0) createKick(ctx, dest, time, 1.1 * power, 'standard');
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.8 * power, 'sharp');
                 if (step % 4 === 2) {
-                    createHat(ctx, dest, time, power * 1.8, 1.5); // Accented open-style hat
+                    createHat(ctx, dest, time, power * 1.6, 1.5); 
                 } else {
-                    createHat(ctx, dest, time, power * 0.4, 0.5); // Ghost notes for shuffle
+                    createHat(ctx, dest, time, power * 0.4, 0.5); 
                 }
-                
-                // Rolling Bass Decoration - Tighter for mobile safety
-                // Pattern: [ ., ., X, X, ., ., X, X ]
                 if ([2, 3, 6, 7, 10, 11, 14, 15].includes(step)) {
                     const bassFreq = (step % 8 < 4) ? 55 : 41.2; 
-                    createSynth(ctx, dest, time, bassFreq, secondsPerStep * 0.7, 0.9 * synthPower, 'dark');
+                    createSynth(ctx, dest, time, bassFreq, secondsPerStep * 0.7, 0.85 * synthPower, 'dark');
                 }
-
-                // Syncopated Percussive Stab on step 10
                 if (step === 10) {
                     createSynth(ctx, dest, time, 880, 0.04, 0.4 * synthPower, 'pulse');
                 }
                 break;
 
             case DecayMode.BETA_PLUS:
-                if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 1.1 * power);
-                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.8 * power, 'sharp');
+                if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 1.0 * power);
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.7 * power, 'sharp');
                 if (step % 2 === 1) createHat(ctx, dest, time, power, 1.0);
                 if (step % 16 === 7) createSynth(ctx, dest, time, 440, 0.15, 0.7 * synthPower, 'pulse');
                 break;
 
             case DecayMode.ELECTRON_CAPTURE:
-                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.3 * power);
-                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.8 * power, 'heavy');
+                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.2 * power);
+                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.7 * power, 'heavy');
                 if (step % 8 === 4) createSynth(ctx, dest, time, 110, secondsPerStep * 2.5, 0.8 * synthPower, 'acid');
                 createHat(ctx, dest, time, power, step % 4 === 0 ? 0.3 : 0.7);
                 if (step % 8 === 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 4, 0.9 * synthPower, 'dark');
                 break;
 
             case DecayMode.ALPHA:
-                if (step === 0 || step === 10) createKick(ctx, dest, time, 1.2 * power, 'dnb-punch');
+                if (step === 0 || step === 10) createKick(ctx, dest, time, 1.1 * power, 'dnb-punch');
                 if (step === 4 || step === 12) {
-                    createSnare(ctx, dest, time, 1.3 * power, 'dnb-crack');
+                    createSnare(ctx, dest, time, 1.2 * power, 'dnb-crack');
                 } else if ([2, 6, 7, 14, 15].includes(step)) {
                     createSnare(ctx, dest, time, 0.2 * power, 'sharp');
                 }
-                createHat(ctx, dest, time, power * (step % 2 === 0 ? 0.9 : 0.4), 1.1);
+                createHat(ctx, dest, time, power * (step % 2 === 0 ? 0.8 : 0.4), 1.1);
                 if (step % 4 === 2) createHat(ctx, dest, time, power * 1.3, 1.5);
                 const alphaBassFreq = step % 8 < 4 ? 41.2 : 38.8; 
-                createSynth(ctx, dest, time, alphaBassFreq, secondsPerStep * 2.5, 1.1 * synthPower, 'dark');
+                createSynth(ctx, dest, time, alphaBassFreq, secondsPerStep * 2.5, 1.0 * synthPower, 'dark');
                 if (step % 4 === 1) {
                     createSynth(ctx, dest, time, 1760 + (Math.sin(time * 10) * 440), 0.04, 0.4 * synthPower, 'dnb-lead');
                 }
@@ -252,14 +240,14 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.SPONTANEOUS_FISSION:
-                createKick(ctx, dest, time, 1.5 * power, 'heavy-gabber');
+                createKick(ctx, dest, time, 1.3 * power, 'heavy-gabber');
                 createSnare(ctx, dest, time, power * 1.0, 'industrial');
                 createSynth(ctx, dest, time, 35 + Math.random() * 100, 0.1, 1.2 * synthPower, 'gabber');
                 break;
 
             case DecayMode.NEUTRON_EMISSION:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.3 * power, 'heavy-gabber');
-                if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, power * 1.2, 'industrial');
+                if (step % 4 === 0) createKick(ctx, dest, time, 1.2 * power, 'heavy-gabber');
+                if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, power * 1.1, 'industrial');
                 if (step % 4 !== 0) {
                     createSynth(ctx, dest, time, 41.2, secondsPerStep * 2, 0.8 * synthPower, 'dark');
                     if (Math.random() > 0.6) createHat(ctx, dest, time, power, 1.8);
@@ -267,8 +255,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.PROTON_EMISSION:
-                if (step % 2 === 0) createKick(ctx, dest, time, 1.3 * power, 'sharp-gabber');
-                if (step % 2 === 1) createHat(ctx, dest, time, power * 1.5, 2.0);
+                if (step % 2 === 0) createKick(ctx, dest, time, 1.2 * power, 'sharp-gabber');
+                if (step % 2 === 1) createHat(ctx, dest, time, power * 1.4, 2.0);
                 const pScreech = 2000 + (Math.random() * 3000);
                 if (step % 4 === 1) createSynth(ctx, dest, time, pScreech, 0.06, 0.7 * synthPower, 'gabber');
                 break;
@@ -295,7 +283,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     };
 
     const scheduler = useCallback(() => {
-        if (!audioCtxRef.current || !compressorRef.current) return;
+        if (!audioCtxRef.current || !masterEntryRef.current) return;
         
         const hpFactor = 1.0 - (hpRef.current / 100);
         const baseBpm = 132;
@@ -307,7 +295,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const step = currentStepRef.current;
             const targetMode = getPrimaryMode(decayModesRef.current);
             const ctx = audioCtxRef.current;
-            const dest = compressorRef.current;
+            const dest = masterEntryRef.current;
 
             if (lastModeRef.current !== null && lastModeRef.current !== targetMode && transitionProgressRef.current >= 1.0) {
                 transitionFromModeRef.current = lastModeRef.current;
@@ -337,21 +325,39 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioCtxRef.current = ctx;
 
-            const compressor = ctx.createDynamicsCompressor();
-            // Optimized for mobile devices and headphones
-            compressor.threshold.setValueAtTime(-28, ctx.currentTime);
-            compressor.knee.setValueAtTime(10, ctx.currentTime);
-            compressor.ratio.setValueAtTime(20, ctx.currentTime);
-            compressor.attack.setValueAtTime(0.002, ctx.currentTime);
-            compressor.release.setValueAtTime(0.12, ctx.currentTime);
+            // --- MASTER SIGNAL CHAIN FOR CLARITY ---
             
-            const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.65, ctx.currentTime); // Lowered slightly for overall safety
+            // 1. High Pass Filter (Sub-bass cut < 40Hz)
+            const hpFilter = ctx.createBiquadFilter();
+            hpFilter.type = 'highpass';
+            hpFilter.frequency.setValueAtTime(42, ctx.currentTime);
 
+            // 2. Correction EQ (Dip boxy/muddy frequencies @ 160Hz)
+            const eqFilter = ctx.createBiquadFilter();
+            eqFilter.type = 'peaking';
+            eqFilter.frequency.setValueAtTime(160, ctx.currentTime);
+            eqFilter.Q.setValueAtTime(0.8, ctx.currentTime); // Broad bandwidth
+            eqFilter.gain.setValueAtTime(-5.0, ctx.currentTime); // Attenuate problematic range
+
+            // 3. Dynamics Compressor (Musical settings)
+            const compressor = ctx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-22, ctx.currentTime);
+            compressor.knee.setValueAtTime(15, ctx.currentTime);
+            compressor.ratio.setValueAtTime(6, ctx.currentTime); 
+            compressor.attack.setValueAtTime(0.005, ctx.currentTime);
+            compressor.release.setValueAtTime(0.18, ctx.currentTime);
+            
+            // 4. Final Master Gain with safe headroom
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0.65, ctx.currentTime); 
+
+            // Connect: HP -> EQ -> Compressor -> MasterGain -> Destination
+            hpFilter.connect(eqFilter);
+            eqFilter.connect(compressor);
             compressor.connect(masterGain);
             masterGain.connect(ctx.destination);
 
-            compressorRef.current = compressor;
+            masterEntryRef.current = hpFilter;
             masterGainRef.current = masterGain;
         }
         if (audioCtxRef.current.state === 'suspended') {
