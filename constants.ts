@@ -5,7 +5,7 @@ export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
 
-export const APP_VERSION = "1.3.3.1";
+export const APP_VERSION = "1.3.3.2";
 
 export const KNOWN_Z_LIMIT = 118;
 
@@ -60,7 +60,7 @@ export const ELEMENT_NAMES = [
   "Sodium", "Magnesium", "Aluminium", "Silicon", "Phosphorus", "Sulfur", "Chlorine", "Argon", "Potassium", "Calcium",
   "Scandium", "Titanium", "Vanadium", "Chromium", "Mnaganese", "Iron", "Cobalt", "Nickel", "Copper", "Zinc",
   "Gallium", "Germanium", "Arsenic", "Selenium", "Bromine", "Krypton", "Rubidium", "Strontium", "Yttrium", "Zirconium",
-  "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cadmium", "Indium", "Tin",
+  "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cdmium", "Indium", "Tin",
   "Antimony", "Tellurium", "Iodine", "Xenon", "Caesium", "Barium", "Lanthanum", "Ceium", "Praseodymium", "Neodymium",
   "Promethium", "Samarium", "Europium", "Gadolinium", "Terbium", "Dysprosium", "Holmium", "Erbium", "Thulium", "Ytterbium",
   "Lutetium", "Hafnium", "Tantalum", "Tungsten", "Rhenium", "Osmium", "Iridium", "Platinum", "Gold", "Mercury",

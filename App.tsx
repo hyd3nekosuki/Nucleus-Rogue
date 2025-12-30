@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
@@ -213,7 +214,25 @@ function App() {
                         {!isMuted && <span className="text-neon-blue animate-pulse font-bold tracking-tighter">BPM:{bpm} RES:{primaryMode.slice(0,3)}</span>}
                     </div>
                 </div>
-                <div className="text-right italic">Nucleus Rogue</div>
+                <div className="flex items-center gap-2">
+                    <div className="italic">Nucleus Rogue</div>
+                    <div className="flex gap-1.5 ml-1">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setIsVoiceMuted(!isVoiceMuted); }}
+                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_5px_#bc13fe]'}`}
+                            title="Toggle Voice (V)"
+                        >
+                            <span className="text-[8px] font-bold">V</span>
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'}`}
+                            title="Toggle BGM (M)"
+                        >
+                            <span className="text-[8px] font-bold">M</span>
+                        </button>
+                    </div>
+                </div>
           </div>
       </div>
 
