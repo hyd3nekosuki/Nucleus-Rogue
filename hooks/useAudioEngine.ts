@@ -42,7 +42,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         click.frequency.setValueAtTime(mode === 'dnb-punch' ? 5000 : 4000, time);
         click.frequency.exponentialRampToValueAtTime(100, time + 0.015);
         clickGain.gain.setValueAtTime(0, time);
-        clickGain.gain.linearRampToValueAtTime(0.2 * power, time + 0.002); // Smooth start
+        clickGain.gain.linearRampToValueAtTime(0.2 * power, time + 0.002); 
         clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.015);
         
         osc.type = 'sine';
@@ -54,9 +54,9 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         osc.frequency.exponentialRampToValueAtTime(0.001, time + decayTime);
         
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.8 * power, time + 0.005); // Anti-pop start
+        gain.gain.linearRampToValueAtTime(0.8 * power, time + 0.005); 
         gain.gain.exponentialRampToValueAtTime(0.0001, time + decayTime);
-        gain.gain.linearRampToValueAtTime(0, time + decayTime + 0.005); // Absolute zero finish
+        gain.gain.linearRampToValueAtTime(0, time + decayTime + 0.005); 
 
         if (isGabber) {
             const shaper = ctx.createWaveShaper();
@@ -173,7 +173,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         gain.gain.setValueAtTime(0, time);
         gain.gain.linearRampToValueAtTime((type === 'sub' ? 0.3 : (type === 'gabber' ? 0.2 : (type === 'void' ? 0.2 : 0.15))) * power, time + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-        gain.gain.linearRampToValueAtTime(0, time + duration + 0.005); // Absolute zero finish
+        gain.gain.linearRampToValueAtTime(0, time + duration + 0.005); 
 
         osc.connect(shaper); shaper.connect(filter); filter.connect(gain); gain.connect(dest);
         osc.start(time); osc.stop(time + duration + 0.01);
@@ -262,10 +262,38 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
 
             case DecayMode.PROTON_EMISSION:
-                if (step % 2 === 0) createKick(ctx, dest, time, 1.2 * power, 'sharp-gabber');
-                if (step % 2 === 1) createHat(ctx, dest, time, power * 1.4, 2.0);
-                const pScreech = 2000 + (Math.random() * 3000);
-                if (step % 4 === 1) createSynth(ctx, dest, time, pScreech, 0.06, 0.7 * synthPower, 'gabber');
+                // --- NEW HAPPY HARDCORE LOGIC (装飾音 & Euphoric Plucks) ---
+                
+                // 1. 4x4 Energetic Kick
+                if (step % 4 === 0) {
+                    createKick(ctx, dest, time, 1.1 * power, 'dnb-punch');
+                }
+                
+                // 2. Off-beat Open Hat (ジャンル特有の疾走感)
+                if (step % 4 === 2) {
+                    createHat(ctx, dest, time, power * 1.5, 1.3);
+                }
+                
+                // 3. Fast Ornamental Hi-hats (装飾的な16分音符)
+                if (step % 2 === 1) {
+                    createHat(ctx, dest, time, power * 0.7, 0.8);
+                }
+
+                // 4. Euphoric Synth Plucks (装飾音パターン - 5度とオクターブを使用)
+                // パターン: [0, 3, 6, 8, 10, 13] の変則リズム
+                if ([0, 3, 6, 10, 13].includes(step)) {
+                    const plucks = [1760, 2637, 3520]; // A6, E7, A7
+                    const freq = plucks[step % 3];
+                    createSynth(ctx, dest, time, freq, 0.08, 0.45 * synthPower, 'pulse');
+                }
+
+                // 5. Final Step Arpeggio Roll (駆け上がるような装飾)
+                if (step === 15) {
+                    for(let i = 0; i < 4; i++) {
+                        const rollTime = time + (i * 0.025);
+                        createSynth(ctx, dest, rollTime, 3520 + (i * 440), 0.02, 0.15 * synthPower, 'pulse');
+                    }
+                }
                 break;
 
             case DecayMode.UNKNOWN:
@@ -332,33 +360,28 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioCtxRef.current = ctx;
 
-            // --- MASTER SIGNAL CHAIN FOR CLARITY & NOISE SUPPRESSION ---
+            // --- MASTER SIGNAL CHAIN (Clarity focus) ---
             
-            // 1. High Pass Filter (Sub-bass cut < 42Hz)
             const hpFilter = ctx.createBiquadFilter();
             hpFilter.type = 'highpass';
             hpFilter.frequency.setValueAtTime(42, ctx.currentTime);
 
-            // 2. Correction EQ (Dip boxy/muddy frequencies @ 160Hz)
             const eqFilter = ctx.createBiquadFilter();
             eqFilter.type = 'peaking';
             eqFilter.frequency.setValueAtTime(160, ctx.currentTime);
             eqFilter.Q.setValueAtTime(0.8, ctx.currentTime); 
             eqFilter.gain.setValueAtTime(-5.0, ctx.currentTime); 
 
-            // 3. Dynamics Compressor (Smooth & Musical)
             const compressor = ctx.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(-22, ctx.currentTime);
-            compressor.knee.setValueAtTime(25, ctx.currentTime); // Softer knee for transparent gain reduction
+            compressor.knee.setValueAtTime(25, ctx.currentTime); 
             compressor.ratio.setValueAtTime(6, ctx.currentTime); 
-            compressor.attack.setValueAtTime(0.01, ctx.currentTime); // Slightly slower attack to avoid thumps
+            compressor.attack.setValueAtTime(0.01, ctx.currentTime); 
             compressor.release.setValueAtTime(0.18, ctx.currentTime);
             
-            // 4. Final Master Gain with ample headroom
             const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.55, ctx.currentTime); // Lowered from 0.65 for headroom
+            masterGain.gain.setValueAtTime(0.55, ctx.currentTime); 
 
-            // Connect: HP -> EQ -> Compressor -> MasterGain -> Destination
             hpFilter.connect(eqFilter);
             eqFilter.connect(compressor);
             compressor.connect(masterGain);
