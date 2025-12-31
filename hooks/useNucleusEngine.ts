@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
@@ -50,6 +51,7 @@ const getInitialState = (): GameState => ({
     consecutiveNeutrons: 0,
     consecutiveElectrons: 0,
     lastConsumedType: null,
+    reincarnations: 0,
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,
@@ -184,6 +186,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     const moveStep = useCallback((dx: number, dy: number) => {
         setGameState(prev => {
             if (prev.gameOver || prev.loadingData || prev.isTimeStopped) { stopAutoMove(); return prev; }
+            // FIX: Use 'COULOMB_BARRIER_THRESHOLD' instead of undefined 'COULOMB_BAR_THRESHOLD'
             const result = calculateMoveResult(prev, dx, dy, COULOMB_BARRIER_THRESHOLD, ENERGY_EVOLUTION_TURNS, prev.playerLevel);
             if (!result.moved) { if (continuousDirRef.current) stopAutoMove(); return prev; }
             const nextState = { ...result.state };
@@ -490,6 +493,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         const currentTitles = gameState.unlockedElements;
         const currentGroups = gameState.unlockedGroups;
         const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
+        const currentReincarnations = gameState.reincarnations;
+        
         const newState = getInitialState();
         let startNuclide = INITIAL_NUCLIDE;
         if (randomStart) {
@@ -501,13 +506,26 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
         let nextUnlockedElements = randomStart ? [...currentTitles] : [];
         let nextUnlockedGroups = randomStart ? [...currentGroups] : [];
-        const unlockResult = processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a);
+        
+        // Define default unlock results (no bonus, no messages)
+        let unlockResult = { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
+        
+        // Only run unlock processing immediately if it's a 'RANDOM GENERATION' start.
+        // This ensures Hydrogen-1 isn't 'discovered' immediately when starting from H-1, matching the initial app load behavior.
+        if (randomStart) {
+            unlockResult = processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a);
+        }
+
         setLastDecayEvent(null); setFinalCombo(null);
         setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: "Origin" }]);
+        
+        const nextReincarnations = randomStart ? currentReincarnations + 1 : 0;
+
         setGameState({
             ...newState, disabledSkills: nextDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
             unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
+            reincarnations: nextReincarnations,
             messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
         });
     };

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
 import { DecayMode } from '../types';
@@ -10,6 +11,7 @@ interface Props {
     disabledSkills: string[];
     onToggleSkill: (skillName: string) => void;
     maxCombo: number;
+    reincarnations?: number;
     onClose: () => void;
     canTransmute?: boolean;
     onSelectElement?: (z: number) => void;
@@ -23,6 +25,7 @@ const PeriodicTable: React.FC<Props> = ({
     disabledSkills,
     onToggleSkill,
     maxCombo, 
+    reincarnations = 0,
     onClose, 
     canTransmute, 
     onSelectElement 
@@ -186,6 +189,8 @@ const PeriodicTable: React.FC<Props> = ({
                                 <span>Found: <span className="text-neon-green font-bold">{discoveredCount}</span> / 118</span>
                                 <span className="opacity-30">|</span>
                                 <span>Titles: <span className="text-yellow-400 font-bold">{unlockedGroups.length}</span></span>
+                                <span className="opacity-30">|</span>
+                                <span>Reborn: <span className="text-neon-purple font-bold">{reincarnations}</span></span>
                                 <span className="opacity-30">|</span>
                                 <span>Best Chain: <span className="text-neon-blue font-black">{maxCombo}</span></span>
                                 <span className="opacity-30">|</span>

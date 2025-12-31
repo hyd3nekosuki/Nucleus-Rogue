@@ -11,57 +11,93 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const currentStepRef = useRef(0);
     const timerIDRef = useRef<number | null>(null);
 
-    const lastModeRef = useRef<DecayMode | null>(null);
-    const transitionFromModeRef = useRef<DecayMode | null>(null);
-    const transitionProgressRef = useRef(1.0); 
-    const TRANSITION_STEPS = 16; 
-
-    const hpRef = useRef(hp);
-    const decayModesRef = useRef(decayModes);
-
-    useEffect(() => {
-        hpRef.current = hp;
-        decayModesRef.current = decayModes;
-    }, [hp, decayModes]);
-
     const getPrimaryMode = (modes: DecayMode[]) => {
         return modes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) 
                || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
     };
 
-    // --- High-End SF Synthesis Generators with Anti-Pop Smoothing ---
+    // --- Transition Management ---
+    const lastModeRef = useRef<DecayMode | null>(null);
+    const transitionFromModeRef = useRef<DecayMode | null>(null);
+    
+    // Settling Logic (Debounce) to ignore intermediate states during rapid transformations
+    const stablePrimaryModeRef = useRef<DecayMode>(getPrimaryMode(decayModes));
+    const debounceTimerRef = useRef<number | null>(null);
+
+    // Progress trackers for independent fade speeds
+    const foundationProgressRef = useRef(1.0);  // Fast (4 steps)
+    const ornamentalInProgressRef = useRef(1.0); // Medium-Fast (8 steps)
+    const ornamentalOutProgressRef = useRef(1.0); // Slow (16 steps)
+    
+    const F_STEP = 1.0 / 4;
+    const O_IN_STEP = 1.0 / 8;
+    const O_OUT_STEP = 1.0 / 16;
+
+    const hpRef = useRef(hp);
+    const decayModesRef = useRef(decayModes);
+
+    // Synchronize HP in real-time for BPM updates
+    useEffect(() => {
+        hpRef.current = hp;
+    }, [hp]);
+
+    // Synchronize decayModes and manage "Settling Time" (Debounce) for BGM pattern switching
+    useEffect(() => {
+        decayModesRef.current = decayModes;
+        const currentPrimary = getPrimaryMode(decayModes);
+
+        if (currentPrimary !== stablePrimaryModeRef.current) {
+            // If mode changes, (re)start the settling timer
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = window.setTimeout(() => {
+                stablePrimaryModeRef.current = currentPrimary;
+                debounceTimerRef.current = null;
+            }, 200); // 200ms settling time to detect "burst" transformations
+        } else {
+            // If the configuration returns to the stable state before timer finishes, cancel it
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+        }
+    }, [decayModes]);
+
+    // --- Anti-Pop Synthesis Generators ---
 
     const createKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, mode: 'standard' | 'heavy-gabber' | 'sharp-gabber' | 'sub-thud' | 'dnb-punch' = 'standard') => {
-        if (power <= 0) return;
+        if (power <= 0.001) return;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         const click = ctx.createOscillator();
         const clickGain = ctx.createGain();
 
+        // 1. Precise Transient Click
         click.type = 'square';
-        click.frequency.setValueAtTime(mode === 'dnb-punch' ? 5000 : 4000, time);
-        click.frequency.exponentialRampToValueAtTime(100, time + 0.015);
+        click.frequency.setValueAtTime(mode === 'dnb-punch' ? 6000 : 4500, time);
+        click.frequency.exponentialRampToValueAtTime(150, time + 0.02);
         clickGain.gain.setValueAtTime(0, time);
-        clickGain.gain.linearRampToValueAtTime(0.2 * power, time + 0.002); 
-        clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.015);
+        clickGain.gain.linearRampToValueAtTime(0.22 * power, time + 0.002); 
+        clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+        clickGain.gain.linearRampToValueAtTime(0, time + 0.025); 
         
+        // 2. Body Tone
         osc.type = 'sine';
         const isGabber = mode.includes('gabber');
-        const startFreq = mode === 'heavy-gabber' ? 65 : (mode === 'sharp-gabber' ? 95 : (mode === 'sub-thud' ? 45 : (mode === 'dnb-punch' ? 75 : 60)));
-        const decayTime = isGabber ? 0.3 : (mode === 'sub-thud' ? 0.5 : (mode === 'dnb-punch' ? 0.18 : 0.35));
+        const startFreq = mode === 'heavy-gabber' ? 68 : (mode === 'sharp-gabber' ? 98 : (mode === 'sub-thud' ? 48 : (mode === 'dnb-punch' ? 78 : 64)));
+        const decayTime = isGabber ? 0.35 : (mode === 'sub-thud' ? 0.55 : (mode === 'dnb-punch' ? 0.22 : 0.38));
         
         osc.frequency.setValueAtTime(startFreq, time);
-        osc.frequency.exponentialRampToValueAtTime(0.001, time + decayTime);
+        osc.frequency.exponentialRampToValueAtTime(1, time + decayTime);
         
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.8 * power, time + 0.005); 
+        gain.gain.linearRampToValueAtTime(0.7 * power, time + 0.005); 
         gain.gain.exponentialRampToValueAtTime(0.0001, time + decayTime);
-        gain.gain.linearRampToValueAtTime(0, time + decayTime + 0.005); 
+        gain.gain.linearRampToValueAtTime(0, time + decayTime + 0.015); 
 
         if (isGabber) {
             const shaper = ctx.createWaveShaper();
             const curve = new Float32Array(44100);
-            const dist = mode === 'heavy-gabber' ? 30 : 20;
+            const dist = mode === 'heavy-gabber' ? 25 : 15;
             for (let i = 0; i < 44100; i++) {
                 const x = (i / 44100) * 2 - 1;
                 curve[i] = (Math.PI + dist) * x / (Math.PI + dist * Math.abs(x));
@@ -75,14 +111,15 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         gain.connect(dest);
         click.connect(clickGain); clickGain.connect(dest);
 
-        osc.start(time); osc.stop(time + decayTime + 0.01);
-        click.start(time); click.stop(time + 0.016);
+        osc.start(time); osc.stop(time + decayTime + 0.05);
+        click.start(time); click.stop(time + 0.05);
     };
 
     const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, color: 'sharp' | 'heavy' | 'industrial' | 'dnb-crack' = 'sharp') => {
-        if (power <= 0) return;
+        if (power <= 0.001) return;
         const noise = ctx.createBufferSource();
-        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+        const bufferSize = ctx.sampleRate * 0.15;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
         noise.buffer = buffer;
@@ -94,225 +131,168 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime((color === 'dnb-crack' ? 0.7 : 0.5) * power, time + 0.002);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + (color === 'dnb-crack' ? 0.1 : 0.15));
-        gain.gain.linearRampToValueAtTime(0, time + (color === 'dnb-crack' ? 0.11 : 0.16));
+        gain.gain.linearRampToValueAtTime((color === 'dnb-crack' ? 0.5 : 0.35) * power, time + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + (color === 'dnb-crack' ? 0.12 : 0.15));
+        gain.gain.linearRampToValueAtTime(0, time + (color === 'dnb-crack' ? 0.15 : 0.18));
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
-        noise.start(time);
+        noise.start(time); noise.stop(time + 0.2);
     };
 
     const createHat = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, weight: number = 1.0) => {
-        if (power <= 0) return;
+        if (power <= 0.001) return;
         const noise = ctx.createBufferSource();
-        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+        const bufferSize = ctx.sampleRate * 0.08;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
         noise.buffer = buffer;
 
         const filter = ctx.createBiquadFilter();
         filter.type = 'highpass';
-        filter.frequency.setValueAtTime(12000, time);
-        filter.Q.setValueAtTime(1.0, time);
+        filter.frequency.setValueAtTime(11500, time);
         
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.12 * weight * power, time + 0.002);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
-        gain.gain.linearRampToValueAtTime(0, time + 0.055);
+        gain.gain.linearRampToValueAtTime(0.09 * weight * power, time + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.06);
+        gain.gain.linearRampToValueAtTime(0, time + 0.08);
 
         noise.connect(filter); filter.connect(gain); gain.connect(dest);
-        noise.start(time);
+        noise.start(time); noise.stop(time + 0.1);
     };
 
-    const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, power: number = 1.0, type: 'pulse' | 'sub' | 'dark' | 'gabber' | 'void' | 'acid' | 'dnb-lead' = 'pulse') => {
-        if (power <= 0) return;
-        const osc = ctx.createOscillator();
+    const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, power: number = 1.0, type: 'pulse' | 'sub' | 'dark' | 'gabber' | 'void' | 'acid' | 'dnb-lead' | 'sparkle' = 'pulse') => {
+        if (power <= 0.001) return;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
         const gain = ctx.createGain();
         const filter = ctx.createBiquadFilter();
-        const shaper = ctx.createWaveShaper();
+        const panner = ctx.createStereoPanner();
 
-        const curve = new Float32Array(44100);
-        for (let i = 0; i < 44100; i++) {
-            const x = (i / 44100) * 2 - 1;
-            curve[i] = (Math.PI + 5) * x / (Math.PI + 5 * Math.abs(x));
-        }
-        shaper.curve = curve;
-
-        osc.type = (type === 'gabber' || type === 'acid' || type === 'dnb-lead') ? 'sawtooth' : (type === 'void' ? 'sine' : (type === 'sub' ? 'sine' : (type === 'dark' ? 'sawtooth' : 'square')));
-        osc.frequency.setValueAtTime(freq, time);
+        osc1.type = (type === 'gabber' || type === 'acid' || type === 'dnb-lead' || type === 'sparkle') ? 'sawtooth' : (type === 'void' ? 'sine' : (type === 'sub' ? 'sine' : (type === 'dark' ? 'sawtooth' : 'square')));
+        osc2.type = osc1.type;
+        osc1.frequency.setValueAtTime(freq, time);
+        osc2.frequency.setValueAtTime(freq * 1.005, time);
 
         filter.type = 'lowpass';
+        filter.Q.setValueAtTime(3.5, time);
+
         if (type === 'dark') {
-            filter.frequency.setValueAtTime(freq * 3, time);
+            filter.frequency.setValueAtTime(freq * 3.0, time);
             filter.frequency.exponentialRampToValueAtTime(freq * 0.8, time + duration);
-            filter.Q.setValueAtTime(4.0, time); 
         } else if (type === 'gabber') {
             filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(freq * 8, time);
-            filter.frequency.exponentialRampToValueAtTime(freq * 1.5, time + duration);
-            filter.Q.setValueAtTime(8, time); 
-        } else if (type === 'acid') {
-            filter.frequency.setValueAtTime(freq * 10, time);
-            filter.frequency.exponentialRampToValueAtTime(freq * 0.8, time + duration);
-            filter.Q.setValueAtTime(12, time);
+            filter.frequency.setValueAtTime(freq * 6, time);
+            filter.Q.setValueAtTime(8, time);
+        } else if (type === 'sparkle') {
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(3500, time);
+            panner.pan.setValueAtTime(Math.sin(time * 10) * 0.3, time);
         } else if (type === 'dnb-lead') {
             filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(freq * 12, time);
-            filter.frequency.exponentialRampToValueAtTime(freq * 24, time + duration);
-            filter.Q.setValueAtTime(15, time); 
+            filter.frequency.setValueAtTime(freq * 10, time);
+            filter.frequency.exponentialRampToValueAtTime(freq * 20, time + duration);
         } else if (type === 'void') {
             filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(freq * 2, time);
-            filter.Q.setValueAtTime(3, time);
+            filter.frequency.setValueAtTime(freq * 1.2, time);
         } else {
-            filter.frequency.setValueAtTime(2500, time);
-            filter.Q.setValueAtTime(2, time);
+            filter.frequency.setValueAtTime(2800, time);
         }
 
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime((type === 'sub' ? 0.3 : (type === 'gabber' ? 0.2 : (type === 'void' ? 0.2 : 0.15))) * power, time + 0.01);
+        gain.gain.linearRampToValueAtTime(0.16 * power, time + 0.008); 
         gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-        gain.gain.linearRampToValueAtTime(0, time + duration + 0.005); 
+        gain.gain.linearRampToValueAtTime(0, time + duration + 0.015); 
 
-        osc.connect(shaper); shaper.connect(filter); filter.connect(gain); gain.connect(dest);
-        osc.start(time); osc.stop(time + duration + 0.01);
+        osc1.connect(filter); osc2.connect(filter); 
+        filter.connect(panner); panner.connect(gain); gain.connect(dest);
+        
+        osc1.start(time); osc1.stop(time + duration + 0.05);
+        osc2.start(time); osc2.stop(time + duration + 0.05);
     };
 
-    // --- Core Rhythm Logic ---
-    const playRhythm = (mode: DecayMode, ctx: AudioContext, dest: AudioNode, time: number, step: number, power: number, secondsPerStep: number) => {
-        if (power <= 0) return;
-
-        let isKickStep = (step % 4 === 0);
-        const sidechainFactor = isKickStep ? 0.35 : 1.0; 
-        const synthPower = power * sidechainFactor;
+    // --- Rhythm Logic (Separated Layers) ---
+    const playRhythm = (mode: DecayMode, ctx: AudioContext, dest: AudioNode, time: number, step: number, fP: number, oP: number, secondsPerStep: number) => {
+        const sidechain = (step % 4 === 0) ? 0.45 : 1.0; 
+        const sf = fP * sidechain;
+        const so = oP * sidechain;
 
         switch (mode) {
             case DecayMode.STABLE:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.8 * power);
-                if (step % 4 === 2) createHat(ctx, dest, time, power, 0.6);
-                if (step % 8 === 6) createHat(ctx, dest, time, power * 1.2, 1.0);
-                if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.05, 0.2 * synthPower, 'pulse');
+                if (step % 4 === 0) createKick(ctx, dest, time, 0.8 * fP);
+                if (step % 4 === 2) createHat(ctx, dest, time, oP, 0.8);
+                if (step % 8 === 6) createHat(ctx, dest, time, oP * 1.1, 1.1);
+                if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.08, 0.2 * so, 'pulse');
                 break;
 
             case DecayMode.BETA_MINUS:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.1 * power, 'standard');
-                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.8 * power, 'sharp');
-                if (step % 4 === 2) {
-                    createHat(ctx, dest, time, power * 1.6, 1.5); 
-                } else {
-                    createHat(ctx, dest, time, power * 0.4, 0.5); 
-                }
+                if (step % 4 === 0) createKick(ctx, dest, time, 1.0 * fP, 'standard');
                 if ([2, 3, 6, 7, 10, 11, 14, 15].includes(step)) {
-                    const bassFreq = (step % 8 < 4) ? 55 : 41.2; 
-                    createSynth(ctx, dest, time, bassFreq, secondsPerStep * 0.7, 0.85 * synthPower, 'dark');
+                    createSynth(ctx, dest, time, (step % 8 < 4) ? 55 : 41.2, secondsPerStep * 0.75, 0.8 * sf, 'dark');
                 }
-                if (step === 10) {
-                    createSynth(ctx, dest, time, 880, 0.04, 0.4 * synthPower, 'pulse');
-                }
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'sharp');
+                if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.4);
                 break;
 
             case DecayMode.BETA_PLUS:
-                if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 1.0 * power);
-                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.7 * power, 'sharp');
-                if (step % 2 === 1) createHat(ctx, dest, time, power, 1.0);
-                if (step % 16 === 7) createSynth(ctx, dest, time, 440, 0.15, 0.7 * synthPower, 'pulse');
+                if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 0.9 * fP);
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.6 * oP, 'sharp');
+                if (step % 2 === 1) createHat(ctx, dest, time, oP, 1.1);
+                if (step % 16 === 7) createSynth(ctx, dest, time, 880, 0.2, 0.6 * so, 'sparkle');
                 break;
 
             case DecayMode.ELECTRON_CAPTURE:
-                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.2 * power);
-                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.7 * power, 'heavy');
-                if (step % 8 === 4) createSynth(ctx, dest, time, 110, secondsPerStep * 2.5, 0.8 * synthPower, 'acid');
-                createHat(ctx, dest, time, power, step % 4 === 0 ? 0.3 : 0.7);
-                if (step % 8 === 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 4, 0.9 * synthPower, 'dark');
+                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.0 * fP);
+                if (step % 8 === 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 4, 0.85 * sf, 'dark');
+                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.6 * oP, 'heavy');
+                if (step % 8 === 4) createSynth(ctx, dest, time, 110, secondsPerStep * 2.5, 0.7 * so, 'acid');
+                createHat(ctx, dest, time, oP, step % 4 === 0 ? 0.4 : 0.8);
                 break;
 
             case DecayMode.ALPHA:
-                if (step === 0 || step === 10) createKick(ctx, dest, time, 1.1 * power, 'dnb-punch');
-                if (step === 4 || step === 12) {
-                    createSnare(ctx, dest, time, 1.2 * power, 'dnb-crack');
-                } else if ([2, 6, 7, 14, 15].includes(step)) {
-                    createSnare(ctx, dest, time, 0.2 * power, 'sharp');
-                }
-                createHat(ctx, dest, time, power * (step % 2 === 0 ? 0.8 : 0.4), 1.1);
-                if (step % 4 === 2) createHat(ctx, dest, time, power * 1.3, 1.5);
-                const alphaBassFreq = step % 8 < 4 ? 41.2 : 38.8; 
-                createSynth(ctx, dest, time, alphaBassFreq, secondsPerStep * 2.5, 1.0 * synthPower, 'dark');
-                if (step % 4 === 1) {
-                    createSynth(ctx, dest, time, 1760 + (Math.sin(time * 10) * 440), 0.04, 0.4 * synthPower, 'dnb-lead');
-                }
-                if (step % 8 === 3) {
-                    createSynth(ctx, dest, time, 3520, 0.08, 0.2 * synthPower, 'pulse');
-                }
+                if (step === 0 || step === 10) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
+                createSynth(ctx, dest, time, step % 8 < 4 ? 41.2 : 38.8, secondsPerStep * 2.5, 0.9 * sf, 'dark');
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 1.0 * oP, 'dnb-crack');
+                createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.9 : 0.5), 1.1);
+                if (step % 4 === 1) createSynth(ctx, dest, time, 1760, 0.05, 0.3 * so, 'dnb-lead');
                 break;
 
             case DecayMode.SPONTANEOUS_FISSION:
-                createKick(ctx, dest, time, 1.3 * power, 'heavy-gabber');
-                createSnare(ctx, dest, time, power * 1.0, 'industrial');
-                createSynth(ctx, dest, time, 35 + Math.random() * 100, 0.1, 1.2 * synthPower, 'gabber');
+                createKick(ctx, dest, time, 1.2 * fP, 'heavy-gabber');
+                createSnare(ctx, dest, time, oP * 0.85, 'industrial');
+                createSynth(ctx, dest, time, 40 + Math.random() * 80, 0.15, 1.0 * so, 'gabber');
                 break;
 
             case DecayMode.NEUTRON_EMISSION:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.2 * power, 'heavy-gabber');
-                if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, power * 1.1, 'industrial');
-                if (step % 4 !== 0) {
-                    createSynth(ctx, dest, time, 41.2, secondsPerStep * 2, 0.8 * synthPower, 'dark');
-                    if (Math.random() > 0.6) createHat(ctx, dest, time, power, 1.8);
-                }
+                if (step % 4 === 0) createKick(ctx, dest, time, 1.15 * fP, 'heavy-gabber');
+                if (step % 4 !== 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 2, 0.7 * sf, 'dark');
+                if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, oP * 0.9, 'industrial');
+                if (Math.random() > 0.6) createHat(ctx, dest, time, oP, 1.7);
                 break;
 
             case DecayMode.PROTON_EMISSION:
-                // --- NEW HAPPY HARDCORE LOGIC (装飾音 & Euphoric Plucks) ---
-                
-                // 1. 4x4 Energetic Kick
-                if (step % 4 === 0) {
-                    createKick(ctx, dest, time, 1.1 * power, 'dnb-punch');
-                }
-                
-                // 2. Off-beat Open Hat (ジャンル特有の疾走感)
-                if (step % 4 === 2) {
-                    createHat(ctx, dest, time, power * 1.5, 1.3);
-                }
-                
-                // 3. Fast Ornamental Hi-hats (装飾的な16分音符)
-                if (step % 2 === 1) {
-                    createHat(ctx, dest, time, power * 0.7, 0.8);
-                }
-
-                // 4. Euphoric Synth Plucks (装飾音パターン - 5度とオクターブを使用)
-                // パターン: [0, 3, 6, 8, 10, 13] の変則リズム
+                // Happy Hardcore Ornamental Intensity
+                if (step % 4 === 0) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
+                if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.3);
+                if (step % 2 === 1) createHat(ctx, dest, time, oP * 0.7, 0.9);
                 if ([0, 3, 6, 10, 13].includes(step)) {
-                    const plucks = [1760, 2637, 3520]; // A6, E7, A7
-                    const freq = plucks[step % 3];
-                    createSynth(ctx, dest, time, freq, 0.08, 0.45 * synthPower, 'pulse');
+                    createSynth(ctx, dest, time, [1760, 2637, 3520][step % 3], 0.1, 0.4 * so, 'sparkle');
                 }
-
-                // 5. Final Step Arpeggio Roll (駆け上がるような装飾)
                 if (step === 15) {
                     for(let i = 0; i < 4; i++) {
-                        const rollTime = time + (i * 0.025);
-                        createSynth(ctx, dest, rollTime, 3520 + (i * 440), 0.02, 0.15 * synthPower, 'pulse');
+                        createSynth(ctx, dest, time + (i * 0.025), 3520 + (i * 440), 0.03, 0.16 * so, 'pulse');
                     }
                 }
                 break;
 
             case DecayMode.UNKNOWN:
-                if (step % 16 === 0) {
-                    const ambientDrone = 32.70 + (Math.sin(time * 0.2) * 2); 
-                    createSynth(ctx, dest, time, ambientDrone, secondsPerStep * 20, 0.3 * power, 'void');
-                }
-                if (step % 12 === 0) {
-                    const harmonicFreq = 130.81 * (Math.floor(Math.random() * 4) + 1);
-                    createSynth(ctx, dest, time, harmonicFreq, secondsPerStep * 10, 0.1 * power, 'void');
-                }
-                if (Math.random() > 0.97) {
-                    const glitchFreq = 3000 + (Math.random() * 5000);
-                    createSynth(ctx, dest, time, glitchFreq, 0.6, 0.05 * power, 'pulse');
-                }
+                if (step % 16 === 0) createSynth(ctx, dest, time, 32.7, secondsPerStep * 20, 0.25 * sf, 'void');
+                if (Math.random() > 0.97) createSynth(ctx, dest, time, 4000, 0.5, 0.08 * so, 'pulse');
                 break;
 
             default:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.8 * power);
+                if (step % 4 === 0) createKick(ctx, dest, time, 0.7 * fP);
                 break;
         }
     };
@@ -320,33 +300,54 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const scheduler = useCallback(() => {
         if (!audioCtxRef.current || !masterEntryRef.current) return;
         
+        // BPM updates are real-time based on HP, even if BGM pattern switch is debounced
         const hpFactor = 1.0 - (hpRef.current / 100);
-        const baseBpm = 132;
-        const currentBpm = baseBpm + (hpFactor * 32); 
+        const currentBpm = 132 + (hpFactor * 32); 
         const secondsPerStep = 60 / currentBpm / 4;
 
         while (nextNoteTimeRef.current < audioCtxRef.current.currentTime + 0.1) {
             const time = nextNoteTimeRef.current;
             const step = currentStepRef.current;
-            const targetMode = getPrimaryMode(decayModesRef.current);
             const ctx = audioCtxRef.current;
             const dest = masterEntryRef.current;
 
-            if (lastModeRef.current !== null && lastModeRef.current !== targetMode && transitionProgressRef.current >= 1.0) {
+            // Use the "Settled" mode for pattern decisions
+            const targetMode = stablePrimaryModeRef.current;
+
+            // Decay Mode Change Trigger - Initiating a crossfade only if the SETTLED decay logic changed
+            if (lastModeRef.current !== null && lastModeRef.current !== targetMode) {
                 transitionFromModeRef.current = lastModeRef.current;
-                transitionProgressRef.current = 0.0;
+                foundationProgressRef.current = 0.0;
+                ornamentalInProgressRef.current = 0.0;
+                ornamentalOutProgressRef.current = 0.0;
             }
             lastModeRef.current = targetMode;
 
-            if (transitionProgressRef.current < 1.0) {
-                const factor = transitionProgressRef.current;
+            // Execute Transition or Normal Play
+            const isTransitioning = (foundationProgressRef.current < 1.0 || 
+                                     ornamentalInProgressRef.current < 1.0 || 
+                                     ornamentalOutProgressRef.current < 1.0);
+
+            if (isTransitioning) {
+                // Outgoing Mode (if exists)
                 if (transitionFromModeRef.current) {
-                    playRhythm(transitionFromModeRef.current, ctx, dest, time, step, (1.0 - factor), secondsPerStep);
+                    const fOut = Math.max(0, 1.0 - foundationProgressRef.current);
+                    const oOut = Math.max(0, 1.0 - ornamentalOutProgressRef.current);
+                    playRhythm(transitionFromModeRef.current, ctx, dest, time, step, fOut, oOut, secondsPerStep);
                 }
-                playRhythm(targetMode, ctx, dest, time, step, factor, secondsPerStep);
-                transitionProgressRef.current += (1.0 / TRANSITION_STEPS);
+
+                // Incoming Mode
+                const fIn = Math.min(1.0, foundationProgressRef.current);
+                const oIn = Math.min(1.0, ornamentalInProgressRef.current);
+                playRhythm(targetMode, ctx, dest, time, step, fIn, oIn, secondsPerStep);
+
+                // Progress counters
+                foundationProgressRef.current = Math.min(1.0, foundationProgressRef.current + F_STEP);
+                ornamentalInProgressRef.current = Math.min(1.0, ornamentalInProgressRef.current + O_IN_STEP);
+                ornamentalOutProgressRef.current = Math.min(1.0, ornamentalOutProgressRef.current + O_OUT_STEP);
             } else {
-                playRhythm(targetMode, ctx, dest, time, step, 1.0, secondsPerStep);
+                // Stable continuous playback
+                playRhythm(targetMode, ctx, dest, time, step, 1.0, 1.0, secondsPerStep);
             }
 
             nextNoteTimeRef.current += secondsPerStep;
@@ -360,31 +361,29 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioCtxRef.current = ctx;
 
-            // --- MASTER SIGNAL CHAIN (Clarity focus) ---
-            
             const hpFilter = ctx.createBiquadFilter();
             hpFilter.type = 'highpass';
-            hpFilter.frequency.setValueAtTime(42, ctx.currentTime);
+            hpFilter.frequency.setValueAtTime(45, ctx.currentTime);
 
             const eqFilter = ctx.createBiquadFilter();
             eqFilter.type = 'peaking';
-            eqFilter.frequency.setValueAtTime(160, ctx.currentTime);
-            eqFilter.Q.setValueAtTime(0.8, ctx.currentTime); 
-            eqFilter.gain.setValueAtTime(-5.0, ctx.currentTime); 
+            eqFilter.frequency.setValueAtTime(180, ctx.currentTime);
+            eqFilter.gain.setValueAtTime(-5.5, ctx.currentTime); 
 
-            const compressor = ctx.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(-22, ctx.currentTime);
-            compressor.knee.setValueAtTime(25, ctx.currentTime); 
-            compressor.ratio.setValueAtTime(6, ctx.currentTime); 
-            compressor.attack.setValueAtTime(0.01, ctx.currentTime); 
-            compressor.release.setValueAtTime(0.18, ctx.currentTime);
+            // Hard Limiter for preventing low HP distortion
+            const limiter = ctx.createDynamicsCompressor();
+            limiter.threshold.setValueAtTime(-10, ctx.currentTime);
+            limiter.knee.setValueAtTime(3, ctx.currentTime); 
+            limiter.ratio.setValueAtTime(20.0, ctx.currentTime);
+            limiter.attack.setValueAtTime(0.002, ctx.currentTime);
+            limiter.release.setValueAtTime(0.08, ctx.currentTime);
             
             const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.55, ctx.currentTime); 
+            masterGain.gain.setValueAtTime(0.42, ctx.currentTime); 
 
-            hpFilter.connect(eqFilter);
-            eqFilter.connect(compressor);
-            compressor.connect(masterGain);
+            hpFilter.connect(eqFilter); 
+            eqFilter.connect(limiter); 
+            limiter.connect(masterGain);
             masterGain.connect(ctx.destination);
 
             masterEntryRef.current = hpFilter;
@@ -446,6 +445,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         isMuted, 
         toggleMute, 
         bpm: Math.round(132 + ((1 - hp / 100) * 32)), 
-        primaryMode: getPrimaryMode(decayModesRef.current) 
+        primaryMode: stablePrimaryModeRef.current 
     };
 };

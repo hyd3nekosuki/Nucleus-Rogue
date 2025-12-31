@@ -117,6 +117,7 @@ function App() {
             disabledSkills={gameState.disabledSkills} 
             onToggleSkill={engine.handleToggleHiddenSkill} 
             maxCombo={gameState.maxCombo} 
+            reincarnations={gameState.reincarnations}
             onClose={() => setShowTable(false)} 
             canTransmute={transmutationReady} 
             onSelectElement={handleTransmuteWrapper} 
@@ -125,38 +126,8 @@ function App() {
 
       {/* Side Panel */}
       <div className="order-2 md:order-1 w-full md:w-80 lg:w-96 bg-panel-bg border-r border-gray-800 flex flex-col h-auto md:h-screen overflow-y-auto z-20 select-none">
-          <div className="hidden md:flex pt-2 pb-1.5 px-6 items-center justify-between border-b border-gray-800 shrink-0">
+          <div className="hidden md:flex pt-2 pb-1.5 px-6 items-center border-b border-gray-800 shrink-0">
              <h1 className="text-lg font-black text-neon-blue tracking-tighter italic drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">NUCLEUS<span className="text-white text-[9px] not-italic font-normal tracking-widest ml-1 opacity-70">ROGUE</span></h1>
-             <div className="flex gap-2">
-                {/* Voice Toggle */}
-                <button 
-                    onClick={() => setIsVoiceMuted(!isVoiceMuted)}
-                    className={`p-1 rounded border transition-all ${isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_8px_#bc13fe]'}`}
-                    title="Toggle Voice (V)"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {isVoiceMuted ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z M3 3l18 18" />
-                        ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        )}
-                    </svg>
-                </button>
-                {/* BGM Toggle */}
-                <button 
-                    onClick={toggleMute} 
-                    className={`p-1 rounded border transition-all ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_8px_#00f3ff]'}`}
-                    title="Toggle BGM (M)"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {isMuted ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        )}
-                    </svg>
-                </button>
-             </div>
           </div>
           
           <InfoPanel 
