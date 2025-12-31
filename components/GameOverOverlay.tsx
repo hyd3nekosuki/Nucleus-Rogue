@@ -63,9 +63,16 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
 
     return (
-        <div className="absolute inset-0 bg-red-900/95 flex flex-col items-center justify-center rounded-xl z-30 p-6 text-center shadow-2xl backdrop-blur-sm">
-            <div className="text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-lg uppercase">{title}</div>
-            <p className="mb-4 text-gray-200 text-lg">
+        <div className="absolute inset-0 bg-[#050508]/95 flex flex-col items-center justify-center rounded-xl z-30 p-6 text-center shadow-[0_0_50px_rgba(0,0,0,1)] backdrop-blur-md border border-neon-blue/20 overflow-hidden">
+            {/* CRT Scanline Overlay for Cyberpunk feel */}
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(0,243,255,0.02),rgba(0,243,255,0.01),rgba(0,243,255,0.02))] bg-[length:100%_3px,2px_100%] opacity-50"></div>
+            
+            {/* Title with strong glow */}
+            <div className="text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase italic">
+                {title}
+            </div>
+
+            <p className="mb-4 text-gray-400 text-lg relative z-10">
                 {isTransformFail ? (
                     <>
                         <span className="font-bold text-neon-blue">{nuclide.name}</span> does not exist or is outside the drip lines.
@@ -82,61 +89,67 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ isVisible, reason, nu
             </p>
             
             {!isTransformFail && (
-                <div className="mb-6 bg-black/40 p-4 rounded-lg border border-red-500/30 w-full max-w-sm shadow-inner">
-                    <h3 className="text-xs text-red-300 uppercase tracking-widest mb-3 border-b border-red-500/20 pb-1 font-bold">Nuclide Properties</h3>
+                <div className="mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-w-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10">
+                    <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
-                        <div className="text-gray-400">Half-Life:</div>
-                        <div className="text-white font-bold text-right">{preciseHalfLife}</div>
+                        <div className="text-gray-500">Half-Life:</div>
+                        <div className="text-white font-bold text-right drop-shadow-[0_0_5px_white]">{preciseHalfLife}</div>
                         
-                        <div className="text-gray-400">Mode:</div>
-                        <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full">
+                        <div className="text-gray-500">Mode:</div>
+                        <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full drop-shadow-[0_0_5px_#00ff9d]">
                             {formatDecayModes(nuclide)}
                         </div>
 
-                        <div className="text-gray-400">Protons (Z):</div>
-                        <div className="text-white text-right">{nuclide.z}</div>
+                        <div className="text-gray-500">Protons (Z):</div>
+                        <div className="text-white text-right font-bold">{nuclide.z}</div>
 
-                        <div className="text-gray-400">Mass (A):</div>
-                        <div className="text-white text-right">{nuclide.a}</div>
+                        <div className="text-gray-500">Mass (A):</div>
+                        <div className="text-white text-right font-bold">{nuclide.a}</div>
                     </div>
                 </div>
             )}
             
             {isTransformFail && (
-                <div className="mb-8 p-3 bg-black/40 rounded border border-white/10">
-                    <p className="text-xs text-gray-400 mb-1">Evidence / Reference:</p>
+                <div className="mb-8 p-3 bg-black/40 rounded border border-neon-blue/20 relative z-10">
+                    <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">External Reference:</p>
                     <a 
                         href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-neon-blue hover:text-white underline text-sm break-all font-mono"
+                        className="text-neon-blue hover:text-white underline text-sm break-all font-mono transition-colors"
                     >
                         IAEA Chart of Nuclides
                     </a>
                 </div>
             )}
 
-            <div className="flex flex-col gap-3 w-full max-w-xs">
+            <div className="flex flex-col gap-3 w-full max-w-xs relative z-10">
                 <button 
                     onClick={() => onRestart(true)}
-                    className="w-full px-6 py-3 bg-neon-purple text-white font-bold text-sm md:text-base uppercase tracking-widest rounded shadow-[0_0_20px_rgba(188,19,254,0.4)] hover:bg-white hover:text-neon-purple hover:scale-105 transition-all duration-200 border border-white/20"
+                    className="w-full px-6 py-3 bg-neon-purple text-white font-black text-sm md:text-base uppercase tracking-[0.2em] rounded shadow-[0_0_30px_rgba(188,19,254,0.3)] hover:bg-white hover:text-neon-purple hover:scale-105 transition-all duration-300 border border-white/20"
                 >
                     RANDOM GENERATION
                 </button>
                 
-                <div className="flex items-center gap-2 my-1">
+                <div className="flex items-center gap-2 my-1 opacity-40">
                     <div className="h-px bg-white/30 flex-1"></div>
-                    <span className="text-xs text-white/50 font-mono">OR</span>
+                    <span className="text-[10px] text-white/50 font-black italic">LINK RECOVERY</span>
                     <div className="h-px bg-white/30 flex-1"></div>
                 </div>
 
                 <button 
                     onClick={() => onRestart(false)}
-                    className="w-full px-6 py-3 bg-neon-blue text-black font-bold text-sm md:text-base uppercase tracking-widest rounded shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:bg-white hover:scale-105 transition-all duration-200"
+                    className="w-full px-6 py-3 bg-transparent text-neon-blue border border-neon-blue font-black text-sm md:text-base uppercase tracking-[0.2em] rounded shadow-[0_0_20px_rgba(0,243,255,0.2)] hover:bg-neon-blue hover:text-black hover:scale-105 transition-all duration-300"
                 >
                     Restart from H-1
                 </button>
             </div>
+            
+            {/* Background decorative corner marks */}
+            <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-neon-blue/30"></div>
+            <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-neon-blue/30"></div>
+            <div className="absolute bottom-4 left-4 h-4 border-b-2 border-l-2 border-neon-blue/30 w-4"></div>
+            <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-neon-blue/30"></div>
         </div>
     );
 };
