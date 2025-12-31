@@ -21,7 +21,16 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       // Support diagonal adjacency: dx <= 1 AND dy <= 1
       const isAdjacent = (dx <= 1 && dy <= 1) && !(dx === 0 && dy === 0);
       
-      const entity = gameState.gridEntities.find(e => e.position.x === x && e.position.y === y);
+      // FIX: Replaced findLast with a manual loop for backwards compatibility
+      // Use logic equivalent to findLast to show the entity that was added most recently (rendered on top logic)
+      let entity = undefined;
+      for (let i = gameState.gridEntities.length - 1; i >= 0; i--) {
+        const e = gameState.gridEntities[i];
+        if (e.position.x === x && e.position.y === y) {
+          entity = e;
+          break;
+        }
+      }
       
       // Check for effects on this specific cell
       const activeEffects = gameState.effects.filter(e => e.position.x === x && e.position.y === y);

@@ -65,7 +65,17 @@ export const calculateMoveResult = (
 
     if (newX < 0 || newX >= GRID_WIDTH || newY < 0 || newY >= GRID_HEIGHT) return { moved: false, state: prev };
 
-    const entityIndex = prev.gridEntities.findIndex(e => e.position.x === newX && e.position.y === newY);
+    // FIX: Replaced findLastIndex with a manual loop for backwards compatibility
+    // ALGORITHM UPDATE: Search from the end (findLastIndex equivalent) so the interaction matches the top-most visual entity
+    let entityIndex = -1;
+    for (let i = prev.gridEntities.length - 1; i >= 0; i--) {
+        const e = prev.gridEntities[i];
+        if (e.position.x === newX && e.position.y === newY) {
+            entityIndex = i;
+            break;
+        }
+    }
+    
     let dZ = 0, dA = 0, hpPenalty = 0;
     let chainDecayResult: any = null;
     let chainReactionLabel = "";
@@ -105,7 +115,6 @@ export const calculateMoveResult = (
         if (entity.type === EntityType.PROTON) {
             if (lT === EntityType.PROTON) cP++;
             else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-        // Fix: Use EntityType.NEUTRON instead of EntityMode.NEUTRON
         } else if (entity.type === EntityType.NEUTRON) {
             if (lT === EntityType.NEUTRON) cN++;
             else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
