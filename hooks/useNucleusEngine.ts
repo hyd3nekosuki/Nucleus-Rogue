@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
@@ -52,6 +51,7 @@ const getInitialState = (): GameState => ({
     consecutiveElectrons: 0,
     lastConsumedType: null,
     reincarnations: 0,
+    magicBarrierCharges: 0,
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,
@@ -186,7 +186,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     const moveStep = useCallback((dx: number, dy: number) => {
         setGameState(prev => {
             if (prev.gameOver || prev.loadingData || prev.isTimeStopped) { stopAutoMove(); return prev; }
-            // FIX: Use 'COULOMB_BARRIER_THRESHOLD' instead of undefined 'COULOMB_BAR_THRESHOLD'
             const result = calculateMoveResult(prev, dx, dy, COULOMB_BARRIER_THRESHOLD, ENERGY_EVOLUTION_TURNS, prev.playerLevel);
             if (!result.moved) { if (continuousDirRef.current) stopAutoMove(); return prev; }
             const nextState = { ...result.state };
@@ -332,7 +331,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             let levelUpMessages: string[] = [];
             if (isNewMastery) {
                 nextLevel += 1; nextMastered = [...prev.masteredDecays, actualMode]; triggerTTS("Mastery Level Up !");
-                if (nextLevel === 1) levelUpMessages.push("☢️ MASTERY Lv 1: Magic shells protect against capture!");
+                if (nextLevel === 1) levelUpMessages.push("☢️ MASTERY Lv 1: Magic shells grant a 3-charge protective barrier!");
                 if (nextLevel === 2) levelUpMessages.push("☢️ MASTERY Lv 2: Use [🔬] to convert energy into stability.");
                 if (nextLevel === 3) levelUpMessages.push("☢️ MASTERY Lv 3: Magic N-shells can freeze time.");
                 if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Exp. Replicate unlocked.");
@@ -340,6 +339,14 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             }
             const nextTurn = prev.turn + 1;
             if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
+
+            // NEW: Magic Barrier grant logic (When Z becomes magic)
+            let nextBarrierCharges = prev.magicBarrierCharges;
+            if (nextLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) {
+                nextBarrierCharges = 3;
+                levelUpMessages.push("✨ MAGIC SHELL: Barrier activated (3 charges)!");
+            }
+
             const nextStateCandidate = { 
                 ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: prev.energyPoints + (decayResult.energyBonus || 0),
                 turn: nextTurn,
@@ -349,7 +356,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...levelUpMessages, ...unlockResult.messages, ...decayResult.extraMessages].slice(-10), 
                 combo: finalComboCount, maxCombo: Math.max(prev.maxCombo, rawCombo), lastComboTime: currentTime, playerLevel: nextLevel, masteredDecays: nextMastered,
                 comboScore: (newData.isStable) ? 0 : nextComboScore, comboStartNuclide: (newData.isStable) ? undefined : nextComboStartNuclide,
-                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 }
+                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
+                magicBarrierCharges: nextBarrierCharges
             };
             if (nextStateCandidate.hp <= 0 && !nextStateCandidate.gameOver) {
                 if (nextStateCandidate.unlockedGroups.includes("Temporal Inversion") && !nextStateCandidate.disabledSkills.includes("Temporal Inversion") && nextStateCandidate.energyPoints >= 5) {
@@ -468,6 +476,13 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 setLastDecayEvent(null);
                 setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
                 triggerTTS("Experimental Replicate"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
+                
+                // NEW: Magic Barrier grant logic (When transmuted to magic Z)
+                let nextBarrierCharges = prev.magicBarrierCharges;
+                if (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) {
+                    nextBarrierCharges = 3;
+                }
+
                 return {
                     ...prev, 
                     currentNuclide: newData, 
@@ -475,7 +490,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     unlockedElements: unlockResult.updatedElements, 
                     unlockedGroups: unlockResult.updatedGroups,
                     score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
-                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
+                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
+                    magicBarrierCharges: nextBarrierCharges
                 };
             });
         }
@@ -511,7 +527,6 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         let unlockResult = { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
         
         // Only run unlock processing immediately if it's a 'RANDOM GENERATION' start.
-        // This ensures Hydrogen-1 isn't 'discovered' immediately when starting from H-1, matching the initial app load behavior.
         if (randomStart) {
             unlockResult = processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a);
         }

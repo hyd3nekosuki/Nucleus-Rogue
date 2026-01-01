@@ -65,8 +65,6 @@ export const calculateMoveResult = (
 
     if (newX < 0 || newX >= GRID_WIDTH || newY < 0 || newY >= GRID_HEIGHT) return { moved: false, state: prev };
 
-    // FIX: Replaced findLastIndex with a manual loop for backwards compatibility
-    // ALGORITHM UPDATE: Search from the end (findLastIndex equivalent) so the interaction matches the top-most visual entity
     let entityIndex = -1;
     for (let i = prev.gridEntities.length - 1; i >= 0; i--) {
         const e = prev.gridEntities[i];
@@ -97,6 +95,12 @@ export const calculateMoveResult = (
     let cN = prev.consecutiveNeutrons;
     let cE = prev.consecutiveElectrons;
     let lT = prev.lastConsumedType;
+    let currentCharges = prev.magicBarrierCharges;
+
+    // Grant charges if player is at magic Z and charges is 0 (Mastery Level 1 required)
+    if (playerLevel >= 1 && MAGIC_NUMBERS.includes(prev.currentNuclide.z) && currentCharges === 0) {
+        currentCharges = 3;
+    }
 
     if (entityIndex !== -1) {
         const entity = prev.gridEntities[entityIndex];
@@ -105,7 +109,6 @@ export const calculateMoveResult = (
             return { moved: false, state: prev };
         }
 
-        const isMagic = playerLevel >= 1 && MAGIC_NUMBERS.includes(prev.currentNuclide.z);
         nextEntities.splice(entityIndex, 1);
 
         if (nextEntities.length === 0) {
@@ -135,9 +138,12 @@ export const calculateMoveResult = (
                     nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
                     isGluttonyAchieved = false;
                 }
-                else if (isMagic || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
+                else if (currentCharges > 0 || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
                     dZ = 1; dA = 1; 
-                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
+                    if (currentCharges > 0 && !entity.isHighEnergy && prev.currentNuclide.z !== 0) {
+                        currentCharges -= 1;
+                        magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
+                    }
                 }
                 else if (prev.hp > COULOMB_BAR_THRESHOLD) { 
                     hpPenalty = 20; dZ = 1; dA = 1; 
@@ -200,9 +206,12 @@ export const calculateMoveResult = (
                 if (prev.hp <= 10 && cE >= 5) {
                     isBremsAchieved = true;
                 }
-                if (isMagic || entity.isHighEnergy) { 
+                if (currentCharges > 0 || entity.isHighEnergy) { 
                     dZ = -1; dA = 0; 
-                    if (isMagic && !entity.isHighEnergy) magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
+                    if (currentCharges > 0 && !entity.isHighEnergy) {
+                        currentCharges -= 1;
+                        magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
+                    }
                 } else { 
                     hpPenalty = prev.hp * 0.5; dZ = -1; dA = 0; 
                 }
@@ -215,6 +224,11 @@ export const calculateMoveResult = (
     const potentialZ = prev.currentNuclide.z + dZ;
     const potentialA = prev.currentNuclide.a + dA;
     
+    // Check if new Z is magic to grant charges
+    if (playerLevel >= 1 && MAGIC_NUMBERS.includes(potentialZ) && currentCharges === 0) {
+        currentCharges = 3;
+    }
+
     const evolvedEntities = (chainDecayResult?.newGridEntities || nextEntities).map(e => {
         if (e.type === EntityType.PROTON || e.type === EntityType.ENEMY_ELECTRON) {
             const elapsed = (prev.turn + 1) - e.spawnTurn;
@@ -226,7 +240,7 @@ export const calculateMoveResult = (
         return e;
     });
 
-    let nextState = { ...prev, playerPos: { x: newX, y: newY }, gridEntities: evolvedEntities, turn: prev.turn + 1, consecutiveProtons: cP, consecutiveNeutrons: cN, consecutiveElectrons: cE, lastConsumedType: lT };
+    let nextState = { ...prev, playerPos: { x: newX, y: newY }, gridEntities: evolvedEntities, turn: prev.turn + 1, consecutiveProtons: cP, consecutiveNeutrons: cN, consecutiveElectrons: cE, lastConsumedType: lT, magicBarrierCharges: currentCharges };
 
     let shouldShakeEvent = chainDecayResult?.shouldShake || isCoulombScattered || isPpFusion || isPositronAbsorption;
     let shouldFlashEvent = chainDecayResult?.shouldFlash || isPpFusion || isPositronAbsorption;
@@ -238,7 +252,7 @@ export const calculateMoveResult = (
             const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
             const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered, isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved, 0, 0, isGluttonyAchieved);
-            const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC SHELL PROTECTION'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
+            const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
             const fusionMsg = isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
             let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
             const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);

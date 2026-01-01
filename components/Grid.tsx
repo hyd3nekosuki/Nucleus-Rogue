@@ -88,8 +88,10 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     {gameState.currentNuclide.z}
                  </div>
                  
-                 {/* Orbitals ring visual effect */}
-                 <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30')} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
+                 {/* Orbitals ring visual effect - CONDITIONED ON BARRIER */}
+                 {(gameState.magicBarrierCharges > 0 || isNeutron || isUnknownDecay) && (
+                    <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30')} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
+                 )}
               </div>
           );
       } else if (entity) {

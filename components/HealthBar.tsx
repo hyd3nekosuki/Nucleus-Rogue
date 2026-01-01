@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { MAGIC_NUMBERS } from '../constants';
@@ -11,16 +10,18 @@ interface HealthBarProps {
     onToggleTimeStop?: () => void;
     isTimeStopped?: boolean;
     level: number; // Mastery Level
+    barrierCharges?: number; // NEW: Remaining charges
 }
 
-const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level }) => {
+const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level, barrierCharges = 0 }) => {
     const hpPercent = (hp / maxHp) * 100;
     const protonNumber = nuclide.z;
     const neutronNumber = nuclide.a - nuclide.z;
     
-    // Magic Shell logic depends on Level 1
+    // Magic Shell check
     const isMagicZ = level >= 1 && MAGIC_NUMBERS.includes(protonNumber);
     const isMagicN = level >= 1 && MAGIC_NUMBERS.includes(neutronNumber);
+    const hasBarrier = barrierCharges > 0;
     
     // Time stop depends on Level 3
     const canUseTimeStop = level >= 3 && isMagicN;
@@ -39,13 +40,14 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
 
     const getMagicLabel = () => {
         if (isTimeStopped) return '⏸ Frozen Time';
-        if (isDoubleMagic) return '✨ DOUBLE MAGIC SHELL ACTIVE';
-        if (isMagicZ && !isMagicN) return '✨ MAGIC PROTON SHELL ACTIVE';
-        if (isMagicN) return '✨ MAGIC NEUTRON SHELL ACTIVE';
+        if (hasBarrier) return `✨ MAGIC BARRIER: ${barrierCharges} CHARGES`;
+        if (isDoubleMagic) return '✨ DOUBLE MAGIC STATE';
+        if (isMagicZ && !isMagicN) return '✨ MAGIC PROTON STATE';
+        if (isMagicN) return '✨ MAGIC NEUTRON STATE';
         return '\u00A0'; // Non-breaking space to maintain layout height
     };
 
-    const isAnyMagic = isMagicZ || isMagicN || isTimeStopped;
+    const isAnyMagic = isMagicZ || isMagicN || isTimeStopped || hasBarrier;
 
     return (
         <div 
@@ -62,7 +64,7 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
                         <span className="text-xs text-gray-500 font-mono">{getDecayDisplay()}</span>
                     </div>
                     {/* Reserve space vertically using min-height and conditional opacity */}
-                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic ? 'text-yellow-400 opacity-100' : 'text-neon-blue opacity-100') : 'opacity-0'}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : 'text-neon-blue opacity-100') : 'opacity-0'}`}>
                         {getMagicLabel()}
                     </span>
                 </div>
