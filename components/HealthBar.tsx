@@ -40,10 +40,20 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
 
     const getMagicLabel = () => {
         if (isTimeStopped) return '⏸ Frozen Time';
-        if (hasBarrier) return `✨ MAGIC BARRIER: ${barrierCharges} CHARGES`;
-        if (isDoubleMagic) return '✨ DOUBLE MAGIC STATE';
-        if (isMagicZ && !isMagicN) return '✨ MAGIC PROTON STATE';
-        if (isMagicN) return '✨ MAGIC NEUTRON STATE';
+        
+        const zMarker = isMagicZ ? 'Z★' : '';
+        const nMarker = isMagicN ? 'N★' : '';
+        const magicMarkers = [zMarker, nMarker].filter(Boolean).join(' ');
+        const magicIndicator = magicMarkers ? ` [${magicMarkers}]` : '';
+
+        if (hasBarrier) {
+            return `✨ MAGIC BARRIER: ${barrierCharges} CHARGES${magicIndicator}`;
+        }
+        
+        if (isDoubleMagic) return `✨ DOUBLE MAGIC STATE${magicIndicator}`;
+        if (isMagicZ) return `✨ MAGIC PROTON STATE${magicIndicator}`;
+        if (isMagicN) return `✨ MAGIC NEUTRON STATE${magicIndicator}`;
+        
         return '\u00A0'; // Non-breaking space to maintain layout height
     };
 

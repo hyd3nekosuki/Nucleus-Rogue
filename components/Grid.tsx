@@ -243,7 +243,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   }
 
   return (
-    <div className={`relative transition-all ${gameState.isTimeStopped ? 'grayscale-[0.4] contrast-125' : ''}`}>
+    <div className={`relative transition-all touch-none ${gameState.isTimeStopped ? 'grayscale-[0.4] contrast-125' : ''}`}>
         <div 
             className="grid gap-0.5 select-none" 
             style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
