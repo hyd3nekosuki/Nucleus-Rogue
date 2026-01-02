@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
+import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
 import Grid from './components/Grid';
 import InfoPanel from './components/InfoPanel';
 import ControlPanel from './components/ControlPanel';
@@ -13,6 +13,7 @@ import EvolutionMap from './components/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusEngine } from './hooks/useNucleusEngine';
 import { useAudioEngine } from './hooks/useAudioEngine';
+import { getNuclideDataSync } from './services/nuclideService';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
@@ -43,6 +44,18 @@ function App() {
     ttsTriggerRef.current = activeTTSTrigger;
   }, [activeTTSTrigger]);
   // --------------------------
+
+  // Scroll Lock for Periodic Table
+  useEffect(() => {
+    if (showTable) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showTable]);
 
   useEffect(() => {
     if (containerRef.current) containerRef.current.focus();
@@ -95,6 +108,14 @@ function App() {
     else if (entity.type === EntityType.ENEMY_POSITRON) acc.pos++;
     return acc;
   }, { p: 0, n: 0, e: 0, pos: 0 });
+
+  // Calculation for Ultimate Synthesis prediction (Mastery Lv. 6)
+  const expectedZ = gameState.currentNuclide.z + gridTotals.p - gridTotals.e + gridTotals.pos;
+  const expectedA = gameState.currentNuclide.a + gridTotals.p + gridTotals.n;
+  const expectedData = getNuclideDataSync(expectedZ, expectedA);
+  const predictionStr = (expectedData.exists && expectedZ >= 0 && expectedZ <= 118) 
+    ? `${getSymbol(expectedZ)}${expectedA}` 
+    : "Fail";
 
   const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : 
                           gameState.consecutiveNeutrons > 0 ? 'n' : 
@@ -207,7 +228,7 @@ function App() {
       </div>
 
       {/* Main Game Area */}
-      <div className="order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto">
+      <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${showTable ? 'touch-none' : ''}`}>
          <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} />
          
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
@@ -230,6 +251,14 @@ function App() {
                 </div>
                 
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
+                    {gameState.playerLevel >= 6 && (
+                        <>
+                            <span className={`font-black mr-3 ${predictionStr === 'Fail' ? 'text-neon-red' : 'text-neon-green'} drop-shadow-[0_0_5px_currentColor]`}>
+                                →{predictionStr === 'Fail' ? 'fail' : predictionStr}
+                            </span>
+                            <span className="mr-3 text-gray-700 font-black">|</span>
+                        </>
+                    )}
                     <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
                     <div className="flex items-center gap-2">
                         <span className="text-neon-red/80 font-bold">p={gridTotals.p}</span>

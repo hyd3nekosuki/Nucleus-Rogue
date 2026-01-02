@@ -78,7 +78,6 @@ const PeriodicTable: React.FC<Props> = ({
             const isTarget = canTransmute && isUnlocked;
             const isGroupMastered = unlockedGroups.includes(style.name);
 
-            // Mastered group effect: Subtle 3D lift and deep shadow
             const masteryEffect = isGroupMastered 
                 ? "border-yellow-400/80 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_2px_10px_rgba(250,204,21,0.3)] z-10 -translate-y-1 brightness-110" 
                 : "translate-y-0 opacity-80";
@@ -94,9 +93,8 @@ const PeriodicTable: React.FC<Props> = ({
                     onClick={() => isTarget && onSelectElement && onSelectElement(z)}
                     title={isTarget ? `Click to Transmute to ${style.name}!` : (isUnlocked ? `${style.name} (Z=${z})${isGroupMastered ? ' 👑' : ''}` : `Locked (Z=${z})`)}>
                     
-                    {/* Discovery Mark: Only shown for mastered groups or special elements to reduce noise */}
                     {z === 0 && isUnlocked && (
-                        <div className="absolute -top-1 -right-1 md:top-0 md:right-0 md:p-0.5 text-[7px] md:text-[10px] lg:text-xs leading-none z-20 pointer-events-none drop-shadow-sm animate-pulse">👑</div>
+                        <div className="absolute -top-1 -right-1 md:top-0 md:right-0 md:p-0.5 text-[7px] md:text-10px lg:text-xs leading-none z-20 pointer-events-none drop-shadow-sm animate-pulse">👑</div>
                     )}
                     {isGroupMastered && isUnlocked && z !== 0 && (
                          <div className="absolute -top-0.5 -right-0.5 text-[6px] md:text-[8px] opacity-40 group-hover:opacity-100 transition-opacity">👑</div>
@@ -108,7 +106,7 @@ const PeriodicTable: React.FC<Props> = ({
             );
         }
         return (
-            <div className="grid gap-0.5 md:gap-1 lg:gap-1.5 p-2 bg-[#0a0a12] rounded border border-gray-800 overflow-x-auto min-w-[300px] mb-4"
+            <div className="grid gap-0.5 md:gap-1 lg:gap-1.5 p-2 bg-[#0a0a12] rounded border border-gray-800 overflow-x-auto overscroll-contain min-w-[300px] mb-4 touch-pan-x"
                 style={{ gridTemplateColumns: 'repeat(18, minmax(18px, 1fr))', gridTemplateRows: 'repeat(11, minmax(18px, 1fr))' }}>
                 {elements}
                 <div className="col-start-3 row-start-7 flex items-center justify-center text-gray-700 text-[8px] md:text-xs lg:text-sm font-mono pointer-events-none">57-71</div>
@@ -117,10 +115,6 @@ const PeriodicTable: React.FC<Props> = ({
         );
     };
 
-    // Filtered legend items containing only functional hidden skills
-    const displayLegendItems: any[] = [];
-
-    // Special hidden titles / skills
     const hiddenSkills = [
         { name: "Neutronization", class: "bg-white/10 border-gray-300 text-white font-bold shadow-[0_0_10px_white]" },
         { name: "Pair annihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
@@ -135,15 +129,10 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "Gluttony", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
     ];
 
-    hiddenSkills.forEach(skill => {
-        if (unlockedGroups.includes(skill.name)) {
-            displayLegendItems.push(skill);
-        }
-    });
+    const displayLegendItems = hiddenSkills.filter(skill => unlockedGroups.includes(skill.name));
 
     const discoveredCount = unlocked.filter(z => z > 0).length;
 
-    // Simplified format for decay stats: α:0 β-:0 β+:0 EC:0 SF:0 n:0 p:0 γ:0
     const statsStr = [
         { l: 'α', v: decayStats[DecayMode.ALPHA] || 0 },
         { l: 'β-', v: decayStats[DecayMode.BETA_MINUS] || 0 },
@@ -155,7 +144,6 @@ const PeriodicTable: React.FC<Props> = ({
         { l: 'γ', v: decayStats[DecayMode.GAMMA] || 0 },
     ].map(s => `${s.l}:${s.v}`).join(' ');
 
-    // Simplified format for reaction stats
     const reactionStr = [
         { l: '(n,γ)', v: reactionStats["(n,γ)"] || 0 },
         { l: '(n,p)', v: reactionStats["(n,p)"] || 0 },
@@ -165,12 +153,12 @@ const PeriodicTable: React.FC<Props> = ({
     ].map(s => `${s.l}:${s.v}`).join(' ');
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fade-in">
-            <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[95vw] w-full lg:w-[1200px] max-h-[95vh] overflow-y-auto flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 md:p-4 animate-fade-in touch-none">
+            <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[98vw] w-full lg:w-[1200px] max-h-[96vh] overflow-y-auto overscroll-contain flex flex-col shadow-2xl touch-auto">
                 
                 <button 
                     onClick={onClose}
-                    className="absolute top-3 right-3 md:top-6 md:right-6 px-4 py-2 bg-red-900/50 hover:bg-red-700 text-white rounded border border-red-800 transition-colors uppercase text-xs font-bold z-20 shadow-lg"
+                    className="absolute top-3 right-3 md:top-6 md:right-6 px-4 py-2 bg-red-900/50 hover:bg-red-700 text-white rounded border border-red-800 transition-colors uppercase text-xs font-bold z-30 shadow-lg"
                 >
                     Close [X]
                 </button>
@@ -204,15 +192,13 @@ const PeriodicTable: React.FC<Props> = ({
 
                 {renderPeriodicTable()}
                 
-                {/* Compact legend grid showing ONLY functional/hidden skills */}
                 {displayLegendItems.length > 0 && (
-                  <div className="mt-2 border-t border-gray-800/50 pt-4">
+                  <div className="mt-2 border-t border-gray-800/50 pt-4 pb-2">
                     <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Skills</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider shrink-0">
                         {displayLegendItems.map(item => {
                             const isDisabled = disabledSkills.includes(item.name);
                             
-                            // Icon mapping
                             let icon = "👑";
                             if (item.name === "Neutronization") icon = "⚪";
                             else if (item.name === "Pair annihilation") icon = "☯";
@@ -226,29 +212,10 @@ const PeriodicTable: React.FC<Props> = ({
                             else if (item.name === "Unknown") icon = "❔";
                             else if (item.name === "Gluttony") icon = "🕳️";
 
-                            const tooltipText = item.name === "Fusion" 
-                                ? "Active: Allows proton capture. Disabled: Prevents Z increase from protons."
-                                : item.name === "Fission"
-                                ? "Active: Allows neutron-induced fission and SF. Disabled: Replaces fission with alpha decay."
-                                : item.name === "zero barn"
-                                ? "Active: Prevents A increase by no reaction to neutron. Disabled: Allows neutron capture."
-                                : item.name === "Exp. Replicate"
-                                ? "Active: Allows manually selecting an element when magic conditions are met. Disabled: Prevents manual transmutation."
-                                : item.name === "Electron scattering"
-                                ? "Active: Prevents electron capture (Z reduction) by electron scattering. Disabled: Allows electron capture."
-                                : item.name === "Neutronization"
-                                ? "Active: Allows converting adjacent protons to neutrons during β- decay. Disabled: β- decay has no conversion effect."
-                                : item.name === "Pair annihilation"
-                                ? "Active: β+ decay can annihilate adjacent electrons to emit gamma rays. Disabled: No pair annihilation."
-                                : item.name === "Gluttony"
-                                ? "Active: Prevents new particles from spawning on the grid. Disabled: Particles spawn normally."
-                                : "";
-
                             return (
                                 <div 
                                     key={item.name} 
                                     onClick={() => onToggleSkill(item.name)}
-                                    title={tooltipText}
                                     className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[32px] text-center cursor-pointer hover:brightness-125 active:scale-95
                                         ${item.class} 
                                         ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}

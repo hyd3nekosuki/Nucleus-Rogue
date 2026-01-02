@@ -10,7 +10,7 @@ interface HealthBarProps {
     onToggleTimeStop?: () => void;
     isTimeStopped?: boolean;
     level: number; // Mastery Level
-    barrierCharges?: number; // NEW: Remaining charges
+    barrierCharges?: number; // Remaining charges
 }
 
 const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level, barrierCharges = 0 }) => {
@@ -26,14 +26,37 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
     // Time stop depends on Level 3
     const canUseTimeStop = level >= 3 && isMagicN;
     const isDoubleMagic = isMagicZ && isMagicN;
-    
-    let hpColor = "bg-neon-green";
-    if (hpPercent < 50) hpColor = "bg-yellow-500";
-    if (hpPercent < 20) hpColor = "bg-neon-red";
+
+    /**
+     * Robust Color Interpolation (Lerp)
+     * Maps p (0-100) to Green (100), Yellow (50), Red (0)
+     */
+    const getDynamicColor = (p: number) => {
+        // Red: rgb(255, 0, 85)
+        // Yellow: rgb(250, 204, 21)
+        // Green: rgb(0, 255, 157)
+        let r, g, b;
+        
+        if (p >= 50) {
+            // Transition from Yellow (50) to Green (100)
+            const f = (p - 50) / 50;
+            r = Math.round(250 + (0 - 250) * f);
+            g = Math.round(204 + (255 - 204) * f);
+            b = Math.round(21 + (157 - 21) * f);
+        } else {
+            // Transition from Red (0) to Yellow (50)
+            const f = p / 50;
+            r = Math.round(255 + (250 - 255) * f);
+            g = Math.round(0 + (204 - 0) * f);
+            b = Math.round(85 + (21 - 85) * f);
+        }
+        return `rgb(${r}, ${g}, ${b})`;
+    };
+
+    const dynamicStatusColor = getDynamicColor(hpPercent);
 
     const getDecayDisplay = () => {
         const modes = formatDecayModes(nuclide);
-        
         if (nuclide.isStable) return `[${nuclide.halfLifeText}]`;
         return `[${nuclide.halfLifeText}, ${modes}]`;
     };
@@ -54,7 +77,7 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
         if (isMagicZ) return `✨ MAGIC PROTON STATE${magicIndicator}`;
         if (isMagicN) return `✨ MAGIC NEUTRON STATE${magicIndicator}`;
         
-        return '\u00A0'; // Non-breaking space to maintain layout height
+        return '\u00A0'; 
     };
 
     const isAnyMagic = isMagicZ || isMagicN || isTimeStopped || hasBarrier;
@@ -73,20 +96,26 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
                         <span className="text-neon-blue font-bold text-sm md:text-base">{nuclide.name}</span>
                         <span className="text-xs text-gray-500 font-mono">{getDecayDisplay()}</span>
                     </div>
-                    {/* Reserve space vertically using min-height and conditional opacity */}
                     <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : 'text-neon-blue opacity-100') : 'opacity-0'}`}>
                         {getMagicLabel()}
                     </span>
                 </div>
-                <div className={`font-mono font-bold text-sm text-right ${hpPercent < 30 ? "text-neon-red animate-pulse" : "text-neon-green"}`}>
+                <div 
+                    className={`font-mono font-bold text-sm text-right transition-colors duration-100 ${hpPercent < 30 ? "animate-pulse" : ""}`}
+                    style={{ color: dynamicStatusColor }}
+                >
                     {Math.round(hp)}% {isTimeStopped ? 'FROZEN' : 'STABILITY'}
                 </div>
             </div>
             <div className="h-4 md:h-5 bg-gray-900/80 rounded border border-gray-700 overflow-hidden relative shadow-lg">
                 <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_25%,rgba(255,255,255,0.1)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.1)_75%,rgba(255,255,255,0.1)_100%)] bg-[length:10px_10px]"></div>
                 <div 
-                    className={`h-full transition-all duration-300 ease-out ${isTimeStopped ? 'bg-white shadow-[0_0_15px_white]' : hpColor} shadow-[0_0_20px_currentColor] relative`} 
-                    style={{ width: `${hpPercent}%` }}
+                    className="h-full transition-all duration-300 ease-out relative shadow-[0_0_20px_currentColor]" 
+                    style={{ 
+                        width: `${hpPercent}%`, 
+                        backgroundColor: isTimeStopped ? '#ffffff' : dynamicStatusColor,
+                        color: isTimeStopped ? '#ffffff' : dynamicStatusColor
+                    }}
                 >
                     <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
                 </div>

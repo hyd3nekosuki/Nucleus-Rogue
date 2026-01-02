@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../types';
 
@@ -47,14 +46,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         const currentPrimary = getPrimaryMode(decayModes);
 
         if (currentPrimary !== stablePrimaryModeRef.current) {
-            // If mode changes, (re)start the settling timer
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = window.setTimeout(() => {
                 stablePrimaryModeRef.current = currentPrimary;
                 debounceTimerRef.current = null;
-            }, 200); // 200ms settling time to detect "burst" transformations
+            }, 200); 
         } else {
-            // If the configuration returns to the stable state before timer finishes, cancel it
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
                 debounceTimerRef.current = null;
@@ -62,8 +59,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         }
     }, [decayModes]);
 
-    // --- Anti-Pop Synthesis Generators ---
-
+    // --- Synthesis Generators ---
     const createKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, mode: 'standard' | 'heavy-gabber' | 'sharp-gabber' | 'sub-thud' | 'dnb-punch' = 'standard') => {
         if (power <= 0.001) return;
         const osc = ctx.createOscillator();
@@ -71,7 +67,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         const click = ctx.createOscillator();
         const clickGain = ctx.createGain();
 
-        // 1. Precise Transient Click
         click.type = 'square';
         click.frequency.setValueAtTime(mode === 'dnb-punch' ? 6000 : 4500, time);
         click.frequency.exponentialRampToValueAtTime(150, time + 0.02);
@@ -80,7 +75,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
         clickGain.gain.linearRampToValueAtTime(0, time + 0.025); 
         
-        // 2. Body Tone
         osc.type = 'sine';
         const isGabber = mode.includes('gabber');
         const startFreq = mode === 'heavy-gabber' ? 68 : (mode === 'sharp-gabber' ? 98 : (mode === 'sub-thud' ? 48 : (mode === 'dnb-punch' ? 78 : 64)));
@@ -212,7 +206,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         osc2.start(time); osc2.stop(time + duration + 0.05);
     };
 
-    // --- Rhythm Logic (Separated Layers) ---
     const playRhythm = (mode: DecayMode, ctx: AudioContext, dest: AudioNode, time: number, step: number, fP: number, oP: number, secondsPerStep: number) => {
         const sidechain = (step % 4 === 0) ? 0.45 : 1.0; 
         const sf = fP * sidechain;
@@ -225,23 +218,18 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 8 === 6) createHat(ctx, dest, time, oP * 1.1, 1.1);
                 if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.08, 0.2 * so, 'pulse');
                 break;
-
             case DecayMode.BETA_MINUS:
                 if (step % 4 === 0) createKick(ctx, dest, time, 1.0 * fP, 'standard');
-                if ([2, 3, 6, 7, 10, 11, 14, 15].includes(step)) {
-                    createSynth(ctx, dest, time, (step % 8 < 4) ? 55 : 41.2, secondsPerStep * 0.75, 0.8 * sf, 'dark');
-                }
+                if ([2, 3, 6, 7, 10, 11, 14, 15].includes(step)) createSynth(ctx, dest, time, (step % 8 < 4) ? 55 : 41.2, secondsPerStep * 0.75, 0.8 * sf, 'dark');
                 if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'sharp');
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.4);
                 break;
-
             case DecayMode.BETA_PLUS:
                 if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 0.9 * fP);
                 if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.6 * oP, 'sharp');
                 if (step % 2 === 1) createHat(ctx, dest, time, oP, 1.1);
                 if (step % 16 === 7) createSynth(ctx, dest, time, 880, 0.2, 0.6 * so, 'sparkle');
                 break;
-
             case DecayMode.ELECTRON_CAPTURE:
                 if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.0 * fP);
                 if (step % 8 === 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 4, 0.85 * sf, 'dark');
@@ -249,7 +237,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 8 === 4) createSynth(ctx, dest, time, 110, secondsPerStep * 2.5, 0.7 * so, 'acid');
                 createHat(ctx, dest, time, oP, step % 4 === 0 ? 0.4 : 0.8);
                 break;
-
             case DecayMode.ALPHA:
                 if (step === 0 || step === 10) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
                 createSynth(ctx, dest, time, step % 8 < 4 ? 41.2 : 38.8, secondsPerStep * 2.5, 0.9 * sf, 'dark');
@@ -257,40 +244,28 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.9 : 0.5), 1.1);
                 if (step % 4 === 1) createSynth(ctx, dest, time, 1760, 0.05, 0.3 * so, 'dnb-lead');
                 break;
-
             case DecayMode.SPONTANEOUS_FISSION:
                 createKick(ctx, dest, time, 1.2 * fP, 'heavy-gabber');
                 createSnare(ctx, dest, time, oP * 0.85, 'industrial');
                 createSynth(ctx, dest, time, 40 + Math.random() * 80, 0.15, 1.0 * so, 'gabber');
                 break;
-
             case DecayMode.NEUTRON_EMISSION:
                 if (step % 4 === 0) createKick(ctx, dest, time, 1.15 * fP, 'heavy-gabber');
                 if (step % 4 !== 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 2, 0.7 * sf, 'dark');
                 if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, oP * 0.9, 'industrial');
                 if (Math.random() > 0.6) createHat(ctx, dest, time, oP, 1.7);
                 break;
-
             case DecayMode.PROTON_EMISSION:
-                // Happy Hardcore Ornamental Intensity
                 if (step % 4 === 0) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.3);
                 if (step % 2 === 1) createHat(ctx, dest, time, oP * 0.7, 0.9);
-                if ([0, 3, 6, 10, 13].includes(step)) {
-                    createSynth(ctx, dest, time, [1760, 2637, 3520][step % 3], 0.1, 0.4 * so, 'sparkle');
-                }
-                if (step === 15) {
-                    for(let i = 0; i < 4; i++) {
-                        createSynth(ctx, dest, time + (i * 0.025), 3520 + (i * 440), 0.03, 0.16 * so, 'pulse');
-                    }
-                }
+                if ([0, 3, 6, 10, 13].includes(step)) createSynth(ctx, dest, time, [1760, 2637, 3520][step % 3], 0.1, 0.4 * so, 'sparkle');
+                if (step === 15) for(let i = 0; i < 4; i++) createSynth(ctx, dest, time + (i * 0.025), 3520 + (i * 440), 0.03, 0.16 * so, 'pulse');
                 break;
-
             case DecayMode.UNKNOWN:
                 if (step % 16 === 0) createSynth(ctx, dest, time, 32.7, secondsPerStep * 20, 0.25 * sf, 'void');
                 if (Math.random() > 0.97) createSynth(ctx, dest, time, 4000, 0.5, 0.08 * so, 'pulse');
                 break;
-
             default:
                 if (step % 4 === 0) createKick(ctx, dest, time, 0.7 * fP);
                 break;
@@ -300,7 +275,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const scheduler = useCallback(() => {
         if (!audioCtxRef.current || !masterEntryRef.current) return;
         
-        // BPM updates are real-time based on HP, even if BGM pattern switch is debounced
         const hpFactor = 1.0 - (hpRef.current / 100);
         const currentBpm = 132 + (hpFactor * 32); 
         const secondsPerStep = 60 / currentBpm / 4;
@@ -311,10 +285,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = audioCtxRef.current;
             const dest = masterEntryRef.current;
 
-            // Use the "Settled" mode for pattern decisions
             const targetMode = stablePrimaryModeRef.current;
 
-            // Decay Mode Change Trigger - Initiating a crossfade only if the SETTLED decay logic changed
             if (lastModeRef.current !== null && lastModeRef.current !== targetMode) {
                 transitionFromModeRef.current = lastModeRef.current;
                 foundationProgressRef.current = 0.0;
@@ -323,30 +295,22 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             }
             lastModeRef.current = targetMode;
 
-            // Execute Transition or Normal Play
-            const isTransitioning = (foundationProgressRef.current < 1.0 || 
-                                     ornamentalInProgressRef.current < 1.0 || 
-                                     ornamentalOutProgressRef.current < 1.0);
+            const isTransitioning = (foundationProgressRef.current < 1.0 || ornamentalInProgressRef.current < 1.0 || ornamentalOutProgressRef.current < 1.0);
 
             if (isTransitioning) {
-                // Outgoing Mode (if exists)
                 if (transitionFromModeRef.current) {
                     const fOut = Math.max(0, 1.0 - foundationProgressRef.current);
                     const oOut = Math.max(0, 1.0 - ornamentalOutProgressRef.current);
                     playRhythm(transitionFromModeRef.current, ctx, dest, time, step, fOut, oOut, secondsPerStep);
                 }
-
-                // Incoming Mode
                 const fIn = Math.min(1.0, foundationProgressRef.current);
                 const oIn = Math.min(1.0, ornamentalInProgressRef.current);
                 playRhythm(targetMode, ctx, dest, time, step, fIn, oIn, secondsPerStep);
 
-                // Progress counters
                 foundationProgressRef.current = Math.min(1.0, foundationProgressRef.current + F_STEP);
                 ornamentalInProgressRef.current = Math.min(1.0, ornamentalInProgressRef.current + O_IN_STEP);
                 ornamentalOutProgressRef.current = Math.min(1.0, ornamentalOutProgressRef.current + O_OUT_STEP);
             } else {
-                // Stable continuous playback
                 playRhythm(targetMode, ctx, dest, time, step, 1.0, 1.0, secondsPerStep);
             }
 
@@ -357,55 +321,76 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     }, []);
 
     const initAudio = useCallback(() => {
-        if (!audioCtxRef.current) {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            audioCtxRef.current = ctx;
-
-            const hpFilter = ctx.createBiquadFilter();
-            hpFilter.type = 'highpass';
-            hpFilter.frequency.setValueAtTime(45, ctx.currentTime);
-
-            const eqFilter = ctx.createBiquadFilter();
-            eqFilter.type = 'peaking';
-            eqFilter.frequency.setValueAtTime(180, ctx.currentTime);
-            eqFilter.gain.setValueAtTime(-5.5, ctx.currentTime); 
-
-            // Hard Limiter for preventing low HP distortion
-            const limiter = ctx.createDynamicsCompressor();
-            limiter.threshold.setValueAtTime(-10, ctx.currentTime);
-            limiter.knee.setValueAtTime(3, ctx.currentTime); 
-            limiter.ratio.setValueAtTime(20.0, ctx.currentTime);
-            limiter.attack.setValueAtTime(0.002, ctx.currentTime);
-            limiter.release.setValueAtTime(0.08, ctx.currentTime);
-            
-            const masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(0.42, ctx.currentTime); 
-
-            hpFilter.connect(eqFilter); 
-            eqFilter.connect(limiter); 
-            limiter.connect(masterGain);
-            masterGain.connect(ctx.destination);
-
-            masterEntryRef.current = hpFilter;
-            masterGainRef.current = masterGain;
+        // ALWAYS perform a clean build if requested or if none exists
+        if (audioCtxRef.current) {
+            try {
+                audioCtxRef.current.close().catch(() => {});
+            } catch(e) {}
+            audioCtxRef.current = null;
         }
-        if (audioCtxRef.current.state === 'suspended') {
-            audioCtxRef.current.resume();
+
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioCtxRef.current = ctx;
+
+        const hpFilter = ctx.createBiquadFilter();
+        hpFilter.type = 'highpass';
+        hpFilter.frequency.setValueAtTime(45, ctx.currentTime);
+
+        const eqFilter = ctx.createBiquadFilter();
+        eqFilter.type = 'peaking';
+        eqFilter.frequency.setValueAtTime(180, ctx.currentTime);
+        eqFilter.gain.setValueAtTime(-5.5, ctx.currentTime); 
+
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.setValueAtTime(-10, ctx.currentTime);
+        limiter.knee.setValueAtTime(3, ctx.currentTime); 
+        limiter.ratio.setValueAtTime(20.0, ctx.currentTime);
+        limiter.attack.setValueAtTime(0.002, ctx.currentTime);
+        limiter.release.setValueAtTime(0.08, ctx.currentTime);
+        
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.42, ctx.currentTime); 
+
+        hpFilter.connect(eqFilter); 
+        eqFilter.connect(limiter); 
+        limiter.connect(masterGain);
+        masterGain.connect(ctx.destination);
+
+        masterEntryRef.current = hpFilter;
+        masterGainRef.current = masterGain;
+
+        if (ctx.state === 'suspended') {
+            ctx.resume();
         }
+        
+        return ctx;
     }, []);
 
     const toggleMute = () => {
         if (isMuted) {
-            initAudio();
-            if (audioCtxRef.current) {
-                nextNoteTimeRef.current = audioCtxRef.current.currentTime;
-                if (!timerIDRef.current) scheduler();
-                setIsMuted(false);
-            }
-        } else {
+            // Turning ON: Complete re-initialization of the engine
             if (timerIDRef.current) {
                 clearTimeout(timerIDRef.current);
                 timerIDRef.current = null;
+            }
+            
+            const freshCtx = initAudio();
+            if (freshCtx) {
+                // Sync internal clock to new context timeline
+                nextNoteTimeRef.current = freshCtx.currentTime + 0.1;
+                // Start scheduler loop immediately
+                scheduler();
+                setIsMuted(false);
+            }
+        } else {
+            // Turning OFF: Stop the engine and clean up to save resources
+            if (timerIDRef.current) {
+                clearTimeout(timerIDRef.current);
+                timerIDRef.current = null;
+            }
+            if (audioCtxRef.current) {
+                audioCtxRef.current.close().catch(() => {});
+                audioCtxRef.current = null;
             }
             setIsMuted(true);
         }
@@ -414,9 +399,9 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     useEffect(() => {
         const handleFirstInteraction = () => {
             if (!isMuted && !audioCtxRef.current) {
-                initAudio();
-                if (audioCtxRef.current) {
-                    nextNoteTimeRef.current = audioCtxRef.current.currentTime;
+                const ctx = initAudio();
+                if (ctx) {
+                    nextNoteTimeRef.current = ctx.currentTime + 0.1;
                     if (!timerIDRef.current && !isGameOver) scheduler();
                 }
             }
@@ -436,10 +421,31 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 timerIDRef.current = null;
             }
         } else if (!isMuted && audioCtxRef.current) {
-            nextNoteTimeRef.current = audioCtxRef.current.currentTime;
+            // Resync logic in case context was interrupted and then resumed by browser
+            if (nextNoteTimeRef.current < audioCtxRef.current.currentTime) {
+                nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
+            }
             if (!timerIDRef.current) scheduler();
         }
     }, [isGameOver, isMuted, scheduler]);
+
+    // Handle background tab auto-suspension (Page Visibility API)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!audioCtxRef.current) return;
+            
+            if (document.visibilityState === 'hidden') {
+                // Non-active tab: suspend audio to save resources and comply with browser behavior
+                audioCtxRef.current.suspend().catch(() => {});
+            } else if (document.visibilityState === 'visible' && !isMuted) {
+                // Back to tab: resume if user hasn't manually muted
+                audioCtxRef.current.resume().catch(() => {});
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isMuted]);
 
     return { 
         isMuted, 

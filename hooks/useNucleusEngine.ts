@@ -327,7 +327,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             if (newData.isStable) { if (rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); finalComboCount = 0; }
             const nextPlayerPos = decayResult.newPosition || prev.playerPos;
             let nextLevel = prev.playerLevel, nextMastered = prev.masteredDecays;
-            const isNewMastery = !prev.masteredDecays.includes(actualMode) && nextLevel < 5;
+            const isNewMastery = !prev.masteredDecays.includes(actualMode) && nextLevel < 6;
             let levelUpMessages: string[] = [];
             if (isNewMastery) {
                 nextLevel += 1; nextMastered = [...prev.masteredDecays, actualMode]; triggerTTS("Mastery Level Up !");
@@ -336,6 +336,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (nextLevel === 3) levelUpMessages.push("☢️ MASTERY Lv 3: Magic N-shells can freeze time.");
                 if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Exp. Replicate unlocked.");
                 if (nextLevel === 5) levelUpMessages.push("☢️ MASTERY Lv 5: Nucleosynthesis [🌟] unlocked.");
+                if (nextLevel === 6) levelUpMessages.push("☢️ MASTERY Lv 6: Final level of atomic mastery reached.");
             }
             const nextTurn = prev.turn + 1;
             if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
