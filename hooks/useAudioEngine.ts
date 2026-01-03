@@ -224,7 +224,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.08, 0.2 * so, 'pulse');
                 break;
             case DecayMode.BETA_MINUS:
-                // DARK COOL HARD HOUSE for Beta-Minus
                 if (step % 4 === 0) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
                 if (step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.2, 1.3);
@@ -242,25 +241,15 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 16 === 7) createSynth(ctx, dest, time, 880, 0.2, 0.6 * so, 'sparkle');
                 break;
             case DecayMode.ELECTRON_CAPTURE:
-                // ELECTRON CAPTURE: HIGH ENERGY RAVE (90s Style)
-                // Maintaining Requested Kick Rhythm: [1, 4, 7, 10, 14]
                 if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
-                
-                // Rhythmic Sub: Fast pulsing to prevent stacking distortion
                 if (step % 4 === 2 || step === 5 || step === 13) {
                     createSynth(ctx, dest, time, 41.2, 0.12, 0.55 * sf, 'pulse');
                 }
-                
-                // Rave Stabs: Syncopated acid melody
                 const raveSequence = [220, 0, 165, 330, 0, 440, 0, 220, 110, 0, 165, 0, 220, 0, 330, 440];
                 if (raveSequence[step] > 0) {
                     createSynth(ctx, dest, time, raveSequence[step], 0.06, 0.45 * so, 'acid');
                 }
-                
-                // Industrial Snare: Positioned for breakbeat feel
                 if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
-
-                // High Energy Rave Hats: Constant 16th notes with velocity variations
                 createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.6 : 1.1), 1.2);
                 break;
             case DecayMode.ALPHA:
@@ -296,8 +285,30 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step === 15) for(let i = 0; i < 4; i++) createSynth(ctx, dest, time + (i * 0.025), 3520 + (i * 440), 0.03, 0.16 * so, 'pulse');
                 break;
             case DecayMode.UNKNOWN:
-                if (step % 16 === 0) createSynth(ctx, dest, time, 32.7, secondsPerStep * 20, 0.25 * sf, 'void');
-                if (Math.random() > 0.97) createSynth(ctx, dest, time, 4000, 0.5, 0.08 * so, 'pulse');
+                // --- VIVALDI "WINTER" CRYSTAL AMBIENT FOR UNKNOWN DECAY ---
+                // Maintain the 'void' sub-texture for atmosphere
+                if (step === 0) createSynth(ctx, dest, time, 32.7, secondsPerStep * 24, 0.4 * sf, 'void');
+                if (step === 8) createSynth(ctx, dest, time, 38.8, secondsPerStep * 16, 0.3 * sf, 'void');
+                
+                // Winter Climax Motif (F Minor frantic descending run)
+                // Crystal resonant sounds (Sparkle synth)
+                const crystalFrequencies = [
+                    1396.91, 1396.91, 1396.91, 1396.91, // Shivering F6
+                    1244.51, 1108.73, 1046.50, 932.33,  // Descending (Eb6, Db6, C6, Bb5)
+                    830.61, 783.99, 698.46, 783.99,     // (Ab5, G5, F5, G5)
+                    830.61, 932.33, 1046.50, 1108.73    // Ascending rush back (Ab5, Bb5, C6, Db6)
+                ];
+                
+                // Fast crystal melody with long decay for ambient tail
+                createSynth(ctx, dest, time, crystalFrequencies[step], 0.25, 0.5 * so, 'sparkle');
+                
+                // High-freq frozen accents
+                if (step % 4 === 2) {
+                    createSynth(ctx, dest, time, crystalFrequencies[step] * 2, 0.05, 0.2 * so, 'pulse');
+                }
+
+                // Minimal frozen kick
+                if (step % 8 === 0) createKick(ctx, dest, time, 0.4 * fP, 'sharp-gabber');
                 break;
             default:
                 if (step % 4 === 0) createKick(ctx, dest, time, 0.7 * fP);
