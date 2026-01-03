@@ -51,12 +51,9 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
 
 /**
  * Formats the decay modes of a nuclide into a single string.
- * Handles special cases like Tetraneutrons and Stable nuclei.
+ * Handles special cases like Stable nuclei.
  */
 export const formatDecayModes = (nuclide: NuclideData): string => {
-    // Special check for Tetraneutron anomaly (Z=0, A=4)
-    if (nuclide.z === 0 && nuclide.a === 4) return "Unknown";
-    
     if (nuclide.isStable) return "Stable";
 
     const modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
