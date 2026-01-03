@@ -25,6 +25,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
   // Default Voice to OFF (true)
   const [isVoiceMuted, setIsVoiceMuted] = useState(true);
+  const [isSoundTestActive, setIsSoundTestActive] = useState(false);
 
   // --- TTS Bridging Logic ---
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
@@ -35,7 +36,8 @@ function App() {
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
       gameState.hp, 
       gameState.gameOver, 
-      gameState.currentNuclide.decayModes
+      gameState.currentNuclide.decayModes,
+      isSoundTestActive
   );
   
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, isVoiceMuted);
@@ -80,11 +82,12 @@ function App() {
         case 'Enter': case ' ': case 'Spacebar': engine.handlePlayerInteract(); break;
         case 'm': toggleMute(); break;
         case 'v': setIsVoiceMuted(!isVoiceMuted); break;
+        case 'Escape': if (isSoundTestActive) setIsSoundTestActive(false); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [engine, toggleMute, isVoiceMuted]);
+  }, [engine, toggleMute, isVoiceMuted, isSoundTestActive]);
 
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
@@ -125,7 +128,8 @@ function App() {
                            activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
 
   return (
-    <div ref={containerRef} tabIndex={0} className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
+    <div ref={containerRef} tabIndex={0} 
+      className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${flashColor} mix-blend-screen transition-opacity duration-500 ${isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
       
       {showTable && (
@@ -230,7 +234,7 @@ function App() {
 
       {/* Main Game Area */}
       <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${showTable ? 'touch-none' : ''}`}>
-         <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} />
+         <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={isSoundTestActive} onHPChange={engine.setHP} />
          
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
@@ -280,7 +284,7 @@ function App() {
                 </div>
             </div>
             
-            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={engine.restartGame} />
+            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { setIsSoundTestActive(false); engine.restartGame(rnd); }} isSoundTestActive={isSoundTestActive} onToggleSoundTest={() => setIsSoundTestActive(!isSoundTestActive)} />
          </div>
       </div>
     </div>

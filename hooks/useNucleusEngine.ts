@@ -577,10 +577,12 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         handleDecayAction(DecayMode.UNKNOWN);
     }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, gameState.gameOver, gameState.isTimeStopped, handleDecayAction]);
 
+    const setHP = useCallback((val: number) => setGameState(prev => ({ ...prev, hp: val })), []);
+
     return {
         gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
-        handleUltimateSynthesis, handleForceUnknownDecay
+        handleUltimateSynthesis, handleForceUnknownDecay, setHP
     };
 };

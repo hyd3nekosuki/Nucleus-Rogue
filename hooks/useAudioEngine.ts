@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../types';
 
-export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[]) => {
+export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false) => {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
     const masterEntryRef = useRef<BiquadFilterNode | null>(null);
@@ -430,7 +430,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 const ctx = initAudio();
                 if (ctx) {
                     nextNoteTimeRef.current = ctx.currentTime + 0.1;
-                    if (!timerIDRef.current && !isGameOver) scheduler();
+                    if (!timerIDRef.current && (!isGameOver || isSoundTestActive)) scheduler();
                 }
             }
         };
@@ -440,10 +440,10 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             window.removeEventListener('click', handleFirstInteraction);
             window.removeEventListener('keydown', handleFirstInteraction);
         };
-    }, [isMuted, isGameOver, initAudio, scheduler]);
+    }, [isMuted, isGameOver, isSoundTestActive, initAudio, scheduler]);
 
     useEffect(() => {
-        if (isGameOver) {
+        if (isGameOver && !isSoundTestActive) {
             if (timerIDRef.current) {
                 clearTimeout(timerIDRef.current);
                 timerIDRef.current = null;
@@ -454,7 +454,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             }
             if (!timerIDRef.current) scheduler();
         }
-    }, [isGameOver, isMuted, scheduler]);
+    }, [isGameOver, isMuted, isSoundTestActive, scheduler]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {

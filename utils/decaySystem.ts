@@ -226,7 +226,7 @@ export const calculateDecayEffects = (
              newPosition = { x: targetX, y: targetY };
              shouldShake = true;
              shouldFlash = false; 
-             extraMessages.push("✨ Position relocated!");
+             extraMessages.push("✨ Uncertainty principle for position!");
              additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { x: targetX, y: targetY }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 

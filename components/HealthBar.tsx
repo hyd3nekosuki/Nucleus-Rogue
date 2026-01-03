@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { MAGIC_NUMBERS } from '../constants';
 import { formatDecayModes } from '../services/nuclideService';
@@ -11,12 +11,18 @@ interface HealthBarProps {
     isTimeStopped?: boolean;
     level: number; // Mastery Level
     barrierCharges?: number; // Remaining charges
+    isSoundTestActive?: boolean;
+    onHPChange?: (val: number) => void;
 }
 
-const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level, barrierCharges = 0 }) => {
+const HealthBar: React.FC<HealthBarProps> = ({ 
+    hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level, barrierCharges = 0,
+    isSoundTestActive = false, onHPChange 
+}) => {
     const hpPercent = (hp / maxHp) * 100;
     const protonNumber = nuclide.z;
     const neutronNumber = nuclide.a - nuclide.z;
+    const barRef = useRef<HTMLDivElement>(null);
     
     // Magic Shell check
     const isMagicZ = level >= 1 && MAGIC_NUMBERS.includes(protonNumber);
@@ -62,6 +68,7 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
     };
 
     const getMagicLabel = () => {
+        if (isSoundTestActive) return '🎚️ SOUND TEST: Adjust HP for BPM';
         if (isTimeStopped) return '⏸ Frozen Time';
         
         const zMarker = isMagicZ ? 'Z★' : '';
@@ -80,14 +87,26 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
         return '\u00A0'; 
     };
 
-    const isAnyMagic = isMagicZ || isMagicN || isTimeStopped || hasBarrier;
+    const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!isSoundTestActive || !onHPChange || !barRef.current) return;
+        e.stopPropagation(); // Prevent deactivating sound test mode if overlay handles global clicks
+        const rect = barRef.current.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        const x = clientX - rect.left;
+        const width = rect.width;
+        let percentage = Math.max(0, Math.min(100, (x / width) * 100));
+        onHPChange(percentage);
+    };
+
+    const isAnyMagic = isMagicZ || isMagicN || isTimeStopped || hasBarrier || isSoundTestActive;
 
     return (
         <div 
-            onClick={canUseTimeStop ? onToggleTimeStop : undefined}
+            onClick={isSoundTestActive ? (e) => e.stopPropagation() : (canUseTimeStop ? onToggleTimeStop : undefined)}
             className={`w-full max-w-[95vw] md:w-[450px] mb-1 relative z-30 p-1 rounded-lg transition-all select-none
                 ${isAnyMagic ? (isTimeStopped ? 'bg-neon-blue/20 ring-2 ring-neon-blue shadow-[0_0_20px_#00f3ff] cursor-pointer' : 
                    canUseTimeStop ? 'bg-gray-800/30 hover:bg-neon-blue/10 ring-1 ring-neon-blue/40 shadow-[0_0_10px_#00f3ff44] cursor-pointer animate-pulse' : 
+                   isSoundTestActive ? 'bg-yellow-400/10 ring-2 ring-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.3)] cursor-ew-resize' :
                    'bg-gray-800/20 ring-1 ring-gray-700/40 cursor-default') : 'bg-transparent'}`}
         >
             <div className="flex justify-between items-end mb-1 px-1">
@@ -96,18 +115,25 @@ const HealthBar: React.FC<HealthBarProps> = ({ hp, maxHp, nuclide, onToggleTimeS
                         <span className="text-neon-blue font-bold text-sm md:text-base">{nuclide.name}</span>
                         <span className="text-xs text-gray-500 font-mono">{getDecayDisplay()}</span>
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : 'text-neon-blue opacity-100') : 'opacity-0'}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : (isSoundTestActive ? 'text-yellow-400' : 'text-neon-blue opacity-100')) : 'opacity-0'}`}>
                         {getMagicLabel()}
                     </span>
                 </div>
                 <div 
-                    className={`font-mono font-bold text-sm text-right transition-colors duration-100 ${hpPercent < 30 ? "animate-pulse" : ""}`}
+                    className={`font-mono font-bold text-sm text-right transition-colors duration-100 ${hpPercent < 30 && !isSoundTestActive ? "animate-pulse" : ""}`}
                     style={{ color: dynamicStatusColor }}
                 >
-                    {Math.round(hp)}% {isTimeStopped ? 'FROZEN' : 'STABILITY'}
+                    {Math.round(hp)}% {isTimeStopped ? 'FROZEN' : (isSoundTestActive ? 'FREQ' : 'STABILITY')}
                 </div>
             </div>
-            <div className="h-4 md:h-5 bg-gray-900/80 rounded border border-gray-700 overflow-hidden relative shadow-lg">
+            <div 
+                ref={barRef}
+                onMouseDown={handleInteraction}
+                onMouseMove={(e) => e.buttons === 1 && handleInteraction(e)}
+                onTouchStart={handleInteraction}
+                onTouchMove={handleInteraction}
+                className="h-4 md:h-5 bg-gray-900/80 rounded border border-gray-700 overflow-hidden relative shadow-lg"
+            >
                 <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_25%,rgba(255,255,255,0.1)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.1)_75%,rgba(255,255,255,0.1)_100%)] bg-[length:10px_10px]"></div>
                 <div 
                     className="h-full transition-all duration-300 ease-out relative shadow-[0_0_20px_currentColor]" 
