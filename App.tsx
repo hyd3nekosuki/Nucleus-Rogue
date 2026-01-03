@@ -167,6 +167,7 @@ function App() {
             onStabilize={engine.handleStabilize}
             onShowTable={() => setShowTable(true)}
             onUltimateSynthesis={engine.handleUltimateSynthesis}
+            onForceDecay={engine.handleForceUnknownDecay}
           />
           
           <ControlPanel 

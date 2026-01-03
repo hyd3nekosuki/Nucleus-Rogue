@@ -190,6 +190,11 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         } else if (type === 'void') {
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(freq * 1.2, time);
+        } else if (type === 'acid') {
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(freq * 4, time);
+            filter.frequency.exponentialRampToValueAtTime(freq * 1.5, time + duration);
+            filter.Q.setValueAtTime(12, time);
         } else {
             filter.frequency.setValueAtTime(2800, time);
         }
@@ -219,10 +224,21 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.08, 0.2 * so, 'pulse');
                 break;
             case DecayMode.BETA_MINUS:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.0 * fP, 'standard');
-                if ([2, 3, 6, 7, 10, 11, 14, 15].includes(step)) createSynth(ctx, dest, time, (step % 8 < 4) ? 55 : 41.2, secondsPerStep * 0.75, 0.8 * sf, 'dark');
-                if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'sharp');
-                if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.4);
+                // DARK COOL HARD HOUSE for Beta-Minus
+                // 1. Kick: Super-tight 4-on-the-floor
+                if (step % 4 === 0) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
+                // 2. Snare: Sharp industrial accent only on beat 4
+                if (step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
+                // 3. Hi-hats: Strong Off-beat (2,6,10,14)
+                if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.2, 1.3);
+                // 4. Dark Cool Stabs: Syncopated, low-pass staccato
+                if ([3, 7, 11, 15].includes(step)) {
+                    createSynth(ctx, dest, time, 110, 0.04, 0.6 * so, 'dark');
+                }
+                // 5. Minimal Driving Bass: Short pulses for clarity
+                if (step % 2 === 0) {
+                    createSynth(ctx, dest, time, 55, 0.05, 0.4 * sf, 'pulse');
+                }
                 break;
             case DecayMode.BETA_PLUS:
                 if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 0.9 * fP);
@@ -245,9 +261,16 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 4 === 1) createSynth(ctx, dest, time, 1760, 0.05, 0.3 * so, 'dnb-lead');
                 break;
             case DecayMode.SPONTANEOUS_FISSION:
-                createKick(ctx, dest, time, 1.2 * fP, 'heavy-gabber');
-                createSnare(ctx, dest, time, oP * 0.85, 'industrial');
-                createSynth(ctx, dest, time, 40 + Math.random() * 80, 0.15, 1.0 * so, 'gabber');
+                if (step % 4 === 0) createKick(ctx, dest, time, 1.0 * fP, 'dnb-punch');
+                if (step === 4 || step === 12) createSnare(ctx, dest, time, 1.1 * oP, 'industrial');
+                if (step === 15) createSnare(ctx, dest, time, 0.4 * oP, 'sharp');
+                if (step % 2 === 0) createHat(ctx, dest, time, oP * 0.6, 0.9);
+                if (step % 4 === 2) {
+                    createSynth(ctx, dest, time, 2637, 0.05, 0.9 * so, 'pulse');
+                    createSynth(ctx, dest, time, 3520, 0.03, 0.5 * so, 'sparkle');
+                }
+                const coolBass = [92.5, 92.5, 110, 110, 123.47, 123.47, 110, 82.41, 92.5, 92.5, 110, 110, 123.47, 123.47, 138.59, 164.81];
+                createSynth(ctx, dest, time, coolBass[step], secondsPerStep * 0.7, 0.8 * sf, 'dark');
                 break;
             case DecayMode.NEUTRON_EMISSION:
                 if (step % 4 === 0) createKick(ctx, dest, time, 1.15 * fP, 'heavy-gabber');
@@ -299,12 +322,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
             if (isTransitioning) {
                 if (transitionFromModeRef.current) {
-                    const fOut = Math.max(0, 1.0 - foundationProgressRef.current);
-                    const oOut = Math.max(0, 1.0 - ornamentalOutProgressRef.current);
+                    const fOut = Math.sqrt(Math.max(0, 1.0 - foundationProgressRef.current));
+                    const oOut = Math.sqrt(Math.max(0, 1.0 - ornamentalOutProgressRef.current));
                     playRhythm(transitionFromModeRef.current, ctx, dest, time, step, fOut, oOut, secondsPerStep);
                 }
-                const fIn = Math.min(1.0, foundationProgressRef.current);
-                const oIn = Math.min(1.0, ornamentalInProgressRef.current);
+                const fIn = Math.sqrt(Math.min(1.0, foundationProgressRef.current));
+                const oIn = Math.sqrt(Math.min(1.0, ornamentalInProgressRef.current));
                 playRhythm(targetMode, ctx, dest, time, step, fIn, oIn, secondsPerStep);
 
                 foundationProgressRef.current = Math.min(1.0, foundationProgressRef.current + F_STEP);
@@ -321,7 +344,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     }, []);
 
     const initAudio = useCallback(() => {
-        // ALWAYS perform a clean build if requested or if none exists
         if (audioCtxRef.current) {
             try {
                 audioCtxRef.current.close().catch(() => {});
@@ -368,7 +390,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
     const toggleMute = () => {
         if (isMuted) {
-            // Turning ON: Complete re-initialization of the engine
             if (timerIDRef.current) {
                 clearTimeout(timerIDRef.current);
                 timerIDRef.current = null;
@@ -376,14 +397,11 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             
             const freshCtx = initAudio();
             if (freshCtx) {
-                // Sync internal clock to new context timeline
                 nextNoteTimeRef.current = freshCtx.currentTime + 0.1;
-                // Start scheduler loop immediately
                 scheduler();
                 setIsMuted(false);
             }
         } else {
-            // Turning OFF: Stop the engine and clean up to save resources
             if (timerIDRef.current) {
                 clearTimeout(timerIDRef.current);
                 timerIDRef.current = null;
@@ -421,7 +439,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 timerIDRef.current = null;
             }
         } else if (!isMuted && audioCtxRef.current) {
-            // Resync logic in case context was interrupted and then resumed by browser
             if (nextNoteTimeRef.current < audioCtxRef.current.currentTime) {
                 nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
             }
@@ -429,16 +446,13 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         }
     }, [isGameOver, isMuted, scheduler]);
 
-    // Handle background tab auto-suspension (Page Visibility API)
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!audioCtxRef.current) return;
             
             if (document.visibilityState === 'hidden') {
-                // Non-active tab: suspend audio to save resources and comply with browser behavior
                 audioCtxRef.current.suspend().catch(() => {});
             } else if (document.visibilityState === 'visible' && !isMuted) {
-                // Back to tab: resume if user hasn't manually muted
                 audioCtxRef.current.resume().catch(() => {});
             }
         };

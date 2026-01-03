@@ -12,6 +12,7 @@ const ENERGY_EVOLUTION_TURNS = 60;
 const COULOMB_BARRIER_THRESHOLD = 20;
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
+const FORCE_DECAY_COST = 5;
 
 interface HistoryEntry {
     turn: number;
@@ -565,10 +566,21 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         }
     }, [gameState, handlePlayerInteract, stopAutoMove, moveStep]);
 
+    const handleForceUnknownDecay = useCallback(() => {
+        if (gameState.playerLevel < 6 || !gameState.currentNuclide.isStable || gameState.energyPoints < FORCE_DECAY_COST || gameState.gameOver || gameState.isTimeStopped) return;
+        
+        setGameState(prev => ({
+            ...prev,
+            energyPoints: prev.energyPoints - FORCE_DECAY_COST,
+            messages: [...prev.messages, "⚠️ ANOMALY: Forced decay triggered!"].slice(-10)
+        }));
+        handleDecayAction(DecayMode.UNKNOWN);
+    }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, gameState.gameOver, gameState.isTimeStopped, handleDecayAction]);
+
     return {
         gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
-        handleUltimateSynthesis
+        handleUltimateSynthesis, handleForceUnknownDecay
     };
 };

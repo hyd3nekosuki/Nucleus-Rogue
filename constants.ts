@@ -1,3 +1,4 @@
+
 import { DecayMode, NuclideData, NuclideCategory } from './types';
 
 export const GRID_WIDTH = 15;

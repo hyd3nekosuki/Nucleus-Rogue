@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { formatDecayModes } from '../services/nuclideService';
@@ -13,7 +12,6 @@ interface InfoPanelProps {
   energyPoints: number;
   onDecay?: (mode: DecayMode) => void;
   disabled?: boolean;
-  // New props for action dock
   playerLevel: number;
   isNucleosynthesisReady: boolean;
   isNucleosynthesisEnabled: boolean;
@@ -22,11 +20,11 @@ interface InfoPanelProps {
   onStabilize: () => void;
   onShowTable: () => void;
   onUltimateSynthesis: () => void;
+  onForceDecay?: () => void;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ 
   nuclide, 
-  turn, 
   score, 
   energyPoints,
   onDecay,
@@ -38,20 +36,20 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   energyPointsAvailable,
   onStabilize,
   onShowTable,
-  onUltimateSynthesis
+  onUltimateSynthesis,
+  onForceDecay
 }) => {
 
-  // Significant Figures Score Formatter (4 digits)
   const formatScore = (val: number): string => {
     if (val < 1000000) return val.toLocaleString();
     
     const units = [
-      { v: 1e21, s: "Z" }, // Zetta
-      { v: 1e18, s: "E" }, // Exa
-      { v: 1e15, s: "P" }, // Peta
-      { v: 1e12, s: "T" }, // Tera
-      { v: 1e9,  s: "G" }, // Giga
-      { v: 1e6,  s: "M" }, // Mega
+      { v: 1e21, s: "Z" }, 
+      { v: 1e18, s: "E" }, 
+      { v: 1e15, s: "P" }, 
+      { v: 1e12, s: "T" }, 
+      { v: 1e9,  s: "G" }, 
+      { v: 1e6,  s: "M" }, 
     ];
 
     for (const unit of units) {
@@ -70,20 +68,32 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
       onDecay(primaryMode);
     }
   };
+
+  // Subtle check for the forced decay hidden mechanic
+  const isForceDecayAvailable = playerLevel >= 6 && nuclide.isStable && energyPoints >= 5 && !disabled;
   
   return (
     <div className="px-6 pb-4 pt-0.5 border-b border-gray-800">
       
       <div className="flex justify-between items-end mb-4 gap-2">
-          {/* Score - Left aligned */}
-          <div className="flex-[2] min-w-0">
-            <div className="text-gray-500 text-[10px] md:text-xs uppercase tracking-widest truncate">Score</div>
-            <div className="text-base md:text-lg lg:text-xl text-neon-purple font-mono font-bold leading-tight break-all">
+          {/* Score Area - Subtle hidden interaction for Level 6 */}
+          <div 
+            onClick={isForceDecayAvailable ? onForceDecay : undefined}
+            className={`flex-[2] min-w-0 rounded p-1 transition-all duration-300 select-none
+                ${isForceDecayAvailable 
+                    ? 'cursor-pointer hover:bg-neon-purple/5 ring-1 ring-transparent hover:ring-neon-purple/20' 
+                    : 'cursor-default'}`}
+            title={isForceDecayAvailable ? "Forced Decapsulation (Costs 5E)" : undefined}
+          >
+            <div className="text-gray-500 text-[10px] md:text-xs uppercase tracking-widest truncate">
+                Score
+            </div>
+            <div className={`text-base md:text-lg lg:text-xl text-neon-purple font-mono font-bold leading-tight break-all ${isForceDecayAvailable ? 'drop-shadow-[0_0_8px_rgba(188,19,254,0.3)]' : ''}`}>
                 {formatScore(score)}
             </div>
           </div>
 
-          {/* E-Points - Energy Display */}
+          {/* E-Points */}
           <div className="flex-1 text-center px-1">
             <div className="text-gray-500 text-[10px] uppercase tracking-widest truncate">E</div>
             <div className={`text-lg md:text-xl text-yellow-400 font-mono font-bold leading-none drop-shadow-[0_0_8px_rgba(250,204,21,0.4)] ${energyPoints > 0 ? 'animate-pulse' : 'opacity-40'}`}>
@@ -91,7 +101,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
             </div>
           </div>
           
-          {/* Nuclear Info - Right aligned group */}
+          {/* Nuclear Info */}
           <div className="flex gap-3 items-end shrink-0">
               <div className="text-right">
                 <div className="text-gray-500 text-[10px] uppercase tracking-tighter">Z</div>
@@ -110,7 +120,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm mb-0">
-          {/* Decay Modes Button */}
           <button 
             onClick={handleDecayClick}
             disabled={nuclide.isStable || disabled}
@@ -128,14 +137,11 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
               </div>
           </button>
 
-          {/* Action Dock - Fixed Order: Left(Lv), Middle(🔬), Right(🏆) */}
           <div className="bg-black/40 p-1 rounded border border-gray-800 flex items-center transition-all shadow-inner">
-             {/* ☢️ Radioactivity Lv Slot */}
              <div className="flex-1 flex justify-center min-w-0">
                 <TrefoilIndicator level={playerLevel} enabled={isNucleosynthesisEnabled} onClick={onUltimateSynthesis} />
              </div>
              
-             {/* 🔬 Stabilize Slot */}
              <div className="flex-1 flex justify-center min-w-0">
                 <button 
                     onClick={onStabilize}
@@ -151,7 +157,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
                 </button>
              </div>
 
-             {/* 🏆 Titles Slot */}
              <div className="flex-1 flex justify-center min-w-0">
                 <button 
                     onClick={onShowTable}
