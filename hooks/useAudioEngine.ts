@@ -225,17 +225,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 break;
             case DecayMode.BETA_MINUS:
                 // DARK COOL HARD HOUSE for Beta-Minus
-                // 1. Kick: Super-tight 4-on-the-floor
                 if (step % 4 === 0) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
-                // 2. Snare: Sharp industrial accent only on beat 4
                 if (step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
-                // 3. Hi-hats: Strong Off-beat (2,6,10,14)
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.2, 1.3);
-                // 4. Dark Cool Stabs: Syncopated, low-pass staccato
                 if ([3, 7, 11, 15].includes(step)) {
                     createSynth(ctx, dest, time, 110, 0.04, 0.6 * so, 'dark');
                 }
-                // 5. Minimal Driving Bass: Short pulses for clarity
                 if (step % 2 === 0) {
                     createSynth(ctx, dest, time, 55, 0.05, 0.4 * sf, 'pulse');
                 }
@@ -247,11 +242,26 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 if (step % 16 === 7) createSynth(ctx, dest, time, 880, 0.2, 0.6 * so, 'sparkle');
                 break;
             case DecayMode.ELECTRON_CAPTURE:
-                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 1.0 * fP);
-                if (step % 8 === 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 4, 0.85 * sf, 'dark');
-                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.6 * oP, 'heavy');
-                if (step % 8 === 4) createSynth(ctx, dest, time, 110, secondsPerStep * 2.5, 0.7 * so, 'acid');
-                createHat(ctx, dest, time, oP, step % 4 === 0 ? 0.4 : 0.8);
+                // ELECTRON CAPTURE: HIGH ENERGY RAVE (90s Style)
+                // Maintaining Requested Kick Rhythm: [1, 4, 7, 10, 14]
+                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
+                
+                // Rhythmic Sub: Fast pulsing to prevent stacking distortion
+                if (step % 4 === 2 || step === 5 || step === 13) {
+                    createSynth(ctx, dest, time, 41.2, 0.12, 0.55 * sf, 'pulse');
+                }
+                
+                // Rave Stabs: Syncopated acid melody
+                const raveSequence = [220, 0, 165, 330, 0, 440, 0, 220, 110, 0, 165, 0, 220, 0, 330, 440];
+                if (raveSequence[step] > 0) {
+                    createSynth(ctx, dest, time, raveSequence[step], 0.06, 0.45 * so, 'acid');
+                }
+                
+                // Industrial Snare: Positioned for breakbeat feel
+                if (step === 2 || step === 11) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
+
+                // High Energy Rave Hats: Constant 16th notes with velocity variations
+                createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.6 : 1.1), 1.2);
                 break;
             case DecayMode.ALPHA:
                 if (step === 0 || step === 10) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
