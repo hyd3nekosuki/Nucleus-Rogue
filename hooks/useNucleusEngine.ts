@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
@@ -53,6 +54,9 @@ const getInitialState = (): GameState => ({
     lastConsumedType: null,
     reincarnations: 0,
     magicBarrierCharges: 0,
+    tutorialMessage: "Capture particle to transform",
+    hasSeenDecayTutorial: false,
+    hasSeenCaptureTutorial: false,
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,
@@ -189,7 +193,9 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             if (prev.gameOver || prev.loadingData || prev.isTimeStopped) { stopAutoMove(); return prev; }
             const result = calculateMoveResult(prev, dx, dy, COULOMB_BARRIER_THRESHOLD, ENERGY_EVOLUTION_TURNS, prev.playerLevel);
             if (!result.moved) { if (continuousDirRef.current) stopAutoMove(); return prev; }
+            
             const nextState = { ...result.state };
+
             if (nextState.gameOver) nextState.energyPoints = 0;
             if (result.inducedDecayMode && result.inducedReactionLabel) {
                 setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
@@ -204,7 +210,14 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 setTimeout(() => setIsFlashBang(false), 500);
                 if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
             }
+
+            // TUTORIAL LOGIC: Check for Transformation (Capture)
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
+                  if (prev.tutorialMessage === "Capture particle to transform") {
+                      nextState.tutorialMessage = null;
+                      nextState.hasSeenCaptureTutorial = true;
+                  }
+
                   if (!result.inducedDecayMode) setLastDecayEvent(null);
                   const targetEntity = prev.gridEntities.find(e => e.position.x === nextState.playerPos.x && e.position.y === nextState.playerPos.y);
                   let method = "Transmutation";
@@ -217,6 +230,12 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                   }
                   if (result.inducedDecayMode) method = result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION ? "Neutron-induced fission" : `Induced ${result.inducedDecayMode.replace(/_/g, ' ')}`;
                   setEvolutionHistory(h => [...h, { turn: nextState.turn, name: nextState.currentNuclide.name, symbol: nextState.currentNuclide.symbol, z: nextState.currentNuclide.z, a: nextState.currentNuclide.a, method }]);
+                  
+                  // DECAY TUTORIAL TRIGGER (If not seen before and stable tutorial has passed)
+                  if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) {
+                      nextState.tutorialMessage = "Decay to be stable";
+                  }
+
                   if (nextState.combo === 0 && !nextState.currentNuclide.isStable) nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
                   const scoreDiff = nextState.score - prev.score;
                   nextState.comboScore = (nextState.combo === 0) ? scoreDiff : prev.comboScore + scoreDiff;
@@ -238,7 +257,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     nextState.hp = nextState.maxHp; nextState.energyPoints -= 5; nextState.messages = [...nextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
                     nextState.effects = [...nextState.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextState.playerPos }, timestamp: Date.now() }];
                 } else {
-                    nextState.gameOver = true; nextState.gameOverReason = nextState.gameOverReason || "PARTICLE_COLLISION"; nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
+                    nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
                 }
             }
             return nextState;
@@ -268,9 +287,15 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
                     setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
                     const synthBonus = nextZ * 10000;
+
+                    let nextTutorial = prev.tutorialMessage;
+                    if (prev.tutorialMessage === "Capture particle to transform") {
+                        nextTutorial = null;
+                    }
+
                     return {
                         ...prev, currentNuclide: newData, hp: prev.maxHp, energyPoints: prev.energyPoints - NUCLEOSYNTHESIS_COST,
-                        turn: nextTurn,
+                        turn: nextTurn, tutorialMessage: nextTutorial, hasSeenCaptureTutorial: true,
                         score: prev.score + synthBonus + unlockResult.scoreBonus, effects: [...prev.effects, zapEffect],
                         unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
                         messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...unlockResult.messages].slice(-10),
@@ -351,7 +376,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
             const nextStateCandidate = { 
                 ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: prev.energyPoints + (decayResult.energyBonus || 0),
-                turn: nextTurn,
+                turn: nextTurn, tutorialMessage: prev.tutorialMessage === "Decay to be stable" ? null : prev.tutorialMessage,
+                hasSeenDecayTutorial: prev.tutorialMessage === "Decay to be stable" ? true : prev.hasSeenDecayTutorial,
                 unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, gridEntities: decayResult.newGridEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects],
                 score: prev.score + scoreIncrease + unlockResult.scoreBonus, hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
@@ -413,6 +439,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     gameOverReason: "NUCLEUS COLLAPSE",
                     gridEntities: [],
                     energyPoints: 0,
+                    tutorialMessage: null,
                     messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10)
                 };
             }
@@ -430,6 +457,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 hp: prev.maxHp,
                 turn: nextTurn,
                 gridEntities: [],
+                tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage,
+                hasSeenCaptureTutorial: true,
                 score: prev.score + synthBonus + unlockResult.scoreBonus,
                 unlockedElements: unlockResult.updatedElements,
                 unlockedGroups: unlockResult.updatedGroups,
@@ -447,6 +476,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
+        
         if (gameState.currentNuclide.isStable) return;
         let activeMode = gameState.currentNuclide.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
         if (!activeMode && gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN)) activeMode = DecayMode.UNKNOWN;
@@ -489,6 +519,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     ...prev, 
                     currentNuclide: newData, 
                     turn: nextTurn,
+                    tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage,
+                    hasSeenCaptureTutorial: true,
                     unlockedElements: unlockResult.updatedElements, 
                     unlockedGroups: unlockResult.updatedGroups,
                     score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
@@ -543,6 +575,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
             unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
             reincarnations: nextReincarnations,
+            tutorialMessage: randomStart ? null : "Capture particle to transform",
             messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
         });
     };

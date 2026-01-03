@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 interface ControlPanelProps {
@@ -6,9 +7,10 @@ interface ControlPanelProps {
   lastComboTime: number;
   description?: string;
   activeEvent?: { type: string; color: string; timestamp: number };
+  tutorialMessage: string | null;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
@@ -101,10 +103,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
       {/* Background ECG Signal */}
       {renderECG()}
 
-      <div className="relative z-10 w-full h-full flex flex-col justify-start pointer-events-none">
-        {showCombo ? (
+      <div className="relative z-10 w-full h-full flex flex-col justify-center pointer-events-none">
+        {tutorialMessage ? (
+          /* TUTORIAL MODE: Large Font with same font-mono */
+          <div className="animate-fade-in w-full text-center">
+             <div className="text-base md:text-xl font-bold text-white drop-shadow-[0_0_8px_#00f3ff] uppercase tracking-tighter leading-tight font-mono">
+                {tutorialMessage}
+                <span className="inline-block w-2 h-4 ml-2 align-middle bg-neon-blue animate-[pulse_0.4s_infinite]"></span>
+             </div>
+          </div>
+        ) : showCombo ? (
           /* CHAIN COMBO TERMINAL VIEW */
-          <div className="animate-fade-in w-full">
+          <div className="animate-fade-in w-full h-full flex flex-col justify-start">
                <div 
                   className="text-[11px] md:text-xs font-bold leading-tight animate-pulse drop-shadow-[0_0_2px_currentColor] mb-3 transition-colors duration-300"
                   style={{ color: signalColor }}
@@ -131,15 +141,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
         ) : (
           /* DESCRIPTION TERMINAL VIEW - MAINTAINS ORIGINAL TEXT */
           <div 
-            className="text-[11px] md:text-xs leading-tight drop-shadow-[0_0_2px_currentColor] pt-0 transition-colors duration-300"
+            className="text-[11px] md:text-xs leading-tight drop-shadow-[0_0_2px_currentColor] pt-0 transition-colors duration-300 h-full flex items-start"
             style={{ color: signalColor }}
           >
-             <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
-             {description || "Accessing IAEA database..."}
-             <span 
-                className="inline-block w-1.5 h-3 ml-1 align-middle animate-[pulse_0.6s_infinite]"
-                style={{ backgroundColor: signalColor }}
-             ></span>
+             <span className="opacity-60 mr-2 select-none font-bold mt-0.5">&gt;</span>
+             <span>
+               {description || "Accessing IAEA database..."}
+               <span 
+                  className="inline-block w-1.5 h-3 ml-1 align-middle animate-[pulse_0.6s_infinite]"
+                  style={{ backgroundColor: signalColor }}
+               ></span>
+             </span>
           </div>
         )}
       </div>

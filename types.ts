@@ -1,3 +1,4 @@
+
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -106,4 +107,7 @@ export interface GameState {
   activeEvent?: { type: string; color: string; timestamp: number }; // For subtle background signals
   reincarnations: number; // Track random generation count
   magicBarrierCharges: number; // NEW: Protects against HP loss from P/E capture (3 charges)
+  tutorialMessage: string | null;
+  hasSeenDecayTutorial: boolean;
+  hasSeenCaptureTutorial: boolean;
 }
