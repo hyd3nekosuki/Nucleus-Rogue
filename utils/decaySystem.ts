@@ -1,4 +1,3 @@
-
 import { GameState, DecayMode, EntityType, GridEntity, VisualEffect, Position } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants';
 
@@ -244,7 +243,7 @@ export const calculateDecayEffects = (
              shouldFlash = false;
              const directions = [ { mode: DecayMode.GAMMA_RAY_UP, label: "UP" }, { mode: DecayMode.GAMMA_RAY_DOWN, label: "DOWN" }, { mode: DecayMode.GAMMA_RAY_LEFT, label: "LEFT" }, { mode: DecayMode.GAMMA_RAY_RIGHT, label: "RIGHT" } ];
              const selected = directions[Math.floor(Math.random() * directions.length)];
-             extraMessages.push(`✨ GAMMA LASER ${selected.label}! (+5000 PTS)`);
+             extraMessages.push(`✨ gamma ray ${selected.label}! (+5000 PTS)`);
              additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: selected.mode, position: { ...gameState.playerPos }, timestamp: currentTime });
              break;
         case DecayMode.SPONTANEOUS_FISSION:
