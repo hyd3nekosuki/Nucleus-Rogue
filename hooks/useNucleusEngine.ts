@@ -8,7 +8,7 @@ import { generateEntities, calculateMoveResult } from '../utils/gameLogic';
 import { processUnlocks } from '../utils/unlockSystem';
 import { calculateDecayEffects, getDecayDeltas } from '../utils/decaySystem';
 
-const COMBO_WINDOW_MS = 8000;
+export const COMBO_WINDOW_MS = 8000;
 const ENERGY_EVOLUTION_TURNS = 60; 
 const COULOMB_BARRIER_THRESHOLD = 20;
 const STABILIZE_COST = 5;
@@ -121,7 +121,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         return () => clearTimeout(timer);
     }, [gameState.effects, gameState.activeEvent]);
 
-    // Combo Timer
+    // Combo Timer - Updated interval from 1000ms to 100ms for better synchronization with UI bar
     useEffect(() => {
         if (gameState.combo === 0 || gameState.gameOver || gameState.isTimeStopped) return;
         const interval = setInterval(() => {
@@ -145,7 +145,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     return { ...prev, combo: 0, comboScore: 0, comboStartNuclide: undefined };
                 });
             }
-        }, 1000);
+        }, 100);
         return () => clearInterval(interval);
     }, [gameState.combo, gameState.lastComboTime, gameState.gameOver, gameState.isTimeStopped]);
 

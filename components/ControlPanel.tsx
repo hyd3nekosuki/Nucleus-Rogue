@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { COMBO_WINDOW_MS } from '../hooks/useNucleusEngine';
 
 interface ControlPanelProps {
   combo: number;
@@ -43,28 +44,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   // Dynamic text and border color based on event activity or default green
   const signalColor = (activeEvent && isEventColorActive) ? activeEvent.color : "#00ff9d";
 
-  // Sync gauge when combo starts or increments
+  // Absolute time based gauge synchronization
   useEffect(() => {
-    if (combo > 0) {
-      setGaugeValue(100);
-    } else {
-      setGaugeValue(0);
+    if (!showCombo || isTimeStopped) {
+        if (!showCombo) setGaugeValue(0);
+        return;
     }
-  }, [combo, lastComboTime]);
-
-  // Handle gauge depletion over time
-  useEffect(() => {
-    if (!showCombo || gaugeValue <= 0 || isTimeStopped) return;
     
-    const depletionInterval = setInterval(() => {
-      setGaugeValue(prev => {
-        const next = prev - 0.625;
-        return next > 0 ? next : 0;
-      });
-    }, 50);
+    const updateGauge = () => {
+        const now = Date.now();
+        const elapsed = now - lastComboTime;
+        const remainingPct = Math.max(0, 100 - (elapsed / COMBO_WINDOW_MS) * 100);
+        setGaugeValue(remainingPct);
+    };
 
-    return () => clearInterval(depletionInterval);
-  }, [showCombo, gaugeValue, isTimeStopped]);
+    updateGauge(); // Initial sync
+    const interval = setInterval(updateGauge, 50); // High precision updates
+
+    return () => clearInterval(interval);
+  }, [showCombo, lastComboTime, isTimeStopped]);
 
   // SVG ECG Wave Generator
   const renderECG = () => {
