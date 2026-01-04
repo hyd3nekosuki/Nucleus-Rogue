@@ -40,7 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
     }
   }, [activeEvent]);
 
-  // Dynamic text color based on event activity or default green
+  // Dynamic text and border color based on event activity or default green
   const signalColor = (activeEvent && isEventColorActive) ? activeEvent.color : "#00ff9d";
 
   // Sync gauge when combo starts or increments
@@ -101,12 +101,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   };
 
   return (
-    <div className="bg-black/60 mx-4 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono select-none touch-none rounded-lg border border-gray-800">
+    <div className="bg-black/60 mx-2 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono select-none touch-none rounded-lg border border-gray-800">
       
-      {/* BACKGROUND PULSING GREEN BORDER LAYER - Synchronized to 4-beat cycle */}
+      {/* BACKGROUND PULSING BORDER LAYER - Synchronized to 4-beat cycle and event colors */}
       <div 
-        className="absolute inset-0 border-2 border-neon-green/40 rounded-lg pointer-events-none transition-all duration-300 z-20"
+        className="absolute inset-0 border-2 rounded-lg pointer-events-none transition-colors duration-300 z-20"
         style={{ 
+          borderColor: signalColor,
+          color: signalColor,
           animation: !isTimeStopped ? `bpm-border-pulse ${fourBeatDuration}s infinite ease-in-out` : 'none' 
         }}
       />
