@@ -8,13 +8,19 @@ interface ControlPanelProps {
   description?: string;
   activeEvent?: { type: string; color: string; timestamp: number };
   tutorialMessage: string | null;
+  bpm: number;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
   const showCombo = combo > 0;
+
+  // BPM Timing calculations
+  const beatDuration = 60 / (bpm || 132); 
+  const fourBeatDuration = beatDuration * 4; // 4-beat cycle for pulse
+  const cursorDuration = beatDuration; // 1-beat cycle for cursor blink
 
   // Handle visual event timing
   useEffect(() => {
@@ -22,7 +28,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
       setIsSignalVisible(true);
       setIsEventColorActive(true);
       
-      // Color resets to green after 500ms
+      // Color resets after 500ms
       const colorTimer = setTimeout(() => setIsEventColorActive(false), 500);
       // Background signal disappears after 1000ms
       const signalTimer = setTimeout(() => setIsSignalVisible(false), 1000);
@@ -34,8 +40,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
     }
   }, [activeEvent]);
 
-  // Dynamic text color based on event activity (500ms) or default green (#00ff41)
-  const signalColor = (activeEvent && isEventColorActive) ? activeEvent.color : "#00ff41";
+  // Dynamic text color based on event activity or default green
+  const signalColor = (activeEvent && isEventColorActive) ? activeEvent.color : "#00ff9d";
 
   // Sync gauge when combo starts or increments
   useEffect(() => {
@@ -46,7 +52,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
     }
   }, [combo, lastComboTime]);
 
-  // Handle gauge depletion over time (8000ms window)
+  // Handle gauge depletion over time
   useEffect(() => {
     if (!showCombo || gaugeValue <= 0 || isTimeStopped) return;
     
@@ -64,16 +70,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   const renderECG = () => {
     if (!isSignalVisible || !activeEvent) return null;
 
-    // Define different paths for different event types to create a "noise signal" look
-    let d = "M0 50 L20 50 L25 20 L30 80 L35 50 L60 50 L65 10 L70 90 L75 50 L100 50"; // Standard ECG
+    let d = "M0 50 L20 50 L25 20 L30 80 L35 50 L60 50 L65 10 L70 90 L75 50 L100 50"; 
     if (activeEvent.type === "INVERSION") {
-        d = "M0 50 L10 50 L12 80 L15 20 L18 50 L40 50 L45 80 L50 20 L55 50 L80 50 L85 80 L90 20 L100 50"; // Inverted peaks
+        d = "M0 50 L10 50 L12 80 L15 20 L18 50 L40 50 L45 80 L50 20 L55 50 L80 50 L85 80 L90 20 L100 50"; 
     } else if (activeEvent.type === "NEUTRON_STORM") {
-        d = "M0 50 L5 60 L10 40 L15 70 L20 30 L25 80 L30 20 L35 90 L40 10 L45 75 L50 25 L55 65 L60 35 L65 85 L70 15 L75 55 L80 45 L100 50"; // High noise spikes
+        d = "M0 50 L5 60 L10 40 L15 70 L20 30 L25 80 L30 20 L35 90 L40 10 L45 75 L50 25 L55 65 L60 35 L65 85 L70 15 L75 55 L80 45 L100 50"; 
     } else if (activeEvent.type === "PROTON_BURST") {
-        d = "M0 50 L10 50 L10 10 L30 10 L30 50 L50 50 L50 10 L70 10 L70 50 L90 50 L90 10 L100 10"; // Blocky pulse waves
+        d = "M0 50 L10 50 L10 10 L30 10 L30 50 L50 50 L50 10 L70 10 L70 50 L90 50 L90 10 L100 10"; 
     } else if (activeEvent.type === "ELECTRON_FLUCTUATION") {
-        d = "M0 50 Q 25 10, 50 50 T 100 50 M0 50 Q 25 90, 50 50 T 100 50"; // Fluctuating sine-like noise
+        d = "M0 50 Q 25 10, 50 50 T 100 50 M0 50 Q 25 90, 50 50 T 100 50"; 
     }
 
     return (
@@ -96,34 +101,45 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   };
 
   return (
-    <div 
-        className="border-b border-gray-800 bg-black/60 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono transition-colors duration-500 select-none touch-none"
-    >
+    <div className="bg-black/60 mx-4 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono select-none touch-none rounded-lg border border-gray-800">
+      
+      {/* BACKGROUND PULSING GREEN BORDER LAYER - Synchronized to 4-beat cycle */}
+      <div 
+        className="absolute inset-0 border-2 border-neon-green/40 rounded-lg pointer-events-none transition-all duration-300 z-20"
+        style={{ 
+          animation: !isTimeStopped ? `bpm-border-pulse ${fourBeatDuration}s infinite ease-in-out` : 'none' 
+        }}
+      />
       
       {/* Background ECG Signal */}
       {renderECG()}
 
+      {/* STATIC TEXT LAYER (Content does not scale) */}
       <div className="relative z-10 w-full h-full flex flex-col justify-center pointer-events-none">
         {tutorialMessage ? (
-          /* TUTORIAL MODE: Large Font with same font-mono */
           <div className="animate-fade-in w-full text-center">
              <div className="text-base md:text-xl font-bold text-white drop-shadow-[0_0_8px_#00f3ff] uppercase tracking-tighter leading-tight font-mono">
                 {tutorialMessage}
-                <span className="inline-block w-2 h-4 ml-2 align-middle bg-neon-blue animate-[pulse_0.4s_infinite]"></span>
+                <span 
+                  className="inline-block w-2 h-4 ml-2 align-middle bg-neon-blue animate-cursor-blink"
+                  style={{ animationDuration: `${cursorDuration}s` }}
+                ></span>
              </div>
           </div>
         ) : showCombo ? (
-          /* CHAIN COMBO TERMINAL VIEW */
           <div className="animate-fade-in w-full h-full flex flex-col justify-start">
                <div 
-                  className="text-[11px] md:text-xs font-bold leading-tight animate-pulse drop-shadow-[0_0_2px_currentColor] mb-3 transition-colors duration-300"
+                  className="text-[11px] md:text-xs font-bold leading-tight drop-shadow-[0_0_2px_currentColor] mb-3 transition-colors duration-300"
                   style={{ color: signalColor }}
                >
                   <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
                   CHAIN x{combo} ACTIVE
                   <span 
-                    className="inline-block w-1.5 h-3 ml-1 align-middle animate-[pulse_0.6s_infinite]"
-                    style={{ backgroundColor: signalColor }}
+                    className="inline-block w-1.5 h-3 ml-1 align-middle animate-cursor-blink"
+                    style={{ 
+                      backgroundColor: signalColor,
+                      animationDuration: `${cursorDuration}s`
+                    }}
                   ></span>
                </div>
 
@@ -139,7 +155,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
                </div>
           </div>
         ) : (
-          /* DESCRIPTION TERMINAL VIEW - MAINTAINS ORIGINAL TEXT */
           <div 
             className="text-[11px] md:text-xs leading-tight drop-shadow-[0_0_2px_currentColor] pt-0 transition-colors duration-300 h-full flex items-start"
             style={{ color: signalColor }}
@@ -148,8 +163,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
              <span>
                {description || "Accessing IAEA database..."}
                <span 
-                  className="inline-block w-1.5 h-3 ml-1 align-middle animate-[pulse_0.6s_infinite]"
-                  style={{ backgroundColor: signalColor }}
+                  className="inline-block w-1.5 h-3 ml-1 align-middle animate-cursor-blink"
+                  style={{ 
+                    backgroundColor: signalColor,
+                    animationDuration: `${cursorDuration}s`
+                  }}
                ></span>
              </span>
           </div>

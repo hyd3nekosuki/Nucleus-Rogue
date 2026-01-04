@@ -336,6 +336,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         setLastDecayEvent({ mode: visualMode, timestamp: currentTime });
         if (decayResult.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
         if (decayResult.shouldFlash) { setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
+        if (decayResult.shouldFlash) { setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
         if (decayResult.speechOverride) triggerTTS(decayResult.speechOverride);
         setGameState(prev => {
             const newData = getNuclideDataSync(prev.currentNuclide.z + decayResult.dZ, prev.currentNuclide.a + decayResult.dA);
@@ -545,6 +546,10 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
         const currentReincarnations = gameState.reincarnations;
         
+        // ヒントフラグの状態を保持するためのキャプチャ
+        const currentSeenCapture = gameState.hasSeenCaptureTutorial;
+        const currentSeenDecay = gameState.hasSeenDecayTutorial;
+
         const newState = getInitialState();
         let startNuclide = INITIAL_NUCLIDE;
         if (randomStart) {
@@ -575,7 +580,10 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
             unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
             reincarnations: nextReincarnations,
-            tutorialMessage: randomStart ? null : "Capture particle to transform",
+            // RANDOM GENERATION時は表示済みなら出さない。H-1時は強制的にリセットして出す。
+            hasSeenCaptureTutorial: randomStart ? currentSeenCapture : false,
+            hasSeenDecayTutorial: randomStart ? currentSeenDecay : false,
+            tutorialMessage: (randomStart && currentSeenCapture) ? null : "Capture particle to transform",
             messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
         });
     };

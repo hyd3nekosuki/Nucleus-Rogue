@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -23,6 +24,7 @@
             animation: {
                 'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
                 'ecg-draw': 'ecg-draw 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards',
+                'cursor-blink': 'cursor-blink 1s infinite step-end',
             },
             keyframes: {
                 shake: {
@@ -36,6 +38,10 @@
                     '20%': { opacity: 1 },
                     '80%': { opacity: 1 },
                     '100%': { 'stroke-dashoffset': '0', opacity: 0 }
+                },
+                'cursor-blink': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0 }
                 }
             }
           }
@@ -306,6 +312,12 @@
           -webkit-background-clip: text;
           background-clip: text;
           animation: rainbow-flow 2s linear infinite;
+      }
+
+      /* BPM Synchronization Pulse - Optimized for horizontal expansion of vertical borders */
+      @keyframes bpm-border-pulse {
+        0%, 100% { transform: scaleX(1.0); border-color: rgba(0, 255, 157, 0.4); box-shadow: inset 0 0 5px rgba(0, 255, 157, 0.2); }
+        50% { transform: scaleX(1.02); border-color: rgba(0, 255, 157, 0.8); box-shadow: inset 0 0 15px rgba(0, 255, 157, 0.3), 0 0 10px rgba(0, 255, 157, 0.1); }
       }
 
     </style>

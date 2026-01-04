@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
@@ -182,6 +181,7 @@ function App() {
             description={currentDescription}
             activeEvent={gameState.activeEvent}
             tutorialMessage={gameState.tutorialMessage}
+            bpm={bpm}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
@@ -279,7 +279,7 @@ function App() {
                             <span className="mx-2 text-gray-700 font-black">|</span>
                             <span className="text-neon-purple font-black tracking-normal mr-2 italic">STREAK:</span>
                             <span className={`font-bold ${activeStreakType === 'p' ? 'text-neon-red' : activeStreakType === 'n' ? 'text-neon-blue' : 'text-yellow-400'}`}>
-                                {activeStreakType}={activeStreakCount}
+                                {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}={activeStreakCount}
                             </span>
                         </>
                     )}
