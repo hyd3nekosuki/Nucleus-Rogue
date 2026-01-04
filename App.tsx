@@ -34,13 +34,14 @@ function App() {
   const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
   
-  // --- Audio Logic with Dynamic Resonance ---
+  // --- Audio Logic with Dynamic Resonance and Event Synchronization ---
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
       gameState.hp, 
       gameState.gameOver, 
       gameState.currentNuclide.decayModes,
       isSoundTestActive,
-      () => setLastKickTime(Date.now())
+      () => setLastKickTime(Date.now()),
+      gameState.activeEvent
   );
   
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, isVoiceMuted);
