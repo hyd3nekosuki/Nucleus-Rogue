@@ -2,75 +2,32 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../types';
 
-export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void, activeEvent?: { type: string; color: string; timestamp: number }) => {
+export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void) => {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
     const masterEntryRef = useRef<BiquadFilterNode | null>(null);
-    const distortionNodeRef = useRef<WaveShaperNode | null>(null);
-    const distortionGainRef = useRef<GainNode | null>(null); // Dry/Wet mix controller
-    
     const [isMuted, setIsMuted] = useState(true);
     const nextNoteTimeRef = useRef(0);
     const currentStepRef = useRef(0);
     const timerIDRef = useRef<number | null>(null);
-
-    // Event timing tracking
-    const lastEventTimestampRef = useRef<number>(0);
-    const eventRemainingStepsRef = useRef<number>(0);
-    const activeEventTypeRef = useRef<string | null>(null);
 
     const getPrimaryMode = (modes: DecayMode[]) => {
         return modes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) 
                || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
     };
 
-    // Distortion Curve Factory
-    const makeDistortionCurve = (amount: number, type: string | null) => {
-        const n_samples = 44100;
-        const curve = new Float32Array(n_samples);
-        const deg = Math.PI / 180;
-        for (let i = 0; i < n_samples; ++i) {
-            const x = i * 2 / n_samples - 1;
-            if (type === 'INVERSION') {
-                // Bit-crush feel: Steppy curve
-                curve[i] = Math.round(x * amount) / amount;
-            } else if (type === 'NEUTRON_STORM') {
-                // Heavy saturated bass saturation
-                curve[i] = (3 + amount) * x * 20 * deg / (Math.PI + amount * Math.abs(x));
-            } else if (type === 'PROTON_BURST') {
-                // Hard clip
-                curve[i] = Math.max(-0.5, Math.min(0.5, x * amount));
-            } else {
-                // Default Soft-clip
-                curve[i] = (3 + amount) * x * deg / (Math.PI + amount * Math.abs(x));
-            }
-        }
-        return curve;
-    };
-
-    // Sync Event Status
-    useEffect(() => {
-        if (activeEvent && activeEvent.timestamp !== lastEventTimestampRef.current) {
-            lastEventTimestampRef.current = activeEvent.timestamp;
-            eventRemainingStepsRef.current = 32; // 2 bars (16 steps * 2)
-            activeEventTypeRef.current = activeEvent.type;
-            
-            // Re-generate curve based on type
-            if (distortionNodeRef.current) {
-                distortionNodeRef.current.curve = makeDistortionCurve(50, activeEvent.type);
-            }
-        }
-    }, [activeEvent]);
-
     // --- Transition Management ---
     const lastModeRef = useRef<DecayMode | null>(null);
     const transitionFromModeRef = useRef<DecayMode | null>(null);
+    
+    // Settling Logic (Debounce) to ignore intermediate states during rapid transformations
     const stablePrimaryModeRef = useRef<DecayMode>(getPrimaryMode(decayModes));
     const debounceTimerRef = useRef<number | null>(null);
 
-    const foundationProgressRef = useRef(1.0);
-    const ornamentalInProgressRef = useRef(1.0);
-    const ornamentalOutProgressRef = useRef(1.0);
+    // Progress trackers for independent fade speeds
+    const foundationProgressRef = useRef(1.0);  // Fast (4 steps)
+    const ornamentalInProgressRef = useRef(1.0); // Medium-Fast (8 steps)
+    const ornamentalOutProgressRef = useRef(1.0); // Slow (16 steps)
     
     const F_STEP = 1.0 / 4;
     const O_IN_STEP = 1.0 / 8;
@@ -79,10 +36,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const hpRef = useRef(hp);
     const decayModesRef = useRef(decayModes);
 
+    // Synchronize HP in real-time for BPM updates
     useEffect(() => {
         hpRef.current = hp;
     }, [hp]);
 
+    // Synchronize decayModes and manage "Settling Time" (Debounce) for BGM pattern switching
     useEffect(() => {
         decayModesRef.current = decayModes;
         const currentPrimary = getPrimaryMode(decayModes);
@@ -154,6 +113,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const triggerKickUI = (time: number) => {
         if (onKick && audioCtxRef.current) {
             const delay = (time - audioCtxRef.current.currentTime) * 1000;
+            // 通知は実際の音が発生するタイミングに合わせて遅延実行する
             setTimeout(onKick, Math.max(0, delay));
         }
     };
@@ -367,24 +327,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             const ctx = audioCtxRef.current;
             const dest = masterEntryRef.current;
 
-            // Handle Event Distortion Logic
-            if (eventRemainingStepsRef.current > 0) {
-                if (distortionGainRef.current) {
-                    // Quick fade in for distortion mix
-                    distortionGainRef.current.gain.setTargetAtTime(0.85, time, 0.01);
-                    
-                    // Specific "noise" artifacts per type
-                    if (activeEventTypeRef.current === 'ELECTRON_FLUCTUATION' && Math.random() > 0.8) {
-                        distortionGainRef.current.gain.setTargetAtTime(0, time, 0.005); // Gate effect
-                    }
-                }
-                eventRemainingStepsRef.current--;
-            } else {
-                if (distortionGainRef.current) {
-                    distortionGainRef.current.gain.setTargetAtTime(0, time, 0.05); // Smooth cleanup
-                }
-            }
-
             const targetMode = stablePrimaryModeRef.current;
 
             if (lastModeRef.current !== null && lastModeRef.current !== targetMode) {
@@ -440,16 +382,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         eqFilter.frequency.setValueAtTime(180, ctx.currentTime);
         eqFilter.gain.setValueAtTime(-5.5, ctx.currentTime); 
 
-        // Distortion Nodes
-        const distNode = ctx.createWaveShaper();
-        distNode.curve = makeDistortionCurve(50, null);
-        distNode.oversample = '4x';
-        distortionNodeRef.current = distNode;
-
-        const distGain = ctx.createGain();
-        distGain.gain.setValueAtTime(0, ctx.currentTime);
-        distortionGainRef.current = distGain;
-
         const limiter = ctx.createDynamicsCompressor();
         limiter.threshold.setValueAtTime(-10, ctx.currentTime);
         limiter.knee.setValueAtTime(3, ctx.currentTime); 
@@ -462,15 +394,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         hpFilter.connect(eqFilter); 
         eqFilter.connect(limiter); 
-
-        // Distortion chain in parallel-ish to preserve dynamics
-        limiter.connect(distNode);
-        distNode.connect(distGain);
-        distGain.connect(masterGain);
-        
-        // Dry signal
         limiter.connect(masterGain);
-        
         masterGain.connect(ctx.destination);
 
         masterEntryRef.current = hpFilter;
