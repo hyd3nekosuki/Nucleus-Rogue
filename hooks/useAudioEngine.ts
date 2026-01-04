@@ -1,7 +1,8 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../types';
 
-export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false) => {
+export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void) => {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
     const masterEntryRef = useRef<BiquadFilterNode | null>(null);
@@ -107,6 +108,14 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         osc.start(time); osc.stop(time + decayTime + 0.05);
         click.start(time); click.stop(time + 0.05);
+    };
+
+    const triggerKickUI = (time: number) => {
+        if (onKick && audioCtxRef.current) {
+            const delay = (time - audioCtxRef.current.currentTime) * 1000;
+            // 通知は実際の音が発生するタイミングに合わせて遅延実行する
+            setTimeout(onKick, Math.max(0, delay));
+        }
     };
 
     const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, color: 'sharp' | 'heavy' | 'industrial' | 'dnb-crack' = 'sharp') => {
@@ -218,13 +227,13 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         switch (mode) {
             case DecayMode.STABLE:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.8 * fP);
+                if (step % 4 === 0) { createKick(ctx, dest, time, 0.8 * fP); triggerKickUI(time); }
                 if (step % 4 === 2) createHat(ctx, dest, time, oP, 0.8);
                 if (step % 8 === 6) createHat(ctx, dest, time, oP * 1.1, 1.1);
                 if (step % 16 === 14) createSynth(ctx, dest, time, 2637, 0.08, 0.2 * so, 'pulse');
                 break;
             case DecayMode.BETA_MINUS:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
+                if (step % 4 === 0) { createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch'); triggerKickUI(time); }
                 if (step === 12) createSnare(ctx, dest, time, 0.7 * oP, 'industrial');
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.2, 1.3);
                 if ([3, 7, 11, 15].includes(step)) {
@@ -235,13 +244,13 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 }
                 break;
             case DecayMode.BETA_PLUS:
-                if ([0, 3, 6, 9, 13].includes(step)) createKick(ctx, dest, time, 0.9 * fP);
+                if ([0, 3, 6, 9, 13].includes(step)) { createKick(ctx, dest, time, 0.9 * fP); triggerKickUI(time); }
                 if (step === 4 || step === 12) createSnare(ctx, dest, time, 0.6 * oP, 'sharp');
                 if (step % 2 === 1) createHat(ctx, dest, time, oP, 1.1);
                 if (step % 16 === 7) createSynth(ctx, dest, time, 880, 0.2, 0.6 * so, 'sparkle');
                 break;
             case DecayMode.ELECTRON_CAPTURE:
-                if ([1, 4, 7, 10, 14].includes(step)) createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch');
+                if ([1, 4, 7, 10, 14].includes(step)) { createKick(ctx, dest, time, 0.85 * fP, 'dnb-punch'); triggerKickUI(time); }
                 if (step % 4 === 2 || step === 5 || step === 13) {
                     createSynth(ctx, dest, time, 41.2, 0.12, 0.55 * sf, 'pulse');
                 }
@@ -253,14 +262,14 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.6 : 1.1), 1.2);
                 break;
             case DecayMode.ALPHA:
-                if (step === 0 || step === 10) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
+                if (step === 0 || step === 10) { createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch'); triggerKickUI(time); }
                 createSynth(ctx, dest, time, step % 8 < 4 ? 41.2 : 38.8, secondsPerStep * 2.5, 0.9 * sf, 'dark');
                 if (step === 4 || step === 12) createSnare(ctx, dest, time, 1.0 * oP, 'dnb-crack');
                 createHat(ctx, dest, time, oP * (step % 2 === 0 ? 0.9 : 0.5), 1.1);
                 if (step % 4 === 1) createSynth(ctx, dest, time, 1760, 0.05, 0.3 * so, 'dnb-lead');
                 break;
             case DecayMode.SPONTANEOUS_FISSION:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.0 * fP, 'dnb-punch');
+                if (step % 4 === 0) { createKick(ctx, dest, time, 1.0 * fP, 'dnb-punch'); triggerKickUI(time); }
                 if (step === 4 || step === 12) createSnare(ctx, dest, time, 1.1 * oP, 'industrial');
                 if (step === 15) createSnare(ctx, dest, time, 0.4 * oP, 'sharp');
                 if (step % 2 === 0) createHat(ctx, dest, time, oP * 0.6, 0.9);
@@ -272,46 +281,35 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
                 createSynth(ctx, dest, time, coolBass[step], secondsPerStep * 0.7, 0.8 * sf, 'dark');
                 break;
             case DecayMode.NEUTRON_EMISSION:
-                if (step % 4 === 0) createKick(ctx, dest, time, 1.15 * fP, 'heavy-gabber');
+                if (step % 4 === 0) { createKick(ctx, dest, time, 1.15 * fP, 'heavy-gabber'); triggerKickUI(time); }
                 if (step % 4 !== 0) createSynth(ctx, dest, time, 41.2, secondsPerStep * 2, 0.7 * sf, 'dark');
                 if (step % 8 === 2 || step % 8 === 6) createSnare(ctx, dest, time, oP * 0.9, 'industrial');
                 if (Math.random() > 0.6) createHat(ctx, dest, time, oP, 1.7);
                 break;
             case DecayMode.PROTON_EMISSION:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch');
+                if (step % 4 === 0) { createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch'); triggerKickUI(time); }
                 if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.3);
                 if (step % 2 === 1) createHat(ctx, dest, time, oP * 0.7, 0.9);
                 if ([0, 3, 6, 10, 13].includes(step)) createSynth(ctx, dest, time, [1760, 2637, 3520][step % 3], 0.1, 0.4 * so, 'sparkle');
                 if (step === 15) for(let i = 0; i < 4; i++) createSynth(ctx, dest, time + (i * 0.025), 3520 + (i * 440), 0.03, 0.16 * so, 'pulse');
                 break;
             case DecayMode.UNKNOWN:
-                // --- VIVALDI "WINTER" CRYSTAL AMBIENT FOR UNKNOWN DECAY ---
-                // Maintain the 'void' sub-texture for atmosphere
                 if (step === 0) createSynth(ctx, dest, time, 32.7, secondsPerStep * 24, 0.4 * sf, 'void');
                 if (step === 8) createSynth(ctx, dest, time, 38.8, secondsPerStep * 16, 0.3 * sf, 'void');
-                
-                // Winter Climax Motif (F Minor frantic descending run)
-                // Crystal resonant sounds (Sparkle synth)
                 const crystalFrequencies = [
-                    1396.91, 1396.91, 1396.91, 1396.91, // Shivering F6
-                    1244.51, 1108.73, 1046.50, 932.33,  // Descending (Eb6, Db6, C6, Bb5)
-                    830.61, 783.99, 698.46, 783.99,     // (Ab5, G5, F5, G5)
-                    830.61, 932.33, 1046.50, 1108.73    // Ascending rush back (Ab5, Bb5, C6, Db6)
+                    1396.91, 1396.91, 1396.91, 1396.91, 
+                    1244.51, 1108.73, 1046.50, 932.33,  
+                    830.61, 783.99, 698.46, 783.99,     
+                    830.61, 932.33, 1046.50, 1108.73    
                 ];
-                
-                // Fast crystal melody with long decay for ambient tail
                 createSynth(ctx, dest, time, crystalFrequencies[step], 0.25, 0.5 * so, 'sparkle');
-                
-                // High-freq frozen accents
                 if (step % 4 === 2) {
                     createSynth(ctx, dest, time, crystalFrequencies[step] * 2, 0.05, 0.2 * so, 'pulse');
                 }
-
-                // Minimal frozen kick
-                if (step % 8 === 0) createKick(ctx, dest, time, 0.4 * fP, 'sharp-gabber');
+                if (step % 8 === 0) { createKick(ctx, dest, time, 0.4 * fP, 'sharp-gabber'); triggerKickUI(time); }
                 break;
             default:
-                if (step % 4 === 0) createKick(ctx, dest, time, 0.7 * fP);
+                if (step % 4 === 0) { createKick(ctx, dest, time, 0.7 * fP); triggerKickUI(time); }
                 break;
         }
     };
@@ -362,7 +360,7 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
             currentStepRef.current = (currentStepRef.current + 1) % 16;
         }
         timerIDRef.current = window.setTimeout(scheduler, 25);
-    }, []);
+    }, [onKick]);
 
     const initAudio = useCallback(() => {
         if (audioCtxRef.current) {

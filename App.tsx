@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
@@ -26,6 +27,7 @@ function App() {
   // Default Voice to OFF (true)
   const [isVoiceMuted, setIsVoiceMuted] = useState(true);
   const [isSoundTestActive, setIsSoundTestActive] = useState(false);
+  const [lastKickTime, setLastKickTime] = useState(0);
 
   // --- TTS Bridging Logic ---
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
@@ -37,7 +39,8 @@ function App() {
       gameState.hp, 
       gameState.gameOver, 
       gameState.currentNuclide.decayModes,
-      isSoundTestActive
+      isSoundTestActive,
+      () => setLastKickTime(Date.now())
   );
   
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, isVoiceMuted);
@@ -182,6 +185,7 @@ function App() {
             activeEvent={gameState.activeEvent}
             tutorialMessage={gameState.tutorialMessage}
             bpm={bpm}
+            lastKickTime={lastKickTime}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">

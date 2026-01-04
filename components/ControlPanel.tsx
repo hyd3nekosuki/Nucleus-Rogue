@@ -10,18 +10,19 @@ interface ControlPanelProps {
   activeEvent?: { type: string; color: string; timestamp: number };
   tutorialMessage: string | null;
   bpm: number;
+  lastKickTime: number;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
+  const [isCursorLit, setIsCursorLit] = useState(false);
   const showCombo = combo > 0;
 
   // BPM Timing calculations
   const beatDuration = 60 / (bpm || 132); 
   const fourBeatDuration = beatDuration * 4; // 4-beat cycle for pulse
-  const cursorDuration = beatDuration; // 1-beat cycle for cursor blink
 
   // Handle visual event timing
   useEffect(() => {
@@ -40,6 +41,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
       };
     }
   }, [activeEvent]);
+
+  // BGMのキック音（lastKickTime更新）に同期してカーソルを点灯させる
+  useEffect(() => {
+    if (lastKickTime > 0) {
+        setIsCursorLit(true);
+        // 120ms後に消灯（音楽的なキックのキレに合わせる）
+        const timer = setTimeout(() => setIsCursorLit(false), 120);
+        return () => clearTimeout(timer);
+    }
+  }, [lastKickTime]);
 
   // Dynamic text and border color based on event activity or default green
   const signalColor = (activeEvent && isEventColorActive) ? activeEvent.color : "#00ff9d";
@@ -98,6 +109,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
     );
   };
 
+  // カーソルの表示スタイル
+  const cursorStyle: React.CSSProperties = {
+    opacity: (isTimeStopped || isCursorLit) ? 1 : 0,
+    transition: isCursorLit ? 'none' : 'opacity 120ms linear'
+  };
+
   return (
     <div className="bg-black/60 mx-2 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono select-none touch-none rounded-lg border border-gray-800">
       
@@ -121,8 +138,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
              <div className="text-base md:text-xl font-bold text-white drop-shadow-[0_0_8px_#00f3ff] uppercase tracking-tighter leading-tight font-mono">
                 {tutorialMessage}
                 <span 
-                  className="inline-block w-2 h-4 ml-2 align-middle bg-neon-blue animate-cursor-blink"
-                  style={{ animationDuration: `${cursorDuration}s` }}
+                  className="inline-block w-2 h-4 ml-2 align-middle bg-neon-blue"
+                  style={cursorStyle}
                 ></span>
              </div>
           </div>
@@ -135,10 +152,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
                   <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
                   CHAIN x{combo} ACTIVE
                   <span 
-                    className="inline-block w-1.5 h-3 ml-1 align-middle animate-cursor-blink"
+                    className="inline-block w-1.5 h-3 ml-1 align-middle"
                     style={{ 
                       backgroundColor: signalColor,
-                      animationDuration: `${cursorDuration}s`
+                      ...cursorStyle
                     }}
                   ></span>
                </div>
@@ -163,10 +180,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
              <span>
                {description || "Accessing IAEA database..."}
                <span 
-                  className="inline-block w-1.5 h-3 ml-1 align-middle animate-cursor-blink"
+                  className="inline-block w-1.5 h-3 ml-1 align-middle"
                   style={{ 
                     backgroundColor: signalColor,
-                    animationDuration: `${cursorDuration}s`
+                    ...cursorStyle
                   }}
                ></span>
              </span>
