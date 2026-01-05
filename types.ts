@@ -86,6 +86,7 @@ export interface GameState {
   score: number;
   energyPoints: number;
   playerPos: Position;
+  targetPos?: Position; // NEW: Destination mark for auto-move
   gridEntities: GridEntity[];
   currentNuclide: NuclideData;
   hp: number;
@@ -136,4 +137,6 @@ export interface SavePayload {
   st: Record<string, number>; // Decay Stats
   rs: Record<string, number>; // Reaction Stats
   ev: Record<string, string>; // Evolution Map (Last methods)
+  mc: number; // Max Combo
+  mb: number; // Magic Barrier Charges
 }

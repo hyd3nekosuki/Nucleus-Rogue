@@ -1,5 +1,5 @@
 import { GameState, DecayMode, EntityType, GridEntity, VisualEffect, Position } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
 
 export interface DecayResult {
     dZ: number;
@@ -95,7 +95,7 @@ export const calculateDecayEffects = (
 
     let { dZ, dA } = getDecayDeltas(effectiveMode);
     
-    let trigger = effectiveMode.toString().replace(/_/g, ' ').toLowerCase();
+    let trigger = HISTORY_METHODS.TRANSMUTATION;
     
     let actionBonusScore = 0;
     let energyBonus = 0;
@@ -110,12 +110,12 @@ export const calculateDecayEffects = (
 
     switch (effectiveMode) {
         case DecayMode.ALPHA: 
-            trigger = "α decay";
+            trigger = HISTORY_METHODS.ALPHA_DECAY;
             energyBonus = 5; 
             shouldFlash = false; 
             break;
         case DecayMode.BETA_MINUS: 
-            trigger = "β- decay"; 
+            trigger = HISTORY_METHODS.BETA_MINUS; 
             shouldFlash = false;
             
             // Check for Proton -> Neutron conversion (requires skill)
@@ -179,7 +179,7 @@ export const calculateDecayEffects = (
             }
             break;
         case DecayMode.BETA_PLUS: 
-            trigger = "β+ decay"; 
+            trigger = HISTORY_METHODS.BETA_PLUS; 
             shouldFlash = false;
             const nearbyElectrons = currentEntities.filter(e => {
                 if (e.type !== EntityType.ENEMY_ELECTRON) return false;
@@ -220,7 +220,7 @@ export const calculateDecayEffects = (
             }
             break;
         case DecayMode.ELECTRON_CAPTURE: 
-             trigger = "Electron capture";
+             trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
              const targetX = Math.floor(Math.random() * GRID_WIDTH);
              const targetY = Math.floor(Math.random() * GRID_HEIGHT);
              newPosition = { x: targetX, y: targetY };
@@ -230,15 +230,15 @@ export const calculateDecayEffects = (
              additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { x: targetX, y: targetY }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 
-            trigger = "Proton emission"; 
+            trigger = HISTORY_METHODS.PROTON_EMISSION; 
             shouldFlash = false;
             break;
         case DecayMode.NEUTRON_EMISSION: 
-            trigger = "Neutron emission"; 
+            trigger = HISTORY_METHODS.NEUTRON_EMISSION; 
             shouldFlash = false;
             break;
         case DecayMode.GAMMA:
-             trigger = "Gamma decay";
+             trigger = HISTORY_METHODS.GAMMA_DECAY;
              actionBonusScore += 5000;
              shouldFlash = false;
              const directions = [ { mode: DecayMode.GAMMA_RAY_UP, label: "UP" }, { mode: DecayMode.GAMMA_RAY_DOWN, label: "DOWN" }, { mode: DecayMode.GAMMA_RAY_LEFT, label: "LEFT" }, { mode: DecayMode.GAMMA_RAY_RIGHT, label: "RIGHT" } ];
@@ -247,7 +247,7 @@ export const calculateDecayEffects = (
              additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: selected.mode, position: { ...gameState.playerPos }, timestamp: currentTime });
              break;
         case DecayMode.SPONTANEOUS_FISSION:
-            trigger = "spontaneous fission";
+            trigger = HISTORY_METHODS.FISSION_SPONTANEOUS;
             shouldShake = true;
             shouldFlash = true;
             speechOverride = "Nuclear Fission";

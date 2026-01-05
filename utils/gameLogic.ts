@@ -1,5 +1,5 @@
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, BONUS_SCORES, HISTORY_METHODS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
 import { calculateDecayEffects } from './decaySystem';
@@ -171,10 +171,14 @@ export const calculateMoveResult = (
                     const intermediateData = getNuclideDataSync(prev.currentNuclide.z, prev.currentNuclide.a + 1);
                     if (intermediateData.exists) {
                         const tempState = { ...prev, playerPos: { x: newX, y: newY }, currentNuclide: intermediateData, gridEntities: nextEntities };
-                        const options = [{ mode: DecayMode.GAMMA, label: "(n,γ)" }, { mode: DecayMode.PROTON_EMISSION, label: "(n,p)" }, { mode: DecayMode.NEUTRON_EMISSION, label: "(n,2n)" }];
+                        const options = [
+                            { mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG }, 
+                            { mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP }, 
+                            { mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N }
+                        ];
                         if (intermediateData.z >= 92) {
-                            if (isFissionDisabled) options.push({ mode: DecayMode.ALPHA, label: "(n,α)" });
-                            else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: "(n,fission)" });
+                            if (isFissionDisabled) options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
+                            else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: HISTORY_METHODS.REACTION_NF });
                         }
                         const chosen = options[Math.floor(Math.random() * options.length)];
                         chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled, !isFissionDisabled);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect, HistoryEntry, SavePayload } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, APP_VERSION } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, APP_VERSION, HISTORY_METHODS } from '../constants';
 import { getNuclideDataSync, getValidAsForZ, getDecayModeLabel } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
 import { generateEntities, calculateMoveResult } from '../utils/gameLogic';
@@ -60,11 +60,11 @@ const getInitialState = (): GameState => ({
         [DecayMode.GAMMA]: 0,
     },
     reactionStats: {
-        "(n,γ)": 0,
-        "(n,p)": 0,
-        "(n,2n)": 0,
-        "(n,α)": 0,
-        "(n,fission)": 0,
+        [HISTORY_METHODS.REACTION_NG]: 0,
+        [HISTORY_METHODS.REACTION_NP]: 0,
+        [HISTORY_METHODS.REACTION_N2N]: 0,
+        [HISTORY_METHODS.REACTION_NA]: 0,
+        [HISTORY_METHODS.REACTION_NF]: 0,
     }
 });
 
@@ -89,7 +89,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         setGameState(prev => ({ ...prev, gridEntities: initialEntities }));
         setEvolutionHistory([{
             turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
-            z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: "Origin"
+            z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN
         }]);
     }, []);
 
@@ -178,6 +178,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         if (moveIntervalRef.current) { clearInterval(moveIntervalRef.current); moveIntervalRef.current = null; }
         moveQueueRef.current = [];
         continuousDirRef.current = null;
+        setGameState(prev => ({ ...prev, targetPos: undefined }));
     }, []);
 
     const moveStep = useCallback((dx: number, dy: number) => {
@@ -211,15 +212,20 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                   }
                   if (!result.inducedDecayMode) setLastDecayEvent(null);
                   const targetEntity = prev.gridEntities.find(e => e.position.x === nextState.playerPos.x && e.position.y === nextState.playerPos.y);
-                  let method = "Transmutation";
-                  if (result.isPpFusion) { method = "fusion"; triggerTTS("Nuclear Fusion"); }
-                  else if (result.isPositronAbsorption) { method = "Positron capture"; }
+                  let method = HISTORY_METHODS.TRANSMUTATION;
+                  if (result.isPpFusion) { method = HISTORY_METHODS.FUSION; triggerTTS("Nuclear Fusion"); }
+                  else if (result.isPositronAbsorption) { method = HISTORY_METHODS.POSITRON_CAPTURE; }
                   else if (targetEntity) {
-                      if (targetEntity.type === EntityType.PROTON) method = "Proton Capture";
-                      else if (targetEntity.type === EntityType.NEUTRON) method = "Neutron Capture";
-                      else if (targetEntity.type === EntityType.ENEMY_ELECTRON) method = "Electron Capture";
+                      if (targetEntity.type === EntityType.PROTON) method = HISTORY_METHODS.PROTON_CAPTURE;
+                      else if (targetEntity.type === EntityType.NEUTRON) method = HISTORY_METHODS.NEUTRON_CAPTURE;
+                      else if (targetEntity.type === EntityType.ENEMY_ELECTRON) method = HISTORY_METHODS.ELECTRON_CAPTURE_PLAYER;
                   }
-                  if (result.inducedDecayMode) method = result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION ? "Neutron-induced fission" : `Induced ${result.inducedDecayMode.replace(/_/g, ' ')}`;
+                  
+                  // Use reaction label directly if provided by interaction logic
+                  if (result.inducedReactionLabel) {
+                      method = result.inducedReactionLabel;
+                  }
+
                   setEvolutionHistory(h => [...h, { turn: nextState.turn, name: nextState.currentNuclide.name, symbol: nextState.currentNuclide.symbol, z: nextState.currentNuclide.z, a: nextState.currentNuclide.a, method }]);
                   if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) nextState.tutorialMessage = "Decay to be stable";
                   if (nextState.combo === 0 && !nextState.currentNuclide.isStable) nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
@@ -231,7 +237,11 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                           if (!prev.disabledSkills.includes("Temporal Inversion")) inversionMatched = true;
                       }
                       if (inversionMatched) {
-                          const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, nextState.decayStats[DecayMode.BETA_PLUS], nextState.decayStats[DecayMode.BETA_MINUS]);
+                          // FIX: nextBetaPlusCount and nextBetaMinusCount were missing in moveStep setter.
+                          // Using current values from prev.decayStats since counts don't change during moves.
+                          const currentBetaPlusCount = prev.decayStats[DecayMode.BETA_PLUS] || 0;
+                          const currentBetaMinusCount = prev.decayStats[DecayMode.BETA_MINUS] || 0;
+                          const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, currentBetaPlusCount, currentBetaMinusCount);
                           nextState.score += unlockResult.scoreBonus; nextState.unlockedGroups = unlockResult.updatedGroups; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
                       }
                       if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
@@ -271,7 +281,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
                     triggerTTS("Nucleosynthesis");
                     setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-                    setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
+                    setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.NUCLEOSYNTHESIS }]);
                     const synthBonus = nextZ * 10000;
                     let nextTutorial = prev.tutorialMessage;
                     if (prev.tutorialMessage === "Capture particle to transform") nextTutorial = null;
@@ -400,7 +410,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             const nextTurn = prev.turn + 1;
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
-            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "r-process nucleosynthesis" }]);
+            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.R_PROCESS }]);
             triggerTTS("r-process nucleosynthesis");
             return {
                 ...prev, currentNuclide: newData, hp: prev.maxHp, turn: nextTurn, gridEntities: [], tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, hasSeenCaptureTutorial: true,
@@ -441,7 +451,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 const nextTurn = prev.turn + 1;
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
                 setLastDecayEvent(null);
-                setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
+                setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.EXP_REPLICATE }]);
                 triggerTTS("Experimental Replicate"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
                 let nextBarrierCharges = prev.magicBarrierCharges;
                 if (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) nextBarrierCharges = 3;
@@ -480,7 +490,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         let nextUnlockedGroups = randomStart ? [...currentGroups] : [];
         let unlockResult = randomStart ? processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a) : { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
         setLastDecayEvent(null); setFinalCombo(null);
-        setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: "Origin" }]);
+        setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: HISTORY_METHODS.ORIGIN }]);
         const nextReincarnations = randomStart ? currentReincarnations + 1 : 0;
         setGameState({
             ...newState, disabledSkills: nextDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
@@ -503,6 +513,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         for (let i = 0; i < ady; i++) path.push({dx: 0, dy: dy > 0 ? 1 : -1});
         if (path.length > 0) {
             stopAutoMove(); moveQueueRef.current = path;
+            setGameState(prev => ({ ...prev, targetPos: { x, y } }));
             if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
             moveIntervalRef.current = setInterval(() => {
                 if (moveQueueRef.current.length > 0) { const step = moveQueueRef.current.shift(); if (step) moveStep(step.dx, step.dy); }
@@ -547,6 +558,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 hp: payload.h!,
                 playerLevel: payload.l!,
                 reincarnations: payload.r!,
+                maxCombo: payload.mc || 0,
+                magicBarrierCharges: payload.mb || 0,
                 currentNuclide: currentData,
                 unlockedElements: payload.ue || [],
                 unlockedGroups: payload.ug || [],

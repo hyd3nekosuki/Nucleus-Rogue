@@ -1,4 +1,5 @@
 import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
+import { HISTORY_METHODS } from '../constants';
 
 // IDマッピング定義（バイナリ化のため順序を固定）
 const GROUP_MAP = [
@@ -8,14 +9,7 @@ const GROUP_MAP = [
     "Temporal Inversion", "Fusion", "Fission", "zero barn", "Electron scattering", "Gluttony"
 ];
 
-const METHOD_MAP = [
-    "Origin", "Transmutation", "fusion", "Positron capture", "Proton Capture", 
-    "Neutron Capture", "Electron Capture", "Induced α decay", "Induced β- decay", 
-    "Induced β+ decay", "Induced spontaneous fission", "Neutron-induced fission", 
-    "Nucleosynthesis", "r-process nucleosynthesis", "Experimental Replicate", 
-    "Induced Electron capture", "Induced Proton emission", "Induced Neutron emission", 
-    "Induced Gamma decay", "Gamma decay"
-];
+const METHOD_MAP = Object.values(HISTORY_METHODS);
 
 const DECAY_MODE_MAP = Object.values(DecayMode);
 
@@ -44,8 +38,8 @@ export const packBinary = async (state: GameState, history: HistoryEntry[]): Pro
     });
     const uniqueHistory = Array.from(new Map(historyEntries.map(item => [item.key, item])).values());
     
-    // バッファの確保
-    const bufferSize = 132 + (uniqueHistory.length * 4);
+    // バッファの確保 (追加情報用にサイズを調整)
+    const bufferSize = 256 + (uniqueHistory.length * 4);
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
@@ -58,6 +52,10 @@ export const packBinary = async (state: GameState, history: HistoryEntry[]): Pro
     view.setUint16(offset, state.reincarnations); offset += 2;
     view.setUint8(offset++, state.currentNuclide.z);
     view.setUint16(offset, state.currentNuclide.a); offset += 2;
+    
+    // [Session Specific Data]
+    view.setUint16(offset, state.maxCombo); offset += 2;
+    view.setUint8(offset++, state.magicBarrierCharges);
 
     // [Bitsets] 解放元素 (Z=0~119) -> 15 bytes
     const elementBits = new Uint8Array(15);
@@ -86,7 +84,7 @@ export const packBinary = async (state: GameState, history: HistoryEntry[]): Pro
     DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
         view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
     });
-    ["(n,γ)", "(n,p)", "(n,2n)", "(n,α)", "(n,fission)"].forEach(r => {
+    [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
         view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
     });
 
@@ -145,6 +143,9 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const reincarnations = view.getUint16(offset); offset += 2;
         const cz = view.getUint8(offset++);
         const ca = view.getUint16(offset); offset += 2;
+        
+        const mc = view.getUint16(offset); offset += 2;
+        const mb = view.getUint8(offset++);
 
         const ue: number[] = [];
         for (let i = 0; i < 15; i++) {
@@ -166,12 +167,12 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         });
 
         const rs: Record<string, number> = {};
-        ["(n,γ)", "(n,p)", "(n,2n)", "(n,α)", "(n,fission)"].forEach(r => {
+        [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
             rs[r] = view.getUint16(offset); offset += 2;
         });
 
         const mdBits = view.getUint32(offset); offset += 4;
-        const md = DECAY_MODE_MAP.filter((_, i) => mdBits & (1 << i));
+        const md = DECAY_MODE_MAP.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
 
         const historyLen = view.getUint16(offset); offset += 2;
         const ev: Record<string, string> = {};
@@ -179,11 +180,15 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             const z = view.getUint8(offset++);
             const a = view.getUint16(offset); offset += 2;
             const mIdx = view.getUint8(offset++);
-            const method = mIdx === 255 ? "Unknown" : (METHOD_MAP[mIdx] || "Transmutation");
+            const method = mIdx === 255 ? "Unknown" : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
             ev[`${z}-${a}`] = method;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, cz, ca, ue, ug, ds, st, rs, ev, md };
+        return { 
+            s: score, e: energy, h: hp, l: level, r: reincarnations, cz, ca, 
+            ue, ug, ds, st, rs, ev, md,
+            mc, mb 
+        };
     } catch (e) {
         console.error("Unpack failed", e);
         return null;

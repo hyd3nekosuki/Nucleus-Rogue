@@ -151,68 +151,83 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
         return linePaths;
     }, [history, curZ, curN]);
 
+    const getTooltipText = (name: string, method: string) => {
+        const formattedName = formatNuclideName(name);
+        if (method === "Origin" || method === "Unknown" || method === "Experimental replicate") {
+            return `${formattedName} (${method})`;
+        }
+        return `${formattedName} by ${method}`;
+    };
+
     return (
         <div className="w-full h-full flex flex-col bg-[#050508] rounded-xl border border-gray-800 relative overflow-hidden shadow-inner">
             <div className="flex-1 relative">
-                {/* Background Grid Layer */}
+                {/* Background Grid Layer (Full pattern) */}
                 <div className="absolute inset-0 pointer-events-none">
-                    <div 
-                        className="absolute left-0 w-full h-[1px] bg-white/5"
-                        style={{ top: `${(CENTER_Y + 0.5) * (100 / GRID_SIZE)}%` }}
-                    ></div>
-                    <div 
-                        className="absolute top-0 h-full w-[1px] bg-white/5"
-                        style={{ left: `${(CENTER_X + 0.5) * (100 / GRID_SIZE)}%` }}
-                    ></div>
                     {/* Subtle dot pattern for reference */}
                     <div className="w-full h-full bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:14.28%_14.28%]"></div>
                 </div>
 
-                {/* Lines Layer */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-                    {paths}
-                </svg>
+                {/* Grid and Lines Container - Shifted down to clear labels */}
+                <div className="absolute top-5 left-0 right-0 bottom-0">
+                    {/* Reference crosshair lines */}
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div 
+                            className="absolute left-0 w-full h-[1px] bg-white/5"
+                            style={{ top: `${(CENTER_Y + 0.5) * (100 / GRID_SIZE)}%` }}
+                        ></div>
+                        <div 
+                            className="absolute top-0 h-full w-[1px] bg-white/5"
+                            style={{ left: `${(CENTER_X + 0.5) * (100 / GRID_SIZE)}%` }}
+                        ></div>
+                    </div>
 
-                {/* Nodes Layer - Only Historical Nuclides */}
-                <div className="grid grid-cols-7 grid-rows-7 h-full w-full relative z-20">
-                    {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
-                        const row = Math.floor(i / GRID_SIZE);
-                        const col = i % GRID_SIZE;
-                        
-                        // Find if this specific cell has a history entry
-                        // Prefer the latest entry if multiple visits happened (common in loops)
-                        const node = [...visibleNodes].reverse().find(n => n.x === col && n.y === row);
-                        const isCenter = row === CENTER_Y && col === CENTER_X;
+                    {/* Lines Layer */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                        {paths}
+                    </svg>
 
-                        return (
-                            <div key={i} className="relative flex items-center justify-center">
-                                {node ? (
-                                    <div 
-                                        className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:brightness-125 active:scale-90
-                                            ${node.styles.color} 
-                                            ${node.isCurrent 
-                                                ? `${node.styles.glow} shadow-[0_0_20px_currentColor] scale-110 z-30 animate-pulse ring-2 ring-white ring-offset-2 ring-offset-black` 
-                                                : 'z-20 border border-black/40 shadow-md opacity-90'
-                                            }
-                                        `}
-                                        onClick={() => setSelectedInfo(`${formatNuclideName(node.entry.name)} (${node.entry.method})`)}
-                                        title={`${node.entry.name} (${node.entry.method})`}
-                                    >
-                                        <span className={`text-[10px] md:text-[11px] font-black leading-none ${node.styles.textColor}`}>
-                                            {node.entry.symbol}
-                                        </span>
-                                        <span className={`text-[7px] md:text-[8px] leading-none mt-0.5 font-bold opacity-90 ${node.styles.textColor}`}>
-                                            {node.entry.a}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    isCenter && (
-                                        <div className="w-1.5 h-1.5 bg-white/20 rounded-full"></div>
-                                    )
-                                )}
-                            </div>
-                        );
-                    })}
+                    {/* Nodes Layer - Only Historical Nuclides */}
+                    <div className="grid grid-cols-7 grid-rows-7 h-full w-full relative z-20">
+                        {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
+                            const row = Math.floor(i / GRID_SIZE);
+                            const col = i % GRID_SIZE;
+                            
+                            // Find if this specific cell has a history entry
+                            // Prefer the latest entry if multiple visits happened (common in loops)
+                            const node = [...visibleNodes].reverse().find(n => n.x === col && n.y === row);
+                            const isCenter = row === CENTER_Y && col === CENTER_X;
+
+                            return (
+                                <div key={i} className="relative flex items-center justify-center">
+                                    {node ? (
+                                        <div 
+                                            className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:brightness-125 active:scale-90
+                                                ${node.styles.color} 
+                                                ${node.isCurrent 
+                                                    ? `${node.styles.glow} shadow-[0_0_20px_currentColor] scale-110 z-30 animate-pulse ring-2 ring-white ring-offset-2 ring-offset-black` 
+                                                    : 'z-20 border border-black/40 shadow-md opacity-90'
+                                                }
+                                            `}
+                                            onClick={() => setSelectedInfo(getTooltipText(node.entry.name, node.entry.method))}
+                                            title={getTooltipText(node.entry.name, node.entry.method)}
+                                        >
+                                            <span className={`text-[9px] md:text-[10px] font-black leading-none ${node.styles.textColor}`}>
+                                                {node.entry.symbol}
+                                            </span>
+                                            <span className={`text-[6px] md:text-[7px] leading-none mt-0.5 font-bold opacity-90 ${node.styles.textColor}`}>
+                                                {node.entry.a}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        isCenter && (
+                                            <div className="w-1.5 h-1.5 bg-white/20 rounded-full"></div>
+                                        )
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
             

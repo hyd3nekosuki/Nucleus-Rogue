@@ -16,6 +16,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const isPlayer = x === gameState.playerPos.x && y === gameState.playerPos.y;
+      const isTarget = gameState.targetPos && gameState.targetPos.x === x && gameState.targetPos.y === y;
       const dx = Math.abs(x - gameState.playerPos.x);
       const dy = Math.abs(y - gameState.playerPos.y);
       // Support diagonal adjacency: dx <= 1 AND dy <= 1
@@ -157,6 +158,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
             title={isPlayer ? "Click to Decay (if unstable)" : (isAdjacent ? "Click to Move" : undefined)}
         >
             {content}
+            {isTarget && <div className="target-mark"></div>}
             
             {/* Render Effects */}
             {!gameState.isTimeStopped && activeEffects.map(ef => {
