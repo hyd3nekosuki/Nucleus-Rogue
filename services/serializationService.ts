@@ -1,6 +1,4 @@
-
 import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
-import { APP_VERSION } from '../constants';
 
 // IDマッピング定義（バイナリ化のため順序を固定）
 const GROUP_MAP = [
@@ -22,24 +20,35 @@ const METHOD_MAP = [
 const DECAY_MODE_MAP = Object.values(DecayMode);
 
 /**
- * データをバイナリ形式(ArrayBuffer)にパックし、Base64で返す
+ * 圧縮ユーティリティ
  */
-export const packBinary = (state: GameState, history: HistoryEntry[]): string => {
-    // 1. バッファサイズの計算（動的な歴史データを含む）
-    // 固定ヘッダ(40) + 解放元素(15) + グループ(4) + 統計(40) + 歴史(件数*4 + 2)
+async function compress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+    const stream = new Response(buffer).body!.pipeThrough(new CompressionStream("gzip"));
+    return await new Response(stream).arrayBuffer();
+}
+
+/**
+ * 解凍ユーティリティ
+ */
+async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+    const stream = new Response(buffer).body!.pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).arrayBuffer();
+}
+
+/**
+ * データをバイナリ形式にパックし、Gzip圧縮してBase64で返す
+ */
+export const packBinary = async (state: GameState, history: HistoryEntry[]): Promise<string> => {
     const historyEntries = history.map(h => {
-        // 同じZ-Aの最新のmethodのみを保存するためのユニーク化
         return { key: `${h.z}-${h.a}`, z: h.z, a: h.a, m: h.method };
     });
     const uniqueHistory = Array.from(new Map(historyEntries.map(item => [item.key, item])).values());
     
-    const bufferSize = 120 + (uniqueHistory.length * 4);
+    // バッファの確保
+    const bufferSize = 132 + (uniqueHistory.length * 4);
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
-
-    // [Header] 1 byte: Magic / Binary Version
-    view.setUint8(offset++, 1);
 
     // [State]
     view.setFloat64(offset, state.score); offset += 8;
@@ -57,7 +66,7 @@ export const packBinary = (state: GameState, history: HistoryEntry[]): string =>
     });
     for(let i=0; i<15; i++) view.setUint8(offset++, elementBits[i]);
 
-    // [Bitsets] 解放グループ -> 4 bytes (32 groups capacity)
+    // [Bitsets] 解放グループ -> 4 bytes
     let groupBits = 0;
     state.unlockedGroups.forEach(g => {
         const idx = GROUP_MAP.indexOf(g);
@@ -73,17 +82,23 @@ export const packBinary = (state: GameState, history: HistoryEntry[]): string =>
     });
     view.setUint32(offset, disabledBits); offset += 4;
 
-    // [Stats] 崩壊統計 (8 modes * 2 bytes = 16 bytes)
+    // [Stats]
     DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
         view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
     });
-
-    // [Stats] 反応統計 (5 types * 2 bytes = 10 bytes)
     ["(n,γ)", "(n,p)", "(n,2n)", "(n,α)", "(n,fission)"].forEach(r => {
         view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
     });
 
-    // [History] 件数(2 bytes) + [Z(1), A(2), Method(1)] * N
+    // [Bitsets] マスター済み崩壊モード -> 4 bytes
+    let masteredBits = 0;
+    state.masteredDecays.forEach(m => {
+        const idx = DECAY_MODE_MAP.indexOf(m);
+        if (idx !== -1) masteredBits |= (1 << idx);
+    });
+    view.setUint32(offset, masteredBits); offset += 4;
+
+    // [History]
     view.setUint16(offset, uniqueHistory.length); offset += 2;
     uniqueHistory.forEach(h => {
         view.setUint8(offset++, h.z);
@@ -92,10 +107,12 @@ export const packBinary = (state: GameState, history: HistoryEntry[]): string =>
         view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
     });
 
-    // 有効なデータ分だけ切り出し
-    const finalBuffer = buffer.slice(0, offset);
+    // 圧縮とBase64化
+    const packedData = buffer.slice(0, offset);
+    const compressedData = await compress(packedData);
+    
     let binString = "";
-    const bytes = new Uint8Array(finalBuffer);
+    const bytes = new Uint8Array(compressedData);
     for (let i = 0; i < bytes.length; i++) {
         binString += String.fromCharCode(bytes[i]);
     }
@@ -103,20 +120,23 @@ export const packBinary = (state: GameState, history: HistoryEntry[]): string =>
 };
 
 /**
- * Base64をバイナリとして読み込み、Payloadに変換する
+ * Base64をデコード、解凍、アンパックしてPayloadに変換する
  */
-export const unpackBinary = (code: string): Partial<SavePayload> | null => {
+export const unpackBinary = async (code: string): Promise<Partial<SavePayload> | null> => {
     try {
         let sanitized = code.trim().replace(/[^A-Za-z0-9+/=]/g, '');
         while (sanitized.length % 4 !== 0) sanitized += '=';
+        
         const binString = atob(sanitized);
         const bytes = new Uint8Array(binString.length);
         for (let i = 0; i < binString.length; i++) bytes[i] = binString.charCodeAt(i);
-        const view = new DataView(bytes.buffer);
-        let offset = 0;
+        
+        // 解凍 (Gzip形式を想定)
+        const decompressed = await decompress(bytes.buffer);
+        const finalBytes = new Uint8Array(decompressed);
 
-        const binVersion = view.getUint8(offset++);
-        if (binVersion !== 1) throw new Error("Unsupported binary version");
+        const view = new DataView(finalBytes.buffer);
+        let offset = 0;
 
         const score = view.getFloat64(offset); offset += 8;
         const energy = view.getUint32(offset); offset += 4;
@@ -150,6 +170,9 @@ export const unpackBinary = (code: string): Partial<SavePayload> | null => {
             rs[r] = view.getUint16(offset); offset += 2;
         });
 
+        const mdBits = view.getUint32(offset); offset += 4;
+        const md = DECAY_MODE_MAP.filter((_, i) => mdBits & (1 << i));
+
         const historyLen = view.getUint16(offset); offset += 2;
         const ev: Record<string, string> = {};
         for (let i = 0; i < historyLen; i++) {
@@ -160,9 +183,9 @@ export const unpackBinary = (code: string): Partial<SavePayload> | null => {
             ev[`${z}-${a}`] = method;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, cz, ca, ue, ug, ds, st, rs, ev };
+        return { s: score, e: energy, h: hp, l: level, r: reincarnations, cz, ca, ue, ug, ds, st, rs, ev, md };
     } catch (e) {
-        console.error("Binary unpack failed", e);
+        console.error("Unpack failed", e);
         return null;
     }
 };

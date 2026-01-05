@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EntityType, DecayMode, VisualEffect, HistoryEntry, SavePayload } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, APP_VERSION } from '../constants';
@@ -520,15 +519,15 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     const setHP = useCallback((val: number) => setGameState(prev => ({ ...prev, hp: val })), []);
 
-    // --- Save & Load System (Optimized Binary Packing) ---
-    const generateSaveCode = useCallback(() => {
-        return packBinary(gameState, evolutionHistory);
+    // --- Save & Load System (Async Binary Compression) ---
+    const generateSaveCode = useCallback(async () => {
+        return await packBinary(gameState, evolutionHistory);
     }, [gameState, evolutionHistory]);
 
-    const loadSaveCode = useCallback((code: string) => {
+    const loadSaveCode = useCallback(async (code: string) => {
         if (!code || code.trim().length === 0) return false;
         
-        const payload = unpackBinary(code);
+        const payload = await unpackBinary(code);
         if (!payload) return false;
 
         try {
@@ -552,6 +551,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 unlockedElements: payload.ue || [],
                 unlockedGroups: payload.ug || [],
                 disabledSkills: payload.ds || [],
+                masteredDecays: payload.md || [],
                 decayStats: payload.st || getInitialState().decayStats,
                 reactionStats: payload.rs || getInitialState().reactionStats,
                 messages: ["Previous research is cited."],

@@ -1,5 +1,4 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NuclideData, DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
 
@@ -18,6 +17,7 @@ interface EvolutionMapProps {
 }
 
 const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) => {
+    const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
     const GRID_SIZE = 7;
     const CENTER_X = 3; 
     const CENTER_Y = 3; // Adjusted to exact center for 7x7 grid
@@ -47,6 +47,12 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
             default:
                 return { color: "bg-gray-500", textColor: "text-white", glow: "shadow-[#9ca3af]" };
         }
+    };
+
+    // Helper to format name: First char upper, rest lower
+    const formatNuclideName = (name: string) => {
+        if (!name) return "";
+        return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
     };
 
     // Calculate both visible nodes (7x7) and extended nodes (9x9) for line segments
@@ -182,13 +188,14 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
                             <div key={i} className="relative flex items-center justify-center">
                                 {node ? (
                                     <div 
-                                        className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center transition-all duration-500
+                                        className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:brightness-125 active:scale-90
                                             ${node.styles.color} 
                                             ${node.isCurrent 
                                                 ? `${node.styles.glow} shadow-[0_0_20px_currentColor] scale-110 z-30 animate-pulse ring-2 ring-white ring-offset-2 ring-offset-black` 
                                                 : 'z-20 border border-black/40 shadow-md opacity-90'
                                             }
                                         `}
+                                        onClick={() => setSelectedInfo(`${formatNuclideName(node.entry.name)} (${node.entry.method})`)}
                                         title={`${node.entry.name} (${node.entry.method})`}
                                     >
                                         <span className={`text-[10px] md:text-[11px] font-black leading-none ${node.styles.textColor}`}>
@@ -209,9 +216,16 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
                 </div>
             </div>
             
-            {/* Axis Legends */}
+            {/* Axis Legends and Selected Info */}
             <div className="absolute top-1 right-2 text-[8px] text-gray-600 font-bold uppercase pointer-events-none">N →</div>
             <div className="absolute top-1 left-2 text-[8px] text-gray-600 font-bold uppercase pointer-events-none">Z ↑</div>
+            
+            {/* Dynamic Research Info Display */}
+            {selectedInfo && (
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 text-[8px] text-neon-blue font-bold pointer-events-none text-center truncate max-w-[60%] animate-pulse">
+                    {selectedInfo}
+                </div>
+            )}
         </div>
     );
 };

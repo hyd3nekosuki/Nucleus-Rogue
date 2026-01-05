@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
@@ -20,6 +21,7 @@ const NUCLEOSYNTHESIS_COST = 200;
 
 function App() {
   const [showTable, setShowTable] = useState(false);
+  const [saveCode, setSaveCode] = useState("");
   const [loadInputValue, setLoadInputValue] = useState("");
   const [isLoadError, setIsLoadError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,10 +53,15 @@ function App() {
 
   // Scroll Lock for Periodic Table
   useEffect(() => {
-    if (showTable) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    if (showTable) {
+        document.body.style.overflow = 'hidden';
+        // Generate save code when opening table
+        engine.generateSaveCode().then(code => setSaveCode(code));
+    } else {
+        document.body.style.overflow = '';
+    }
     return () => { document.body.style.overflow = ''; };
-  }, [showTable]);
+  }, [showTable, engine]);
 
   useEffect(() => {
     if (containerRef.current) containerRef.current.focus();
@@ -88,8 +95,8 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [engine, toggleMute, isVoiceMuted, isSoundTestActive]);
 
-  const handleLoadData = () => {
-    const success = engine.loadSaveCode(loadInputValue);
+  const handleLoadData = async () => {
+    const success = await engine.loadSaveCode(loadInputValue);
     if (success) {
       setLoadInputValue("");
       setIsLoadError(false);
@@ -146,7 +153,7 @@ function App() {
             onClose={() => setShowTable(false)} 
             canTransmute={transmutationReady} 
             onSelectElement={handleTransmuteWrapper}
-            saveCode={engine.generateSaveCode()}
+            saveCode={saveCode}
         />
       )}
 
