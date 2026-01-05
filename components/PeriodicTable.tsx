@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { getSymbol, ELEMENT_GROUPS } from '../constants';
 import { DecayMode } from '../types';
 
@@ -15,6 +14,7 @@ interface Props {
     onClose: () => void;
     canTransmute?: boolean;
     onSelectElement?: (z: number) => void;
+    saveCode: string;
 }
 
 const PeriodicTable: React.FC<Props> = ({ 
@@ -28,8 +28,10 @@ const PeriodicTable: React.FC<Props> = ({
     reincarnations = 0,
     onClose, 
     canTransmute, 
-    onSelectElement 
+    onSelectElement,
+    saveCode
 }) => {
+    const [copyFeedback, setCopyFeedback] = useState(false);
     
     // --- Periodic Table Logic ---
     const getPosition = (z: number) => {
@@ -74,32 +76,26 @@ const PeriodicTable: React.FC<Props> = ({
             const isUnlocked = unlocked.includes(z);
             const { r, c } = getPosition(z);
             const style = getCategoryStyles(z);
-            
             const isTarget = canTransmute && isUnlocked;
             const isGroupMastered = unlockedGroups.includes(style.name);
-
             const masteryEffect = isGroupMastered 
                 ? "border-yellow-400/80 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_2px_10px_rgba(250,204,21,0.3)] z-10 -translate-y-1 brightness-110" 
                 : "translate-y-0 opacity-80";
-
             const finalClass = isUnlocked 
                 ? `${style.class} ${masteryEffect} scale-100 hover:scale-110 hover:z-20 cursor-help ${isTarget ? 'ring-2 ring-yellow-400 animate-pulse !cursor-pointer shadow-[0_0_20px_rgba(250,204,21,0.6)]' : ''}`
                 : "bg-gray-900 border-gray-800 text-gray-700 scale-95 opacity-40";
-            
             elements.push(
                 <div key={z} 
                     className={`relative border flex flex-col items-center justify-center p-0.5 md:p-1 rounded text-[8px] md:text-sm lg:text-xl transition-all duration-500 ${finalClass}`}
                     style={{ gridRow: r, gridColumn: c, aspectRatio: '1/1' }}
                     onClick={() => isTarget && onSelectElement && onSelectElement(z)}
                     title={isTarget ? `Click to Transmute to ${style.name}!` : (isUnlocked ? `${style.name} (Z=${z})${isGroupMastered ? ' 👑' : ''}` : `Locked (Z=${z})`)}>
-                    
                     {z === 0 && isUnlocked && (
                         <div className="absolute -top-1 -right-1 md:top-0 md:right-0 md:p-0.5 text-[7px] md:text-10px lg:text-xs leading-none z-20 pointer-events-none drop-shadow-sm animate-pulse">👑</div>
                     )}
                     {isGroupMastered && isUnlocked && z !== 0 && (
                          <div className="absolute -top-0.5 -right-0.5 text-[6px] md:text-[8px] opacity-40 group-hover:opacity-100 transition-opacity">👑</div>
                     )}
-
                     <div className="font-bold leading-none">{getSymbol(z)}</div>
                     <div className="text-[6px] md:text-[10px] lg:text-sm opacity-50">{z}</div>
                 </div>
@@ -115,6 +111,14 @@ const PeriodicTable: React.FC<Props> = ({
         );
     };
 
+    const handleCopy = () => {
+        if (!saveCode) return;
+        navigator.clipboard.writeText(saveCode).then(() => {
+            setCopyFeedback(true);
+            setTimeout(() => setCopyFeedback(false), 2000);
+        });
+    };
+
     const hiddenSkills = [
         { name: "Neutronization", class: "bg-white/10 border-gray-300 text-white font-bold shadow-[0_0_10px_white]" },
         { name: "Pair annihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
@@ -128,9 +132,7 @@ const PeriodicTable: React.FC<Props> = ({
         { name: "Unknown", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
         { name: "Gluttony", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
     ];
-
     const displayLegendItems = hiddenSkills.filter(skill => unlockedGroups.includes(skill.name));
-
     const discoveredCount = unlocked.filter(z => z > 0).length;
 
     const statsStr = [
@@ -155,14 +157,12 @@ const PeriodicTable: React.FC<Props> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 md:p-4 animate-fade-in touch-none">
             <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[98vw] w-full lg:w-[1200px] max-h-[96vh] overflow-y-auto overscroll-contain flex flex-col shadow-2xl touch-auto">
-                
                 <button 
                     onClick={onClose}
                     className="absolute top-3 right-3 md:top-6 md:right-6 px-4 py-2 bg-red-900/50 hover:bg-red-700 text-white rounded border border-red-800 transition-colors uppercase text-xs font-bold z-30 shadow-lg"
                 >
                     Close [X]
                 </button>
-
                 <div className="flex flex-col justify-start items-start mb-4 shrink-0 gap-2 mr-20">
                     <div>
                         <h2 className="text-xl md:text-2xl font-bold text-white tracking-widest uppercase">
@@ -189,16 +189,13 @@ const PeriodicTable: React.FC<Props> = ({
                         )}
                     </div>
                 </div>
-
                 {renderPeriodicTable()}
-                
                 {displayLegendItems.length > 0 && (
                   <div className="mt-2 border-t border-gray-800/50 pt-4 pb-2">
                     <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Skills</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider shrink-0">
                         {displayLegendItems.map(item => {
                             const isDisabled = disabledSkills.includes(item.name);
-                            
                             let icon = "👑";
                             if (item.name === "Neutronization") icon = "⚪";
                             else if (item.name === "Pair annihilation") icon = "☯";
@@ -211,16 +208,9 @@ const PeriodicTable: React.FC<Props> = ({
                             else if (item.name === "Temporal Inversion") icon = "⏱";
                             else if (item.name === "Unknown") icon = "❔";
                             else if (item.name === "Gluttony") icon = "🕳️";
-
                             return (
-                                <div 
-                                    key={item.name} 
-                                    onClick={() => onToggleSkill(item.name)}
-                                    className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[32px] text-center cursor-pointer hover:brightness-125 active:scale-95
-                                        ${item.class} 
-                                        ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}
-                                    `}
-                                >
+                                <div key={item.name} onClick={() => onToggleSkill(item.name)}
+                                    className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[32px] text-center cursor-pointer hover:brightness-125 active:scale-95 ${item.class} ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}`}>
                                     <span className="absolute -top-2 left-0.5 text-base drop-shadow-md z-20">{icon}</span>
                                     <span className="truncate w-full block">{item.name}</span>
                                     {isDisabled && <span className="ml-1 opacity-60 text-[7px] shrink-0">(OFF)</span>}
@@ -230,6 +220,25 @@ const PeriodicTable: React.FC<Props> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Research Data Password Footer */}
+                <div className="mt-6 border-t border-gray-800 pt-6">
+                    <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-2 font-bold flex items-center gap-2">
+                        research password
+                        {copyFeedback && <span className="text-neon-green text-[8px] animate-pulse">COPIED TO CLIPBOARD!</span>}
+                    </h3>
+                    <div 
+                        onClick={handleCopy}
+                        className="bg-black/60 border border-gray-800 p-3 rounded-lg cursor-pointer hover:border-neon-blue/50 transition-all group relative overflow-hidden"
+                    >
+                        <div className="text-[10px] md:text-xs font-mono text-gray-400 break-all transition-colors group-hover:text-neon-blue max-h-[100px] overflow-y-auto">
+                            {saveCode}
+                        </div>
+                        <div className="absolute inset-0 bg-neon-blue/5 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none">
+                            <span className="text-neon-blue font-bold uppercase tracking-widest text-[10px] bg-black/80 px-4 py-2 rounded-full border border-neon-blue/30 shadow-2xl">Click Window to Copy Full Code</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

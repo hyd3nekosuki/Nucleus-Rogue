@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { DecayMode, EntityType } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
@@ -21,10 +20,11 @@ const NUCLEOSYNTHESIS_COST = 200;
 
 function App() {
   const [showTable, setShowTable] = useState(false);
+  const [loadInputValue, setLoadInputValue] = useState("");
+  const [isLoadError, setIsLoadError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'structure'>('structure');
-  // Default Voice to OFF (true)
   const [isVoiceMuted, setIsVoiceMuted] = useState(true);
   const [isSoundTestActive, setIsSoundTestActive] = useState(false);
   const [lastKickTime, setLastKickTime] = useState(0);
@@ -48,18 +48,12 @@ function App() {
   useEffect(() => {
     ttsTriggerRef.current = activeTTSTrigger;
   }, [activeTTSTrigger]);
-  // --------------------------
 
   // Scroll Lock for Periodic Table
   useEffect(() => {
-    if (showTable) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    if (showTable) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
   }, [showTable]);
 
   useEffect(() => {
@@ -67,15 +61,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [gameState.messages]);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Spacebar'].includes(e.key)) e.preventDefault();
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Spacebar'].includes(e.key)) {
+        if (document.activeElement?.tagName !== 'INPUT') e.preventDefault();
+      }
+      if (document.activeElement?.tagName === 'INPUT') return;
+
       engine.stopAutoMove();
       switch(e.key) {
         case 'ArrowUp': case 'w': engine.moveStep(0, -1); break;
@@ -92,6 +88,17 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [engine, toggleMute, isVoiceMuted, isSoundTestActive]);
 
+  const handleLoadData = () => {
+    const success = engine.loadSaveCode(loadInputValue);
+    if (success) {
+      setLoadInputValue("");
+      setIsLoadError(false);
+    } else {
+      setIsLoadError(true);
+      setTimeout(() => setIsLoadError(false), 2000);
+    }
+  };
+
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
   const isNucleosynthesisReady = gameState.energyPoints >= NUCLEOSYNTHESIS_COST && gameState.playerLevel >= 5 && isNucleosynthesisEnabled;
@@ -104,7 +111,6 @@ function App() {
 
   const energyCost = isNucleosynthesisReady ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
-
   const currentDescription = gameState.currentNuclide.description;
 
   const gridTotals = gameState.gridEntities.reduce((acc, entity) => {
@@ -115,20 +121,12 @@ function App() {
     return acc;
   }, { p: 0, n: 0, e: 0, pos: 0 });
 
-  // Calculation for Ultimate Synthesis prediction (Mastery Lv. 6)
   const expectedZ = gameState.currentNuclide.z + gridTotals.p - gridTotals.e + gridTotals.pos;
   const expectedA = gameState.currentNuclide.a + gridTotals.p + gridTotals.n;
   const expectedData = getNuclideDataSync(expectedZ, expectedA);
-  const predictionStr = (expectedData.exists && expectedZ >= 0 && expectedZ <= 118) 
-    ? `${getSymbol(expectedZ)}${expectedA}` 
-    : "Fail";
-
-  const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : 
-                          gameState.consecutiveNeutrons > 0 ? 'n' : 
-                          gameState.consecutiveElectrons > 0 ? 'e-' : null;
-  const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons :
-                           activeStreakType === 'n' ? gameState.consecutiveNeutrons :
-                           activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
+  const predictionStr = (expectedData.exists && expectedZ >= 0 && expectedZ <= 118) ? `${getSymbol(expectedZ)}${expectedA}` : "Fail";
+  const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : gameState.consecutiveNeutrons > 0 ? 'n' : gameState.consecutiveElectrons > 0 ? 'e-' : null;
+  const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons : activeStreakType === 'n' ? gameState.consecutiveNeutrons : activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
 
   return (
     <div ref={containerRef} tabIndex={0} 
@@ -147,7 +145,8 @@ function App() {
             reincarnations={gameState.reincarnations}
             onClose={() => setShowTable(false)} 
             canTransmute={transmutationReady} 
-            onSelectElement={handleTransmuteWrapper} 
+            onSelectElement={handleTransmuteWrapper}
+            saveCode={engine.generateSaveCode()}
         />
       )}
 
@@ -158,34 +157,15 @@ function App() {
           </div>
           
           <InfoPanel 
-            nuclide={gameState.currentNuclide} 
-            hp={gameState.hp} 
-            maxHp={gameState.maxHp} 
-            energyPoints={gameState.energyPoints} 
-            turn={gameState.turn} 
-            score={gameState.score} 
-            onDecay={engine.handleDecayAction}
-            disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped}
-            playerLevel={gameState.playerLevel}
-            isNucleosynthesisReady={isNucleosynthesisReady}
-            isNucleosynthesisEnabled={isNucleosynthesisEnabled}
-            transmutationReady={transmutationReady}
-            energyPointsAvailable={energyPointsAvailable}
-            onStabilize={engine.handleStabilize}
-            onShowTable={() => setShowTable(true)}
-            onUltimateSynthesis={engine.handleUltimateSynthesis}
-            onForceDecay={engine.handleForceUnknownDecay}
+            nuclide={gameState.currentNuclide} hp={gameState.hp} maxHp={gameState.maxHp} energyPoints={gameState.energyPoints} turn={gameState.turn} score={gameState.score} 
+            onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
+            isNucleosynthesisReady={isNucleosynthesisReady} isNucleosynthesisEnabled={isNucleosynthesisEnabled} transmutationReady={transmutationReady} energyPointsAvailable={energyPointsAvailable}
+            onStabilize={engine.handleStabilize} onShowTable={() => setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
           />
           
           <ControlPanel 
-            combo={gameState.combo} 
-            isTimeStopped={gameState.isTimeStopped} 
-            lastComboTime={gameState.lastComboTime} 
-            description={currentDescription}
-            activeEvent={gameState.activeEvent}
-            tutorialMessage={gameState.tutorialMessage}
-            bpm={bpm}
-            lastKickTime={lastKickTime}
+            combo={gameState.combo} isTimeStopped={gameState.isTimeStopped} lastComboTime={gameState.lastComboTime} description={currentDescription}
+            activeEvent={gameState.activeEvent} tutorialMessage={gameState.tutorialMessage} bpm={bpm} lastKickTime={lastKickTime}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
@@ -208,6 +188,17 @@ function App() {
               })}
           </div>
 
+          <div className="p-4 border-t border-gray-800 shrink-0 bg-black/20">
+              <div className="text-[9px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Cite Research</div>
+              <div className="flex gap-1">
+                  <input 
+                      type="text" value={loadInputValue} onChange={(e) => setLoadInputValue(e.target.value)} placeholder="Paste Password..."
+                      className={`flex-1 bg-black/40 border ${isLoadError ? 'border-red-500' : 'border-gray-700'} rounded px-2 py-1 text-[10px] font-mono outline-none transition-colors focus:border-neon-blue`}
+                  />
+                  <button onClick={handleLoadData} className="px-2 py-1 bg-neon-blue/20 border border-neon-blue/50 text-neon-blue rounded text-[9px] font-bold uppercase hover:bg-neon-blue hover:text-black transition-all">Load</button>
+              </div>
+          </div>
+
           <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
                 <div className="flex flex-col">
                     <span className="font-bold uppercase">v{APP_VERSION}</span>
@@ -219,20 +210,8 @@ function App() {
                 <div className="flex items-center gap-2">
                     <div className="italic">Nucleus Rogue</div>
                     <div className="flex gap-1.5 ml-1">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); setIsVoiceMuted(!isVoiceMuted); }}
-                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_5px_#bc13fe]'}`}
-                            title="Toggle Voice (V)"
-                        >
-                            <span className="text-[8px] font-bold">V</span>
-                        </button>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); toggleMute(); }}
-                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'}`}
-                            title="Toggle BGM (M)"
-                        >
-                            <span className="text-[8px] font-bold">M</span>
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setIsVoiceMuted(!isVoiceMuted); }} className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_5px_#bc13fe]'}`} title="Toggle Voice (V)"><span className="text-[8px] font-bold">V</span></button>
+                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'}`} title="Toggle BGM (M)"><span className="text-[8px] font-bold">M</span></button>
                     </div>
                 </div>
           </div>
@@ -241,12 +220,9 @@ function App() {
       {/* Main Game Area */}
       <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${showTable ? 'touch-none' : ''}`}>
          <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={isSoundTestActive} onHPChange={engine.setHP} />
-         
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
-            
             <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={finalCombo} />
-            
             <div className="mt-1 flex flex-wrap justify-center gap-x-8 gap-y-1 text-[10px] font-mono text-gray-400 group relative cursor-help py-1 select-none">
                 <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
                     <div className="w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
@@ -260,13 +236,10 @@ function App() {
                     <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
                     <span className="text-white font-light">e-: (Z-1, A)</span>
                 </div>
-                
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
                     {gameState.playerLevel >= 6 && (
                         <>
-                            <span className={`font-black mr-3 ${predictionStr === 'Fail' ? 'text-neon-red' : 'text-neon-green'} drop-shadow-[0_0_5px_currentColor]`}>
-                                →{predictionStr === 'Fail' ? 'fail' : predictionStr}
-                            </span>
+                            <span className={`font-black mr-3 ${predictionStr === 'Fail' ? 'text-neon-red' : 'text-neon-green'} drop-shadow-[0_0_5px_currentColor]`}>→{predictionStr === 'Fail' ? 'fail' : predictionStr}</span>
                             <span className="mr-3 text-gray-700 font-black">|</span>
                         </>
                     )}
@@ -277,7 +250,6 @@ function App() {
                         <span className="text-yellow-400/80 font-bold">e-={gridTotals.e}</span>
                         <span className="text-neon-purple/80 font-bold">e+={gridTotals.pos}</span>
                     </div>
-                    
                     {activeStreakType && (
                         <>
                             <span className="mx-2 text-gray-700 font-black">|</span>
@@ -289,7 +261,6 @@ function App() {
                     )}
                 </div>
             </div>
-            
             <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { setIsSoundTestActive(false); engine.restartGame(rnd); }} isSoundTestActive={isSoundTestActive} onToggleSoundTest={() => setIsSoundTestActive(!isSoundTestActive)} />
          </div>
       </div>

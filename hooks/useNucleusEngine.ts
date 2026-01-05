@@ -1,12 +1,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, EntityType, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
-import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
+import { GameState, EntityType, DecayMode, VisualEffect, HistoryEntry, SavePayload } from '../types';
+import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, APP_VERSION } from '../constants';
+import { getNuclideDataSync, getValidAsForZ, getDecayModeLabel } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
 import { generateEntities, calculateMoveResult } from '../utils/gameLogic';
 import { processUnlocks } from '../utils/unlockSystem';
 import { calculateDecayEffects, getDecayDeltas } from '../utils/decaySystem';
+import { packBinary, unpackBinary } from '../services/serializationService';
 
 export const COMBO_WINDOW_MS = 8000;
 const ENERGY_EVOLUTION_TURNS = 60; 
@@ -14,15 +15,7 @@ const COULOMB_BARRIER_THRESHOLD = 20;
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
 const FORCE_DECAY_COST = 5;
-
-interface HistoryEntry {
-    turn: number;
-    name: string;
-    symbol: string;
-    z: number;
-    a: number;
-    method: string;
-}
+const MAX_ENERGY = 4294967295;
 
 const getInitialState = (): GameState => ({
     turn: 0,
@@ -121,7 +114,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         return () => clearTimeout(timer);
     }, [gameState.effects, gameState.activeEvent]);
 
-    // Combo Timer - Updated interval from 1000ms to 100ms for better synchronization with UI bar
+    // Combo Timer
     useEffect(() => {
         if (gameState.combo === 0 || gameState.gameOver || gameState.isTimeStopped) return;
         const interval = setInterval(() => {
@@ -149,7 +142,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         return () => clearInterval(interval);
     }, [gameState.combo, gameState.lastComboTime, gameState.gameOver, gameState.isTimeStopped]);
 
-    // Stability (HP) Decay Timer
+    // Stability (HP) decay
     useEffect(() => {
         if (gameState.gameOver) return;
         let timer: ReturnType<typeof setInterval>;
@@ -168,7 +161,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     if (newHp === 0 && !prev.gameOver) {
                         if (prev.unlockedGroups.includes("Temporal Inversion") && !prev.disabledSkills.includes("Temporal Inversion") && prev.energyPoints >= 5) {
                             return {
-                                ...prev, hp: prev.maxHp, energyPoints: prev.energyPoints - 5,
+                                ...prev, hp: prev.maxHp, energyPoints: Math.max(0, prev.energyPoints - 5),
                                 messages: [...prev.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10),
                                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...prev.playerPos }, timestamp: Date.now() }]
                             };
@@ -195,6 +188,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             if (!result.moved) { if (continuousDirRef.current) stopAutoMove(); return prev; }
             
             const nextState = { ...result.state };
+            if (nextState.energyPoints > MAX_ENERGY) nextState.energyPoints = MAX_ENERGY;
 
             if (nextState.gameOver) nextState.energyPoints = 0;
             if (result.inducedDecayMode && result.inducedReactionLabel) {
@@ -211,13 +205,11 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
             }
 
-            // TUTORIAL LOGIC: Check for Transformation (Capture)
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
                   if (prev.tutorialMessage === "Capture particle to transform") {
                       nextState.tutorialMessage = null;
                       nextState.hasSeenCaptureTutorial = true;
                   }
-
                   if (!result.inducedDecayMode) setLastDecayEvent(null);
                   const targetEntity = prev.gridEntities.find(e => e.position.x === nextState.playerPos.x && e.position.y === nextState.playerPos.y);
                   let method = "Transmutation";
@@ -230,12 +222,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                   }
                   if (result.inducedDecayMode) method = result.inducedDecayMode === DecayMode.SPONTANEOUS_FISSION ? "Neutron-induced fission" : `Induced ${result.inducedDecayMode.replace(/_/g, ' ')}`;
                   setEvolutionHistory(h => [...h, { turn: nextState.turn, name: nextState.currentNuclide.name, symbol: nextState.currentNuclide.symbol, z: nextState.currentNuclide.z, a: nextState.currentNuclide.a, method }]);
-                  
-                  // DECAY TUTORIAL TRIGGER (If not seen before and stable tutorial has passed)
-                  if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) {
-                      nextState.tutorialMessage = "Decay to be stable";
-                  }
-
+                  if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) nextState.tutorialMessage = "Decay to be stable";
                   if (nextState.combo === 0 && !nextState.currentNuclide.isStable) nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
                   const scoreDiff = nextState.score - prev.score;
                   nextState.comboScore = (nextState.combo === 0) ? scoreDiff : prev.comboScore + scoreDiff;
@@ -287,14 +274,10 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                     setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
                     setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Nucleosynthesis" }]);
                     const synthBonus = nextZ * 10000;
-
                     let nextTutorial = prev.tutorialMessage;
-                    if (prev.tutorialMessage === "Capture particle to transform") {
-                        nextTutorial = null;
-                    }
-
+                    if (prev.tutorialMessage === "Capture particle to transform") nextTutorial = null;
                     return {
-                        ...prev, currentNuclide: newData, hp: prev.maxHp, energyPoints: prev.energyPoints - NUCLEOSYNTHESIS_COST,
+                        ...prev, currentNuclide: newData, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - NUCLEOSYNTHESIS_COST)),
                         turn: nextTurn, tutorialMessage: nextTutorial, hasSeenCaptureTutorial: true,
                         score: prev.score + synthBonus + unlockResult.scoreBonus, effects: [...prev.effects, zapEffect],
                         unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
@@ -304,7 +287,7 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 }
                 return prev;
             } else {
-                return { ...prev, hp: prev.maxHp, energyPoints: prev.energyPoints - STABILIZE_COST, effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
+                return { ...prev, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - STABILIZE_COST)), effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
             }
         });
     }, [gameState.playerLevel, triggerTTS]);
@@ -367,16 +350,13 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
             }
             const nextTurn = prev.turn + 1;
             if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
-
-            // NEW: Magic Barrier grant logic (When Z becomes magic)
             let nextBarrierCharges = prev.magicBarrierCharges;
             if (nextLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) {
                 nextBarrierCharges = 3;
                 levelUpMessages.push("✨ MAGIC SHELL: Barrier activated (3 charges)!");
             }
-
             const nextStateCandidate = { 
-                ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: prev.energyPoints + (decayResult.energyBonus || 0),
+                ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + (decayResult.energyBonus || 0)),
                 turn: nextTurn, tutorialMessage: prev.tutorialMessage === "Decay to be stable" ? null : prev.tutorialMessage,
                 hasSeenDecayTutorial: prev.tutorialMessage === "Decay to be stable" ? true : prev.hasSeenDecayTutorial,
                 unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, gridEntities: decayResult.newGridEntities, 
@@ -400,76 +380,33 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     const handleUltimateSynthesis = useCallback(() => {
         if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
-        
         setGameState(prev => {
-            if (prev.isTimeStopped) {
-                return {
-                    ...prev,
-                    messages: [...prev.messages, "⚠️ System Error: Spacetime stabilization prevents accretion."].slice(-10)
-                };
-            }
-
-            let absorbedP = 0;
-            let absorbedN = 0;
-            let absorbedE = 0;
-            let absorbedPos = 0;
-            
+            if (prev.isTimeStopped) return { ...prev, messages: [...prev.messages, "⚠️ System Error: Spacetime stabilization prevents accretion."].slice(-10) };
+            let absorbedP = 0, absorbedN = 0, absorbedE = 0, absorbedPos = 0;
             prev.gridEntities.forEach(e => {
                 if (e.type === EntityType.PROTON) absorbedP++;
                 else if (e.type === EntityType.NEUTRON) absorbedN++;
                 else if (e.type === EntityType.ENEMY_ELECTRON) absorbedE++;
                 else if (e.type === EntityType.ENEMY_POSITRON) absorbedPos++;
             });
-            
             const totalAbsorbed = absorbedP + absorbedN + absorbedE + absorbedPos;
             if (totalAbsorbed === 0) return prev;
-
             const nextZ = prev.currentNuclide.z + absorbedP - absorbedE + absorbedPos;
             const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
-            
-            setFlashColor('bg-white');
-            setIsFlashBang(true);
-            setTimeout(() => setIsFlashBang(false), 800);
-            
+            setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
             const newData = getNuclideDataSync(nextZ, nextA);
-            
             if (!newData.exists || nextZ < 0 || nextZ > 118) {
-                return {
-                    ...prev,
-                    gameOver: true,
-                    gameOverReason: "NUCLEUS COLLAPSE",
-                    gridEntities: [],
-                    energyPoints: 0,
-                    tutorialMessage: null,
-                    messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10)
-                };
+                return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
             }
-
             const nextTurn = prev.turn + 1;
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
-            
             setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "r-process nucleosynthesis" }]);
             triggerTTS("r-process nucleosynthesis");
-
             return {
-                ...prev,
-                currentNuclide: newData,
-                hp: prev.maxHp,
-                turn: nextTurn,
-                gridEntities: [],
-                tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage,
-                hasSeenCaptureTutorial: true,
-                score: prev.score + synthBonus + unlockResult.scoreBonus,
-                unlockedElements: unlockResult.updatedElements,
-                unlockedGroups: unlockResult.updatedGroups,
-                playerLevel: 0,
-                masteredDecays: [],
-                messages: [
-                    ...prev.messages, 
-                    `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`,
-                    "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."
-                ].slice(-10),
+                ...prev, currentNuclide: newData, hp: prev.maxHp, turn: nextTurn, gridEntities: [], tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, hasSeenCaptureTutorial: true,
+                score: prev.score + synthBonus + unlockResult.scoreBonus, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, playerLevel: 0, masteredDecays: [],
+                messages: [...prev.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."].slice(-10),
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
             };
         });
@@ -477,10 +414,8 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
-        
         if (gameState.currentNuclide.isStable) return;
-        let activeMode = gameState.currentNuclide.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
-        if (!activeMode && gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN)) activeMode = DecayMode.UNKNOWN;
+        let activeMode = gameState.currentNuclide.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) || (gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : null);
         if (activeMode) handleDecayAction(activeMode);
     }, [gameState, handleDecayAction, stopAutoMove]);
 
@@ -509,24 +444,12 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
                 setLastDecayEvent(null);
                 setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: "Transmutation" }]);
                 triggerTTS("Experimental Replicate"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-                
-                // NEW: Magic Barrier grant logic (When transmuted to magic Z)
                 let nextBarrierCharges = prev.magicBarrierCharges;
-                if (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) {
-                    nextBarrierCharges = 3;
-                }
-
+                if (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) nextBarrierCharges = 3;
                 return {
-                    ...prev, 
-                    currentNuclide: newData, 
-                    turn: nextTurn,
-                    tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage,
-                    hasSeenCaptureTutorial: true,
-                    unlockedElements: unlockResult.updatedElements, 
-                    unlockedGroups: unlockResult.updatedGroups,
+                    ...prev, currentNuclide: newData, turn: nextTurn, tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, hasSeenCaptureTutorial: true, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
                     score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
-                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-                    magicBarrierCharges: nextBarrierCharges
+                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, magicBarrierCharges: nextBarrierCharges
                 };
             });
         }
@@ -545,44 +468,26 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
         const currentGroups = gameState.unlockedGroups;
         const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
         const currentReincarnations = gameState.reincarnations;
-        
-        // ヒントフラグの状態を保持するためのキャプチャ
         const currentSeenCapture = gameState.hasSeenCaptureTutorial;
         const currentSeenDecay = gameState.hasSeenDecayTutorial;
-
         const newState = getInitialState();
         let startNuclide = INITIAL_NUCLIDE;
         if (randomStart) {
             let coords = getRandomKnownNuclideCoordinates(); 
             if (coords) { const data = getNuclideDataSync(coords.z, coords.a); if (data.exists) startNuclide = data; }
         }
-
         let nextDisabledSkills = randomStart ? gameState.disabledSkills : [];
-
         let nextUnlockedElements = randomStart ? [...currentTitles] : [];
         let nextUnlockedGroups = randomStart ? [...currentGroups] : [];
-        
-        // Define default unlock results (no bonus, no messages)
-        let unlockResult = { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
-        
-        // Only run unlock processing immediately if it's a 'RANDOM GENERATION' start.
-        if (randomStart) {
-            unlockResult = processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a);
-        }
-
+        let unlockResult = randomStart ? processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a) : { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
         setLastDecayEvent(null); setFinalCombo(null);
         setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: "Origin" }]);
-        
         const nextReincarnations = randomStart ? currentReincarnations + 1 : 0;
-
         setGameState({
             ...newState, disabledSkills: nextDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
             gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
-            unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo,
-            reincarnations: nextReincarnations,
-            // RANDOM GENERATION時は表示済みなら出さない。H-1時は強制的にリセットして出す。
-            hasSeenCaptureTutorial: randomStart ? currentSeenCapture : false,
-            hasSeenDecayTutorial: randomStart ? currentSeenDecay : false,
+            unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo, reincarnations: nextReincarnations,
+            hasSeenCaptureTutorial: randomStart ? currentSeenCapture : false, hasSeenDecayTutorial: randomStart ? currentSeenDecay : false,
             tutorialMessage: (randomStart && currentSeenCapture) ? null : "Capture particle to transform",
             messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
         });
@@ -609,21 +514,68 @@ export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
 
     const handleForceUnknownDecay = useCallback(() => {
         if (gameState.playerLevel < 6 || !gameState.currentNuclide.isStable || gameState.energyPoints < FORCE_DECAY_COST || gameState.gameOver || gameState.isTimeStopped) return;
-        
-        setGameState(prev => ({
-            ...prev,
-            energyPoints: prev.energyPoints - FORCE_DECAY_COST,
-            messages: [...prev.messages, "⚠️ ANOMALY: Forced decay triggered!"].slice(-10)
-        }));
+        setGameState(prev => ({ ...prev, energyPoints: Math.max(0, prev.energyPoints - FORCE_DECAY_COST), messages: [...prev.messages, "⚠️ ANOMALY: Forced decay triggered!"].slice(-10) }));
         handleDecayAction(DecayMode.UNKNOWN);
     }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, gameState.gameOver, gameState.isTimeStopped, handleDecayAction]);
 
     const setHP = useCallback((val: number) => setGameState(prev => ({ ...prev, hp: val })), []);
 
+    // --- Save & Load System (Optimized Binary Packing) ---
+    const generateSaveCode = useCallback(() => {
+        return packBinary(gameState, evolutionHistory);
+    }, [gameState, evolutionHistory]);
+
+    const loadSaveCode = useCallback((code: string) => {
+        if (!code || code.trim().length === 0) return false;
+        
+        const payload = unpackBinary(code);
+        if (!payload) return false;
+
+        try {
+            const currentData = getNuclideDataSync(payload.cz!, payload.ca!);
+            if (!currentData.exists) throw new Error("Invalid current nuclide in save data");
+
+            const restoredHistory: HistoryEntry[] = Object.entries(payload.ev || {}).map(([key, method]) => {
+                const [z, a] = key.split('-').map(Number);
+                const data = getNuclideDataSync(z, a);
+                return { turn: 0, name: data.name, symbol: data.symbol, z, a, method };
+            });
+
+            const newState: GameState = {
+                ...getInitialState(),
+                score: payload.s!,
+                energyPoints: Math.min(MAX_ENERGY, payload.e!),
+                hp: payload.h!,
+                playerLevel: payload.l!,
+                reincarnations: payload.r!,
+                currentNuclide: currentData,
+                unlockedElements: payload.ue || [],
+                unlockedGroups: payload.ug || [],
+                disabledSkills: payload.ds || [],
+                decayStats: payload.st || getInitialState().decayStats,
+                reactionStats: payload.rs || getInitialState().reactionStats,
+                messages: ["Previous research is cited."],
+                tutorialMessage: null,
+                hasSeenCaptureTutorial: true,
+                hasSeenDecayTutorial: true,
+                gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, 0)
+            };
+
+            setGameState(newState);
+            setEvolutionHistory(restoredHistory);
+            setLastDecayEvent(null);
+            setFinalCombo(null);
+            return true;
+        } catch (e) {
+            console.error("Load failed during state restoration", e);
+            return false;
+        }
+    }, []);
+
     return {
         gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
-        handleUltimateSynthesis, handleForceUnknownDecay, setHP
+        handleUltimateSynthesis, handleForceUnknownDecay, setHP, generateSaveCode, loadSaveCode
     };
 };

@@ -1,4 +1,3 @@
-
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -73,6 +72,15 @@ export interface NuclideData {
   description?: string;
 }
 
+export interface HistoryEntry {
+    turn: number;
+    name: string;
+    symbol: string;
+    z: number;
+    a: number;
+    method: string;
+}
+
 export interface GameState {
   turn: number;
   score: number;
@@ -110,4 +118,22 @@ export interface GameState {
   tutorialMessage: string | null;
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
+}
+
+export interface SavePayload {
+  v: string; // App Version
+  s: number; // Score
+  e: number; // Energy (max 65535)
+  h: number; // HP
+  l: number; // Player Level
+  r: number; // Reincarnations
+  cz: number; // Current Z
+  ca: number; // Current A
+  ue: number[]; // Unlocked Elements
+  ug: string[]; // Unlocked Groups
+  ds: string[]; // Disabled Skills
+  md: DecayMode[]; // Mastered Decays
+  st: Record<string, number>; // Decay Stats
+  rs: Record<string, number>; // Reaction Stats
+  ev: Record<string, string>; // Evolution Map (Last methods)
 }
