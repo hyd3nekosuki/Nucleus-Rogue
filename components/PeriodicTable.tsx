@@ -32,6 +32,7 @@ const PeriodicTable: React.FC<Props> = ({
     saveCode
 }) => {
     const [copyFeedback, setCopyFeedback] = useState(false);
+    const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
     
     // --- Periodic Table Logic ---
     const getPosition = (z: number) => {
@@ -83,13 +84,19 @@ const PeriodicTable: React.FC<Props> = ({
                 : "translate-y-0 opacity-80";
             const finalClass = isUnlocked 
                 ? `${style.class} ${masteryEffect} scale-100 hover:scale-110 hover:z-20 cursor-help ${isTarget ? 'ring-2 ring-yellow-400 animate-pulse !cursor-pointer shadow-[0_0_20px_rgba(250,204,21,0.6)]' : ''}`
-                : "bg-gray-900 border-gray-800 text-gray-700 scale-95 opacity-40";
+                : "bg-gray-900 border-gray-800 text-gray-700 scale-95 opacity-40 cursor-pointer hover:bg-gray-800";
+            
+            const hintMsg = isTarget ? `Click to Transmute to ${style.name}!` : (isUnlocked ? `${style.name} (Z=${z})${isGroupMastered ? ' 👑' : ''}` : `Undiscovered (Z=${z})`);
+            
             elements.push(
                 <div key={z} 
                     className={`relative border flex flex-col items-center justify-center p-0.5 md:p-1 rounded text-[8px] md:text-sm lg:text-xl transition-all duration-500 ${finalClass}`}
                     style={{ gridRow: r, gridColumn: c, aspectRatio: '1/1' }}
-                    onClick={() => isTarget && onSelectElement && onSelectElement(z)}
-                    title={isTarget ? `Click to Transmute to ${style.name}!` : (isUnlocked ? `${style.name} (Z=${z})${isGroupMastered ? ' 👑' : ''}` : `Locked (Z=${z})`)}>
+                    onClick={() => {
+                        setSelectedInfo(hintMsg);
+                        if (isTarget && onSelectElement) onSelectElement(z);
+                    }}
+                    title={hintMsg}>
                     {z === 0 && isUnlocked && (
                         <div className="absolute -top-1 -right-1 md:top-0 md:right-0 md:p-0.5 text-[7px] md:text-10px lg:text-xs leading-none z-20 pointer-events-none drop-shadow-sm animate-pulse">👑</div>
                     )}
@@ -187,6 +194,14 @@ const PeriodicTable: React.FC<Props> = ({
                                 <span className="text-neon-blue/70 font-mono">{reactionStr}</span>
                             </div>
                         )}
+                        {/* New Tooltip Display Area */}
+                        <div className="mt-2 min-h-[1.5rem] flex items-center">
+                            {selectedInfo && (
+                                <div className="text-[10px] md:text-xs text-neon-blue font-bold tracking-wider">
+                                    {selectedInfo}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
                 {renderPeriodicTable()}
