@@ -1,3 +1,4 @@
+
 // Added React import to provide access to React namespace
 import React, { useEffect } from 'react';
 import { GameState, DecayMode } from '../types';
@@ -7,7 +8,7 @@ import { processUnlocks } from '../utils/unlockSystem';
 
 /**
  * Custom hook to manage the combo (chain) window and settlement.
- * Extracts timing and resolution logic from useNucleusEngine to keep the main engine clean.
+ * Handles the final Temporal Inversion check when a chain naturally expires.
  */
 export const useComboTimer = (
     gameState: GameState,
@@ -22,51 +23,57 @@ export const useComboTimer = (
             const now = Date.now();
             if (now - gameState.lastComboTime > COMBO_WINDOW_MS) {
                 setGameState(prev => {
-                    // Double check in callback to ensure state consistency
                     if (prev.combo === 0) return prev;
 
-                    // FIX: isTemporalInversionEligible expects 3 arguments, updated to match definition in utils/scoreLogic.ts.
-                    // Also extracted skill checks to match the orchestrator logic found in useMovementExecutor and useDecayController.
+                    let finalScoreBonus = 0;
+                    let nextUnlockedGroups = [...prev.unlockedGroups];
+                    let nextMessages = [...prev.messages];
+
+                    // --- Temporal Inversion Check (At the end of the chain) ---
                     const isMatched = isTemporalInversionEligible(
-                        prev.currentNuclide.z,
-                        prev.currentNuclide.a,
+                        prev.currentNuclide.z, 
+                        prev.currentNuclide.a, 
                         prev.comboStartNuclide
                     );
-                    const isUnlocked = prev.unlockedGroups.includes("Temporal Inversion");
+                    
                     const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
-                    const shouldTriggerInversion = isMatched && (!isUnlocked || !isDisabled);
 
-                    if (shouldTriggerInversion) {
-                        const scoreBonus = calculateComboCompletionBonus(prev.comboScore, true);
+                    // Conditions for Temporal Inversion:
+                    // 1. Current position matches the recorded start of the chain.
+                    // 2. The chain MUST have started from an UNSTABLE nuclide.
+                    // 3. Since stable nuclei reset the chain immediately in Transitions,
+                    //    if we are here and matched, we are by definition at an unstable nucleus.
+                    if (isMatched && prev.comboStartedUnstable && !isDisabled) {
+                        const inversionBonus = calculateComboCompletionBonus(prev.comboScore, true);
                         const unlockResult = processUnlocks(
-                            prev.unlockedElements,
-                            prev.unlockedGroups,
-                            prev.currentNuclide.z,
-                            prev.currentNuclide.a,
-                            false,
-                            false,
-                            false,
-                            true,
-                            prev.comboScore
+                            prev.unlockedElements, prev.unlockedGroups, 
+                            prev.currentNuclide.z, prev.currentNuclide.a, 
+                            false, false, false, true, prev.comboScore
                         );
                         
-                        // Trigger visual combo completion effect
-                        if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
-
-                        return {
-                            ...prev,
-                            score: prev.score + scoreBonus + unlockResult.scoreBonus,
-                            unlockedGroups: unlockResult.updatedGroups,
-                            messages: [...prev.messages, ...unlockResult.messages].slice(-10),
-                            combo: 0,
-                            comboScore: 0,
-                            comboStartNuclide: undefined
-                        };
+                        finalScoreBonus = inversionBonus + unlockResult.scoreBonus;
+                        nextUnlockedGroups = unlockResult.updatedGroups;
+                        nextMessages = [
+                            ...nextMessages, 
+                            "⏱ TEMPORAL INVERSION: Loop concluded at origin unstable state!", 
+                            ...unlockResult.messages
+                        ];
                     }
 
-                    // Normal combo end (no inversion)
+                    // Trigger visual combo completion effect
                     if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
-                    return { ...prev, combo: 0, comboScore: 0, comboStartNuclide: undefined };
+
+                    // Clean reset of combo tracking state
+                    return { 
+                        ...prev, 
+                        score: prev.score + finalScoreBonus,
+                        unlockedGroups: nextUnlockedGroups,
+                        messages: nextMessages.slice(-10),
+                        combo: 0, 
+                        comboScore: 0, 
+                        comboStartNuclide: undefined,
+                        comboStartedUnstable: false
+                    };
                 });
             }
         }, 100);

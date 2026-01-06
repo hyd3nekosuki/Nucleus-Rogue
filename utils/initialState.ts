@@ -1,3 +1,4 @@
+
 import { GameState, DecayMode } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 
@@ -38,6 +39,7 @@ export const getInitialState = (): GameState => ({
     tutorialMessage: "Capture particle to transform",
     hasSeenDecayTutorial: false,
     hasSeenCaptureTutorial: false,
+    comboStartedUnstable: false,
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,

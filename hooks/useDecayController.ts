@@ -1,19 +1,17 @@
-
-// Added React import to provide access to React namespace
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry } from '../types';
+import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
 import { 
-    COMBO_WINDOW_MS, MAGIC_NUMBERS, MAX_ENERGY 
+    COMBO_WINDOW_MS, MAX_ENERGY, SCORE_FACTORS
 } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../utils/decaySystem';
-import { isTemporalInversionEligible, calculateComboCompletionBonus } from '../utils/scoreLogic';
 import { processUnlocks } from '../utils/unlockSystem';
 
 export const useDecayController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
     setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
+    recordDiscovery: (nuclide: NuclideData, context: { method: string; pz: number | null; pa: number | null; addedScore: number }) => void,
     triggerTTS: (text: string) => void,
     triggerShake: () => void,
     triggerFlash: (color: string) => void,
@@ -70,36 +68,24 @@ export const useDecayController = (
 
         setGameState(prev => {
             const newData = getNuclideDataSync(prev.currentNuclide.z + decayResult.dZ, prev.currentNuclide.a + decayResult.dA);
-            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0, comboScore: 0, comboStartNuclide: undefined }; 
+            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0, comboScore: 0, comboStartNuclide: undefined, comboStartedUnstable: false }; 
 
-            let rawCombo = (currentTime - prev.lastComboTime <= COMBO_WINDOW_MS) ? prev.combo + 1 : 1;
-            let nextComboStartNuclide = (rawCombo === 1) ? { z: prev.currentNuclide.z, a: prev.currentNuclide.a } : prev.comboStartNuclide;
+            const rawCombo = (currentTime - prev.lastComboTime <= COMBO_WINDOW_MS) ? prev.combo + 1 : 1;
             
-            const scoreIncrease = ((newData.a * 10 + (newData.isStable ? 100 : 10) + decayResult.actionBonusScore) * rawCombo);
-            let nextComboScore = (rawCombo === 1) ? scoreIncrease : prev.comboScore + scoreIncrease;
+            // Centralized Score Logic using Constants
+            const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
+            const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
+            const scoreIncrease = (baseActionPoints + stabilityReward + decayResult.actionBonusScore) * rawCombo;
             
-            // Check for physical match condition
-            const isMatched = isTemporalInversionEligible(newData.z, newData.a, nextComboStartNuclide);
-            const isUnlocked = prev.unlockedGroups.includes("Temporal Inversion");
-            const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
-            
-            // We want to trigger the logic if it's a physical match and (not yet unlocked OR (unlocked and not disabled))
-            const inversionTrigger = isMatched && (!isUnlocked || !isDisabled);
-
             const unlockResult = processUnlocks(
                 prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, 
-                false, !!decayResult.isAnnihilation, false, inversionTrigger, nextComboScore, 
+                false, !!decayResult.isAnnihilation, false, false, 0, 
                 false, false, false, false, false, 
                 prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0), 
                 prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0)
             );
             
-            let finalComboCount = rawCombo, finalScoreBonus = 0;
-            if (newData.isStable) { 
-                if (rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); 
-                finalComboCount = 0; 
-                finalScoreBonus = calculateComboCompletionBonus(nextComboScore, inversionTrigger); 
-            }
+            if (newData.isStable && rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); 
             
             let nextLevel = prev.playerLevel, nextMastered = prev.masteredDecays;
             if (!prev.masteredDecays.includes(actualMode) && nextLevel < 6) { 
@@ -109,22 +95,20 @@ export const useDecayController = (
             }
             
             const nextTurn = prev.turn + 1;
-            if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) {
-                setEvolutionHistory(h => ({
-                    ...h,
-                    [`${newData.z}-${newData.a}`]: { 
-                        turn: nextTurn, 
-                        name: newData.name, 
-                        symbol: newData.symbol, 
-                        z: newData.z, 
-                        a: newData.a, 
-                        method: decayResult.trigger,
-                        pz: prev.currentNuclide.z,
-                        pa: prev.currentNuclide.a
-                    }
-                }));
-            }
             
+            // Total score delta for this specific decay action
+            const totalActionDelta = scoreIncrease + unlockResult.scoreBonus;
+
+            // Async Discovery call to handle complex chain effects and history
+            setTimeout(() => {
+                recordDiscovery(newData, {
+                    method: decayResult.trigger,
+                    pz: prev.currentNuclide.z,
+                    pa: prev.currentNuclide.a,
+                    addedScore: totalActionDelta
+                });
+            }, 0);
+
             const nextState = { 
                 ...prev, 
                 currentNuclide: newData, 
@@ -137,39 +121,25 @@ export const useDecayController = (
                 unlockedGroups: unlockResult.updatedGroups, 
                 gridEntities: decayResult.newGridEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects], 
-                score: prev.score + scoreIncrease + finalScoreBonus + unlockResult.scoreBonus, 
+                score: prev.score + totalActionDelta, 
                 hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
                 messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...unlockResult.messages, ...decayResult.extraMessages].slice(-10), 
-                combo: finalComboCount, 
+                combo: rawCombo, 
                 maxCombo: Math.max(prev.maxCombo, rawCombo), 
                 lastComboTime: currentTime, 
                 playerLevel: nextLevel, 
                 masteredDecays: nextMastered, 
-                comboScore: (newData.isStable) ? 0 : nextComboScore, 
-                comboStartNuclide: (newData.isStable) ? undefined : nextComboStartNuclide, 
+                decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
+                // Streak reset logic: Decay actions always terminate particle streaks
                 consecutiveProtons: 0, 
                 consecutiveNeutrons: 0, 
                 consecutiveElectrons: 0, 
-                lastConsumedType: null, 
-                decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 }, 
-                magicBarrierCharges: (nextLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && prev.magicBarrierCharges === 0) ? 3 : prev.magicBarrierCharges 
+                lastConsumedType: null
             };
 
-            if (nextState.hp <= 0 && !nextState.gameOver) {
-                if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                    nextState.hp = nextState.maxHp; 
-                    nextState.energyPoints -= 5; 
-                    nextState.messages = [...nextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
-                    nextState.effects = [...nextState.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextState.playerPos }, timestamp: Date.now() }];
-                } else { 
-                    nextState.gameOver = true; 
-                    nextState.gameOverReason = "TRANSFORMATION_SHOCK"; 
-                    nextState.combo = 0; 
-                }
-            }
             return nextState;
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.unlockedGroups, stopAutoMove, setGameState, setEvolutionHistory, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, gameState.playerPos, gameState.gridEntities]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, stopAutoMove, setGameState, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, gameState.playerPos, gameState.gridEntities, recordDiscovery]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

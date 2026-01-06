@@ -1,17 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { NuclideData, DecayMode } from '../types';
-import { getNuclideDataSync } from '../services/nuclideService';
 
-interface HistoryEntry {
-    turn: number;
-    name: string;
-    symbol: string;
-    z: number;
-    a: number;
-    method: string;
-    pz?: number; // Parent Z
-    pa?: number; // Parent A
-}
+import React, { useMemo, useState } from 'react';
+import { NuclideData, DecayMode, HistoryEntry } from '../types';
+import { getNuclideDataSync } from '../services/nuclideService';
 
 interface EvolutionMapProps {
     history: HistoryEntry[];
@@ -86,11 +76,10 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
         const step = 100 / GRID_SIZE;
         const halfStep = step / 2;
         
-        // Find the index of the entry that matches current nuclide to highlight its incoming path
         const currentEntryIdx = history.findIndex(h => h.z === curZ && h.a === curA);
 
         history.forEach((entry, i) => {
-            if (entry.pz === undefined || entry.pa === undefined) return;
+            if (entry.pz === null || entry.pa === null) return;
 
             const startRelN = (entry.pa - entry.pz) - curN;
             const startRelZ = entry.pz - curZ;
@@ -114,10 +103,8 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
             const x2 = x2_raw * step + halfStep;
             const y2 = y2_raw * step + halfStep;
 
-            // ageFactor robust calculation
             const ageFactor = history.length > 1 ? i / (history.length - 1) : 1;
             
-            // A line is "latest" if it leads to the current nuclide OR is the absolute last discovered
             const isIncomingPath = (i === currentEntryIdx);
             const isAbsoluteLast = (i === history.length - 1);
             const isLatest = isIncomingPath || isAbsoluteLast;

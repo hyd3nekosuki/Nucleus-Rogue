@@ -177,6 +177,7 @@ export const useSkillController = (
                 : { updatedElements: [] as number[], updatedGroups: [] as string[], scoreBonus: 0, messages: [] as string[] };
             
             resetVisuals();
+            // Fix: Add missing pz and pa for the origin record
             setEvolutionHistory({
                 [`${startNuclide.z}-${startNuclide.a}`]: { 
                     turn: 0, 
@@ -184,7 +185,9 @@ export const useSkillController = (
                     symbol: startNuclide.symbol, 
                     z: startNuclide.z, 
                     a: startNuclide.a, 
-                    method: HISTORY_METHODS.ORIGIN 
+                    method: HISTORY_METHODS.ORIGIN,
+                    pz: null,
+                    pa: null
                 }
             });
             

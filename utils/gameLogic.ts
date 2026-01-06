@@ -1,6 +1,5 @@
-
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, BONUS_SCORES, HISTORY_METHODS } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, BONUS_SCORES, HISTORY_METHODS, SCORE_FACTORS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
 import { processRandomBackgroundEvents } from './randomEvents';
@@ -89,6 +88,8 @@ export const calculateMoveResult = (
     let lT = prev.lastConsumedType;
     let currentCharges = prev.magicBarrierCharges;
 
+    const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
+
     if (entityMatch) {
         targetEntity = entityMatch.entity;
         if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) return { moved: false, state: prev };
@@ -114,7 +115,8 @@ export const calculateMoveResult = (
             Date.now(), 
             !prev.disabledSkills.includes("Pair annihilation"), 
             !prev.disabledSkills.includes("Fission"),
-            prev.unlockedGroups.includes("Neutronization") && !prev.disabledSkills.includes("Neutronization")
+            prev.unlockedGroups.includes("Neutronization") && !prev.disabledSkills.includes("Neutronization"),
+            isZeroBarnActive
         );
 
         if (neutronReaction) {
@@ -189,6 +191,11 @@ export const calculateMoveResult = (
             const fusionMsg = interactionResult?.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
             let coreMsg = interactionResult?.scatteredMessage && !interactionResult.isPositronAbsorption ? `⚠️ ${interactionResult.scatteredMessage}` : interactionResult?.isPpFusion ? `Fusion: Deuterium Synthesized.` : interactionResult?.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${reactionLabel ? reactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
             
+            // Centralized Score Logic for Movement Interactions
+            const basePoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
+            const stabilityReward = newData.isStable ? SCORE_FACTORS.MOVEMENT_STABLE_REWARD : SCORE_FACTORS.MOVEMENT_UNSTABLE_REWARD;
+            const totalActionScore = basePoints + stabilityReward + actionBonusScore + unlockResult.scoreBonus + (interactionResult?.magicProtectionBonus || 0) + (interactionResult?.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
+
             nextState = { 
                 ...nextState, 
                 currentNuclide: newData, 
@@ -196,7 +203,7 @@ export const calculateMoveResult = (
                 unlockedGroups: unlockResult.updatedGroups, 
                 messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10), 
                 energyPoints: prev.energyPoints + energyBonus, 
-                score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + actionBonusScore + unlockResult.scoreBonus + (interactionResult?.magicProtectionBonus || 0) + (interactionResult?.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0), 
+                score: nextState.score + totalActionScore, 
                 hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) 
             };
             if (newData.isStable && (dZ !== 0 || dA !== 0 || interactionResult?.isPpFusion || interactionResult?.isPositronAbsorption)) nextState.combo = 0;

@@ -1,6 +1,5 @@
-
-import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
+import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
+import { GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS, DECAY_PHYSICS, BONUS_SCORES } from '../constants';
 import { getFissionFragmentOutcome } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from './decayInteractionHandler';
 
@@ -20,17 +19,8 @@ export interface DecayResult {
     newPosition?: Position; 
 }
 
-export const getDecayDeltas = (mode: DecayMode): { dZ: number, dA: number } => {
-    switch (mode) {
-        case DecayMode.ALPHA: return { dZ: -2, dA: -4 };
-        case DecayMode.BETA_MINUS: return { dZ: 1, dA: 0 };
-        case DecayMode.BETA_PLUS: return { dZ: -1, dA: 0 };
-        case DecayMode.ELECTRON_CAPTURE: return { dZ: -1, dA: 0 };
-        case DecayMode.PROTON_EMISSION: return { dZ: -1, dA: -1 };
-        case DecayMode.NEUTRON_EMISSION: return { dZ: 0, dA: -1 };
-        case DecayMode.SPONTANEOUS_FISSION: return { dZ: -38, dA: -96 }; 
-        default: return { dZ: 0, dA: 0 };
-    }
+export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
+    return DECAY_PHYSICS[mode] || DECAY_PHYSICS[DecayMode.UNKNOWN];
 };
 
 const handleAlphaDecay = (currentTime: number, pos: Position): Partial<DecayResult> => ({
@@ -67,8 +57,8 @@ const handleBetaMinus = (
             if (targetIndex !== -1) {
                 currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
                 effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
-                score += 1000;
-                messages.push("⚡ p + e- → n (+1000 PTS)");
+                score += BONUS_SCORES.BETA_CONVERSION;
+                messages.push(`⚡ p + e- → n (+${BONUS_SCORES.BETA_CONVERSION} PTS)`);
             }
         }
     }
@@ -79,7 +69,7 @@ const handleBetaMinus = (
         currentEntities = annihilationResult.remainingEntities;
         effects.push({ id: Math.random().toString(36).substr(2, 9), type: annihilationResult.effectMode, position: { ...playerPos }, timestamp: currentTime });
         effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
-        score += 20000;
+        score += BONUS_SCORES.PAIR_ANNIHILATION;
         messages.push(...annihilationResult.extraMessages);
         speech = "Pair Annihilation";
         isAnnihilation = true;
@@ -107,7 +97,7 @@ const handleBetaPlus = (
             currentEntities = annihilationResult.remainingEntities;
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: annihilationResult.effectMode, position: { ...playerPos }, timestamp: currentTime });
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime });
-            score += 20000;
+            score += BONUS_SCORES.PAIR_ANNIHILATION;
             messages.push(...annihilationResult.extraMessages);
             speech = "Pair Annihilation";
             isAnnihilation = true;
@@ -125,7 +115,7 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
 
     return {
         dZ, dA, trigger: HISTORY_METHODS.FISSION_SPONTANEOUS, shouldShake: true, shouldFlash: true,
-        speechOverride: "Nuclear Fission", actionBonusScore: 50000, energyBonus: 200, newGridEntities: currentEntities
+        speechOverride: "Nuclear Fission", actionBonusScore: BONUS_SCORES.FISSION_TITLE, energyBonus: 200, newGridEntities: currentEntities
     };
 };
 
@@ -178,7 +168,7 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.GAMMA:
              result.trigger = HISTORY_METHODS.GAMMA_DECAY;
-             result.actionBonusScore = 5000;
+             result.actionBonusScore = BONUS_SCORES.GAMMA_ACTION;
              const dirs = [DecayMode.GAMMA_RAY_UP, DecayMode.GAMMA_RAY_DOWN, DecayMode.GAMMA_RAY_LEFT, DecayMode.GAMMA_RAY_RIGHT];
              const selected = dirs[Math.floor(Math.random() * dirs.length)];
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: selected, position: { ...playerPos }, timestamp: currentTime });

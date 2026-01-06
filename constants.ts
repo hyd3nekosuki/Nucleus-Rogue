@@ -1,5 +1,4 @@
-
-import { DecayMode, NuclideData, NuclideCategory } from './types';
+import { DecayMode, NuclideData, NuclideCategory, DecayDelta } from './types';
 
 export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
@@ -19,6 +18,33 @@ export const STABILIZE_COST = 5;
 export const NUCLEOSYNTHESIS_COST = 200;
 export const FORCE_DECAY_COST = 5;
 export const MAX_ENERGY = 4294967295;
+
+/**
+ * Atomic Physics constants
+ */
+export const DECAY_PHYSICS: Record<string, DecayDelta> = {
+    [DecayMode.ALPHA]: { dZ: -2, dA: -4 },
+    [DecayMode.BETA_MINUS]: { dZ: 1, dA: 0 },
+    [DecayMode.BETA_PLUS]: { dZ: -1, dA: 0 },
+    [DecayMode.ELECTRON_CAPTURE]: { dZ: -1, dA: 0 },
+    [DecayMode.PROTON_EMISSION]: { dZ: -1, dA: -1 },
+    [DecayMode.NEUTRON_EMISSION]: { dZ: 0, dA: -1 },
+    [DecayMode.SPONTANEOUS_FISSION]: { dZ: -38, dA: -96 }, // Representative average
+    [DecayMode.STABLE]: { dZ: 0, dA: 0 },
+    [DecayMode.GAMMA]: { dZ: 0, dA: 0 },
+    [DecayMode.UNKNOWN]: { dZ: 0, dA: 0 }
+};
+
+/**
+ * Score calculation coefficients
+ */
+export const SCORE_FACTORS = {
+    MASS_MULTIPLIER: 10,
+    STABLE_BONUS: 100,
+    UNSTABLE_BONUS: 10,
+    MOVEMENT_STABLE_REWARD: 200,
+    MOVEMENT_UNSTABLE_REWARD: 10
+};
 
 // History Method Labels - Streamlined for scientific accuracy
 export const HISTORY_METHODS = {
@@ -66,7 +92,9 @@ export const BONUS_SCORES = {
   MAGIC_SHELL: 5000,
   DOUBLE_MAGIC: 50000,
   STELLAR_FUSION: 420000,
-  MAGIC_PROTECTION_PER_Z: 10000
+  MAGIC_PROTECTION_PER_Z: 10000,
+  BETA_CONVERSION: 1000,
+  GAMMA_ACTION: 5000
 };
 
 export const INITIAL_NUCLIDE: NuclideData = {
@@ -94,7 +122,7 @@ export const ELEMENT_SYMBOLS = [
 
 export const ELEMENT_NAMES = [
   "Neutron", "Hydrogen", "Helium", "Lithium", "Beryllium", "Boron", "Carbon", "Nitrogen", "Oxygen", "Fluorine", "Neon",
-  "Sodium", "Magnesium", "Aluminium", "Silicon", "Phosphorus", "Sulfur", "Chlorine", "Argon", "Potassium", "Calcium",
+  "Sodium", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
   "Scandium", "Titanium", "Vanadium", "Chromium", "Manganese", "Iron", "Cobalt", "Nickel", "Copper", "Zinc",
   "Gallium", "Germanium", "Arsenic", "Selenium", "Bromine", "Krypton", "Rubidium", "Strontium", "Yttrium", "Zirconium",
   "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cadmium", "Indium", "Tin",

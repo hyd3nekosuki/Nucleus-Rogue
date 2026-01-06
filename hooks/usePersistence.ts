@@ -1,4 +1,4 @@
-// Added React import to provide access to React namespace
+
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT } from '../constants';
@@ -31,13 +31,11 @@ export const usePersistence = (
         try {
             const currentData = getNuclideDataSync(payload.cz!, payload.ca!);
             
-            // Reconstruct the discovery map from saved payload
             const restoredHistory: Record<string, HistoryEntry> = {};
             Object.entries(payload.ev || {}).forEach(([key, val]) => {
                 const parts = key.split('-');
                 let z, a;
                 if (parts.length === 4) {
-                    // Backwards compatibility with old "pz-pa-z-a" key format
                     z = parseInt(parts[2]);
                     a = parseInt(parts[3]);
                 } else {
@@ -45,11 +43,11 @@ export const usePersistence = (
                     a = parseInt(parts[1]);
                 }
                 
-                let pz = 0, pa = 0, method = val, turn = 0;
+                let pz: number | null = null, pa: number | null = null, method = val, turn = 0;
                 if (val.includes(':')) {
                     const valParts = val.split(':');
-                    pz = parseInt(valParts[0]);
-                    pa = parseInt(valParts[1]);
+                    pz = isNaN(parseInt(valParts[0])) ? null : parseInt(valParts[0]);
+                    pa = isNaN(parseInt(valParts[1])) ? null : parseInt(valParts[1]);
                     method = valParts[2];
                     if (valParts.length >= 4) {
                         turn = parseInt(valParts[3]);
@@ -62,8 +60,7 @@ export const usePersistence = (
                     name: data.name, 
                     symbol: data.symbol, 
                     z, a, method,
-                    pz: pz || undefined,
-                    pa: pa || undefined
+                    pz, pa
                 };
             });
 
@@ -74,7 +71,7 @@ export const usePersistence = (
                 hp: payload.h!, 
                 playerLevel: payload.l!, 
                 reincarnations: payload.r!, 
-                turn: payload.t || 0, // Restore global game turn
+                turn: payload.t || 0, 
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
                 currentNuclide: currentData, 

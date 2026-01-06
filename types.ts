@@ -1,4 +1,3 @@
-
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -42,6 +41,30 @@ export enum NuclideCategory {
 export interface Position {
   x: number;
   y: number;
+}
+
+/**
+ * Strict physical coordinates of a nucleus
+ */
+export interface NucleusCoords {
+  z: number;
+  a: number;
+}
+
+/**
+ * Physical deltas for a nuclear reaction
+ */
+export interface DecayDelta {
+  dZ: number;
+  dA: number;
+}
+
+/**
+ * Basic atomic identity
+ */
+export interface NuclideState {
+  z: number;
+  a: number;
 }
 
 export interface GridEntity {
@@ -120,6 +143,10 @@ export interface NuclideRecord {
   category: NuclideCategory;
 }
 
+/**
+ * Historical record of a nuclide discovery.
+ * pz and pa represent the progenitor's state.
+ */
 export interface HistoryEntry {
     turn: number;
     name: string;
@@ -127,8 +154,8 @@ export interface HistoryEntry {
     z: number;
     a: number;
     method: string;
-    pz?: number; // Parent Z (Atomic Number of origin)
-    pa?: number; // Parent A (Mass Number of origin)
+    pz: number | null; // Progenitor Z (Atomic Number of origin), null for origin
+    pa: number | null; // Progenitor A (Mass Number of origin), null for origin
 }
 
 export interface GameState {
@@ -155,7 +182,8 @@ export interface GameState {
   isTimeStopped: boolean; // Magic: Pause HP decay and movement
   playerLevel: number; // 0-5 based on trefoil completion
   masteredDecays: DecayMode[]; // Track first-time decays
-  comboStartNuclide?: { z: number, a: number }; // NEW: For Temporal Inversion
+  comboStartNuclide?: NuclideState; // NEW: For Temporal Inversion
+  comboStartedUnstable?: boolean; // NEW: Eligibility tracking for Inversion
   comboScore: number; // NEW: Track total points in current combo
   consecutiveProtons: number; // Hidden: Consecutive protons eaten
   consecutiveNeutrons: number; // Hidden: Consecutive neutrons eaten

@@ -92,9 +92,25 @@ export const calculateNeutronReaction = (
     currentTime: number,
     annihilationEnabled: boolean,
     fissionEnabled: boolean,
-    neutronStarEnabled: boolean
+    neutronStarEnabled: boolean,
+    zeroBarnActive: boolean
 ): AtomicReactionResult | null => {
     if (target.type !== EntityType.NEUTRON || !target.isHighEnergy) return null;
+
+    // If zero barn is active, high energy neutrons are also ignored (no reaction)
+    if (zeroBarnActive) {
+        return {
+            dZ: 0,
+            dA: 0,
+            hpPenalty: 0,
+            energyBonus: 0,
+            actionBonusScore: 0,
+            messages: [],
+            scatteredMessage: "High energy neutron was not absorbed due to 0 barn",
+            chargesUsed: 0,
+            newGridEntities: currentEntities
+        };
+    }
 
     // Absorption phase
     const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);

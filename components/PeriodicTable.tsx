@@ -1,6 +1,9 @@
+
 import React, { useState } from 'react';
-import { getSymbol, ELEMENT_GROUPS } from '../constants';
+import { getSymbol } from '../constants';
 import { DecayMode } from '../types';
+import { getElementGridPosition, getElementCategoryInfo } from '../utils/periodicTableUtils';
+import { SKILL_METADATA } from '../constants/periodicTableData';
 
 interface Props {
     unlocked: number[];
@@ -33,55 +36,20 @@ const PeriodicTable: React.FC<Props> = ({
 }) => {
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
-    
-    // --- Periodic Table Logic ---
-    const getPosition = (z: number) => {
-        if (z === 0) return { r: 1, c: 1 };
-        let r = 1, c = 1;
-        if (z === 1) { r = 1; c = 1; }
-        else if (z === 2) { r = 1; c = 18; }
-        else if (z >= 3 && z <= 4) { r = 2; c = z - 2; }
-        else if (z >= 5 && z <= 10) { r = 2; c = z + 8; }
-        else if (z >= 11 && z <= 12) { r = 3; c = z - 10; }
-        else if (z >= 13 && z <= 18) { r = 3; c = z; }
-        else if (z >= 19 && z <= 36) { r = 4; c = z - 18; }
-        else if (z >= 37 && z <= 54) { r = 5; c = z - 36; }
-        else if (z >= 55 && z <= 56) { r = 6; c = z - 54; }
-        else if (z >= 57 && z <= 71) { r = 8; c = z - 54; } 
-        else if (z >= 72 && z <= 86) { r = 6; c = z - 68; }
-        else if (z >= 87 && z <= 88) { r = 7; c = z - 86; }
-        else if (z >= 89 && z <= 103) { r = 9; c = z - 86; } 
-        else if (z >= 104 && z <= 118) { r = 7; c = z - 100; }
-        else { r = 10; c = 1; }
-        return { r: r + 1, c };
-    };
-
-    const getCategoryStyles = (z: number) => {
-        if (z === 0) return { name: "Special", class: "bg-gray-100 border-white text-gray-900 shadow-[0_0_15px_white] z-10 scale-110 font-bold" };
-        if (ELEMENT_GROUPS["Noble Gas"].includes(z)) return { name: "Noble Gas", class: "bg-purple-900/40 border-purple-500/50 text-purple-300" };
-        if (ELEMENT_GROUPS["Alkali Metal"].includes(z)) return { name: "Alkali Metal", class: "bg-rose-900/40 border-rose-500/50 text-rose-300" };
-        if (ELEMENT_GROUPS["Alkaline Earth"].includes(z)) return { name: "Alkaline Earth", class: "bg-orange-900/40 border-orange-500/50 text-orange-300" };
-        if (ELEMENT_GROUPS["Lanthanide"].includes(z)) return { name: "Lanthanide", class: "bg-pink-900/40 border-pink-500/50 text-pink-300" };
-        if (ELEMENT_GROUPS["Actinide"].includes(z)) return { name: "Actinide", class: "bg-fuchsia-900/40 border-fuchsia-500/50 text-fuchsia-300" };
-        if (ELEMENT_GROUPS["Halogen"].includes(z)) return { name: "Halogen", class: "bg-indigo-900/40 border-indigo-500/50 text-indigo-300" };
-        if (ELEMENT_GROUPS["Metalloid"].includes(z)) return { name: "Metalloid", class: "bg-teal-900/40 border-teal-500/50 text-teal-300" };
-        if (ELEMENT_GROUPS["Non-metal"].includes(z)) return { name: "Non-metal", class: "bg-blue-900/40 border-blue-500/50 text-blue-300" };
-        if (ELEMENT_GROUPS["Post-Transition"].includes(z)) return { name: "Post-Transition", class: "bg-emerald-900/40 border-emerald-500/50 text-emerald-300" };
-        if (ELEMENT_GROUPS["Transition"].includes(z)) return { name: "Transition", class: "bg-yellow-900/40 border-yellow-500/50 text-yellow-300" };
-        return { name: "Other", class: "bg-gray-900 border-gray-500 text-gray-300" };
-    };
 
     const renderPeriodicTable = () => {
         const elements = [];
         for (let z = 0; z <= 118; z++) {
             const isUnlocked = unlocked.includes(z);
-            const { r, c } = getPosition(z);
-            const style = getCategoryStyles(z);
+            const { r, c } = getElementGridPosition(z);
+            const style = getElementCategoryInfo(z);
             const isTarget = canTransmute && isUnlocked;
             const isGroupMastered = unlockedGroups.includes(style.name);
+            
             const masteryEffect = isGroupMastered 
                 ? "border-yellow-400/80 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_2px_10px_rgba(250,204,21,0.3)] z-10 -translate-y-1 brightness-110" 
                 : "translate-y-0 opacity-80";
+            
             const finalClass = isUnlocked 
                 ? `${style.class} ${masteryEffect} scale-100 hover:scale-110 hover:z-20 cursor-help ${isTarget ? 'ring-2 ring-yellow-400 animate-pulse !cursor-pointer shadow-[0_0_20px_rgba(250,204,21,0.6)]' : ''}`
                 : "bg-gray-900 border-gray-800 text-gray-700 scale-95 opacity-40 cursor-pointer hover:bg-gray-800";
@@ -126,20 +94,7 @@ const PeriodicTable: React.FC<Props> = ({
         });
     };
 
-    const hiddenSkills = [
-        { name: "Neutronization", class: "bg-white/10 border-gray-300 text-white font-bold shadow-[0_0_10px_white]" },
-        { name: "Pair annihilation", class: "bg-blue-500/20 border-neon-blue text-neon-blue font-bold shadow-[0_0_10px_#00f3ff]" },
-        { name: "Fission", class: "bg-red-600/20 border-red-500 text-red-400 font-bold shadow-[0_0_10px_#ef4444]" },
-        { name: "Fusion", class: "bg-orange-600/20 border-orange-500 text-orange-400 font-bold shadow-[0_0_10px_#f97316]" },
-        { name: "zero barn", class: "bg-gray-800 border-gray-400 text-white font-bold shadow-[0_0_10px_rgba(255,255,255,0.4)]" },
-        { name: "Electron scattering", class: "bg-yellow-600/20 border-yellow-400 text-yellow-300 font-bold shadow-[0_0_10px_#facc15]" },
-        { name: "Exp. Replicate", class: "bg-neon-purple/20 border-neon-purple text-neon-purple font-bold shadow-[0_0_10px_#bc13fe]" },
-        { name: "Nucleosynthesis", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
-        { name: "Temporal Inversion", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
-        { name: "Unknown", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
-        { name: "Gluttony", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
-    ];
-    const displayLegendItems = hiddenSkills.filter(skill => unlockedGroups.includes(skill.name));
+    const displayLegendItems = SKILL_METADATA.filter(skill => unlockedGroups.includes(skill.name));
     const discoveredCount = unlocked.filter(z => z > 0).length;
 
     const statsStr = [
@@ -163,10 +118,10 @@ const PeriodicTable: React.FC<Props> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 md:p-4 animate-fade-in touch-none">
-            <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[98vw] w-full lg:w-[1200px] max-h-[96vh] overflow-y-auto overscroll-contain flex flex-col shadow-2xl touch-auto">
+            <div className="relative bg-[#13131f] border border-gray-700 rounded-xl p-4 md:p-6 max-w-[98vw] w-full lg:w-[1200px] h-full max-h-[96vh] overflow-y-auto overscroll-contain flex flex-col shadow-2xl touch-auto pb-32 md:pb-20">
                 <button 
                     onClick={onClose}
-                    className="absolute top-3 right-3 md:top-6 md:right-6 px-4 py-2 bg-red-900/50 hover:bg-red-700 text-white rounded border border-red-800 transition-colors uppercase text-xs font-bold z-30 shadow-lg"
+                    className="fixed top-6 right-6 md:top-8 md:right-8 px-4 py-2 bg-red-900/80 hover:bg-red-700 text-white rounded border border-red-800 transition-colors uppercase text-xs font-bold z-40 shadow-xl"
                 >
                     Close [X]
                 </button>
@@ -194,7 +149,6 @@ const PeriodicTable: React.FC<Props> = ({
                                 <span className="text-neon-blue/70 font-mono">{reactionStr}</span>
                             </div>
                         )}
-                        {/* New Tooltip Display Area */}
                         <div className="mt-2 min-h-[1.5rem] flex items-center">
                             {selectedInfo && (
                                 <div className="text-[10px] md:text-xs text-neon-blue font-bold tracking-wider">
@@ -204,30 +158,22 @@ const PeriodicTable: React.FC<Props> = ({
                         </div>
                     </div>
                 </div>
-                {renderPeriodicTable()}
+
+                <div className="shrink-0 mb-6">
+                    {renderPeriodicTable()}
+                </div>
+
                 {displayLegendItems.length > 0 && (
-                  <div className="mt-2 border-t border-gray-800/50 pt-4 pb-2">
-                    <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Skills</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                  <div className="mt-2 border-t border-gray-800/50 pt-4 pb-4 shrink-0">
+                    <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Unlocked Skills</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider">
                         {displayLegendItems.map(item => {
                             const isDisabled = disabledSkills.includes(item.name);
-                            let icon = "👑";
-                            if (item.name === "Neutronization") icon = "⚪";
-                            else if (item.name === "Pair annihilation") icon = "☯";
-                            else if (item.name === "Fission") icon = "☢️";
-                            else if (item.name === "Fusion") icon = "💥";
-                            else if (item.name === "zero barn") icon = "🌑";
-                            else if (item.name === "Electron scattering") icon = "↪️";
-                            else if (item.name === "Exp. Replicate") icon = "⚛️";
-                            else if (item.name === "Nucleosynthesis") icon = "🌟";
-                            else if (item.name === "Temporal Inversion") icon = "⏱";
-                            else if (item.name === "Unknown") icon = "❔";
-                            else if (item.name === "Gluttony") icon = "🕳️";
                             return (
                                 <div key={item.name} onClick={() => onToggleSkill(item.name)}
-                                    className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[32px] text-center cursor-pointer hover:brightness-125 active:scale-95 ${item.class} ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}`}>
-                                    <span className="absolute -top-2 left-0.5 text-base drop-shadow-md z-20">{icon}</span>
-                                    <span className="truncate w-full block">{item.name}</span>
+                                    className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[40px] text-center cursor-pointer hover:brightness-125 active:scale-95 ${item.class} ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}`}>
+                                    <span className="absolute -top-2 left-0.5 text-base drop-shadow-md z-20">{item.icon}</span>
+                                    <span className="truncate w-full block px-1">{item.name}</span>
                                     {isDisabled && <span className="ml-1 opacity-60 text-[7px] shrink-0">(OFF)</span>}
                                 </div>
                             );
@@ -236,17 +182,16 @@ const PeriodicTable: React.FC<Props> = ({
                   </div>
                 )}
 
-                {/* Research Data Password Footer */}
-                <div className="mt-6 border-t border-gray-800 pt-6">
+                <div className="mt-4 border-t border-gray-800 pt-6 shrink-0">
                     <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-2 font-bold flex items-center gap-2">
                         research password
                         {copyFeedback && <span className="text-neon-green text-[8px] animate-pulse">COPIED TO CLIPBOARD!</span>}
                     </h3>
                     <div 
                         onClick={handleCopy}
-                        className="bg-black/60 border border-gray-800 p-3 rounded-lg cursor-pointer hover:border-neon-blue/50 transition-all group relative overflow-hidden"
+                        className="bg-black/60 border border-gray-800 p-3 rounded-lg cursor-pointer hover:border-neon-blue/50 transition-all group relative overflow-hidden mb-8"
                     >
-                        <div className="text-[10px] md:text-xs font-mono text-gray-400 break-all transition-colors group-hover:text-neon-blue max-h-[100px] overflow-y-auto">
+                        <div className="text-[10px] md:text-xs font-mono text-gray-400 break-all transition-colors group-hover:text-neon-blue max-h-24 overflow-y-auto pr-2">
                             {saveCode}
                         </div>
                         <div className="absolute inset-0 bg-neon-blue/5 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none">

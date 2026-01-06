@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { DecayMode } from './types';
+import { DecayMode, HistoryEntry } from './types';
 import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
 import Grid from './components/Grid';
 import InfoPanel from './components/InfoPanel';
@@ -52,8 +52,9 @@ function App() {
   }, [activeTTSTrigger]);
 
   // Convert the discovery record into a sorted list for the map visualization
+  // Fix: Explicitly cast to HistoryEntry[] to avoid "unknown" type inference errors in Object.values
   const sortedHistory = useMemo(() => {
-    return Object.values(evolutionHistory).sort((a, b) => a.turn - b.turn);
+    return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.turn - b.turn);
   }, [evolutionHistory]);
 
   // Scroll Lock for Periodic Table
