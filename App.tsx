@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { DecayMode, EntityType } from './types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION, getSymbol } from './constants';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { DecayMode } from './types';
+import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
 import Grid from './components/Grid';
 import InfoPanel from './components/InfoPanel';
 import ControlPanel from './components/ControlPanel';
@@ -9,12 +8,13 @@ import PeriodicTable from './components/PeriodicTable';
 import HealthBar from './components/HealthBar';
 import GameOverOverlay from './components/GameOverOverlay';
 import NucleusVisualizer from './components/NucleusVisualizer';
-import TrefoilIndicator from './components/TrefoilIndicator';
 import EvolutionMap from './components/EvolutionMap';
+import GridStatusFooter from './components/GridStatusFooter';
+import MessageLog from './components/MessageLog';
+import SidebarFooter from './components/SidebarFooter';
 import { useTTS } from './hooks/useTTS';
-import { useNucleusEngine } from './hooks/useNucleusEngine';
+import { useNucleusCoordinator } from './hooks/useNucleusCoordinator';
 import { useAudioEngine } from './hooks/useAudioEngine';
-import { getNuclideDataSync } from './services/nuclideService';
 
 const STABILIZE_COST = 5;
 const NUCLEOSYNTHESIS_COST = 200;
@@ -33,7 +33,7 @@ function App() {
 
   // --- TTS Bridging Logic ---
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
-  const engine = useNucleusEngine((text) => ttsTriggerRef.current(text));
+  const engine = useNucleusCoordinator((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
   
   // --- Audio Logic with Dynamic Resonance ---
@@ -50,6 +50,11 @@ function App() {
   useEffect(() => {
     ttsTriggerRef.current = activeTTSTrigger;
   }, [activeTTSTrigger]);
+
+  // Convert the discovery record into a sorted list for the map visualization
+  const sortedHistory = useMemo(() => {
+    return Object.values(evolutionHistory).sort((a, b) => a.turn - b.turn);
+  }, [evolutionHistory]);
 
   // Scroll Lock for Periodic Table
   useEffect(() => {
@@ -120,21 +125,6 @@ function App() {
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
   const currentDescription = gameState.currentNuclide.description;
 
-  const gridTotals = gameState.gridEntities.reduce((acc, entity) => {
-    if (entity.type === EntityType.PROTON) acc.p++;
-    else if (entity.type === EntityType.NEUTRON) acc.n++;
-    else if (entity.type === EntityType.ENEMY_ELECTRON) acc.e++;
-    else if (entity.type === EntityType.ENEMY_POSITRON) acc.pos++;
-    return acc;
-  }, { p: 0, n: 0, e: 0, pos: 0 });
-
-  const expectedZ = gameState.currentNuclide.z + gridTotals.p - gridTotals.e + gridTotals.pos;
-  const expectedA = gameState.currentNuclide.a + gridTotals.p + gridTotals.n;
-  const expectedData = getNuclideDataSync(expectedZ, expectedA);
-  const predictionStr = (expectedData.exists && expectedZ >= 0 && expectedZ <= 118) ? `${getSymbol(expectedZ)}${expectedA}` : "Fail";
-  const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : gameState.consecutiveNeutrons > 0 ? 'n' : gameState.consecutiveElectrons > 0 ? 'e-' : null;
-  const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons : activeStreakType === 'n' ? gameState.consecutiveNeutrons : activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
-
   return (
     <div ref={containerRef} tabIndex={0} 
       className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
@@ -181,18 +171,11 @@ function App() {
           </div>
 
           <div className="p-4 border-b border-gray-800 shrink-0 h-64 flex flex-col items-center justify-center overflow-hidden">
-             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={evolutionHistory} currentNuclide={gameState.currentNuclide} />}
+             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} />}
           </div>
 
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth select-none">
-              {[...gameState.messages].reverse().map((msg, i) => {
-                  const msgTurn = gameState.turn - i;
-                  return (
-                    <div key={i} className={`mb-1 border-b border-gray-800 pb-1 last:border-0 opacity-80 ${msg.includes('✨') || msg.includes('☢️') || msg.includes('⚛️') || msg.includes('⏱') ? 'text-neon-blue font-bold animate-pulse' : ''}`}>
-                        <span className="text-neon-purple mr-2">[{msgTurn > 0 ? msgTurn : 0}]</span>{msg}
-                    </div>
-                  );
-              })}
+              <MessageLog messages={gameState.messages} turn={gameState.turn} />
           </div>
 
           <div className="p-4 border-t border-gray-800 shrink-0 bg-black/20">
@@ -206,22 +189,15 @@ function App() {
               </div>
           </div>
 
-          <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
-                <div className="flex flex-col">
-                    <span className="font-bold uppercase">v{APP_VERSION}</span>
-                    <div className="flex gap-2">
-                        <a href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" target="_blank" rel="noopener noreferrer" className="hover:text-neon-blue underline transition-colors">IAEA Data</a>
-                        {!isMuted && <span className="text-neon-blue animate-pulse font-bold tracking-tighter">BPM:{bpm} RES:{primaryMode.slice(0,3)}</span>}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="italic">Nucleus Rogue</div>
-                    <div className="flex gap-1.5 ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); setIsVoiceMuted(!isVoiceMuted); }} className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_5px_#bc13fe]'}`} title="Toggle Voice (V)"><span className="text-[8px] font-bold">V</span></button>
-                        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'}`} title="Toggle BGM (M)"><span className="text-[8px] font-bold">M</span></button>
-                    </div>
-                </div>
-          </div>
+          <SidebarFooter 
+            version={APP_VERSION}
+            isMuted={isMuted}
+            toggleMute={toggleMute}
+            bpm={bpm}
+            primaryMode={primaryMode}
+            isVoiceMuted={isVoiceMuted}
+            onToggleVoice={() => setIsVoiceMuted(!isVoiceMuted)}
+          />
       </div>
 
       {/* Main Game Area */}
@@ -230,44 +206,7 @@ function App() {
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
             <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={finalCombo} />
-            <div className="mt-1 flex flex-wrap justify-center gap-x-8 gap-y-1 text-[10px] font-mono text-gray-400 group relative cursor-help py-1 select-none">
-                <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-                    <div className="w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
-                    <span className="text-white font-light">p: (Z+1, A+1)</span>
-                </div>
-                <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-                    <div className="w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
-                    <span className="text-white font-light">n: (Z, A+1)</span>
-                </div>
-                <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
-                    <span className="text-white font-light">e-: (Z-1, A)</span>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
-                    {gameState.playerLevel >= 6 && (
-                        <>
-                            <span className={`font-black mr-3 ${predictionStr === 'Fail' ? 'text-neon-red' : 'text-neon-green'} drop-shadow-[0_0_5px_currentColor]`}>→{predictionStr === 'Fail' ? 'fail' : predictionStr}</span>
-                            <span className="mr-3 text-gray-700 font-black">|</span>
-                        </>
-                    )}
-                    <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-neon-red/80 font-bold">p={gridTotals.p}</span>
-                        <span className="text-neon-blue/80 font-bold">n={gridTotals.n}</span>
-                        <span className="text-yellow-400/80 font-bold">e-={gridTotals.e}</span>
-                        <span className="text-neon-purple/80 font-bold">e+={gridTotals.pos}</span>
-                    </div>
-                    {activeStreakType && (
-                        <>
-                            <span className="mx-2 text-gray-700 font-black">|</span>
-                            <span className="text-neon-purple font-black tracking-normal mr-2 italic">STREAK:</span>
-                            <span className={`font-bold ${activeStreakType === 'p' ? 'text-neon-red' : activeStreakType === 'n' ? 'text-neon-blue' : 'text-yellow-400'}`}>
-                                {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}={activeStreakCount}
-                            </span>
-                        </>
-                    )}
-                </div>
-            </div>
+            <GridStatusFooter gameState={gameState} />
             <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { setIsSoundTestActive(false); engine.restartGame(rnd); }} isSoundTestActive={isSoundTestActive} onToggleSoundTest={() => setIsSoundTestActive(!isSoundTestActive)} />
          </div>
       </div>

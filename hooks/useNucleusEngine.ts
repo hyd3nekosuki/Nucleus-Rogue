@@ -1,589 +1,176 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, EntityType, DecayMode, VisualEffect, HistoryEntry, SavePayload } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, APP_VERSION, HISTORY_METHODS } from '../constants';
-import { getNuclideDataSync, getValidAsForZ, getDecayModeLabel } from '../services/nuclideService';
-import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
+import { GameState, DecayMode, HistoryEntry } from '../types';
+import { 
+    INITIAL_NUCLIDE, MAGIC_NUMBERS, HISTORY_METHODS,
+    ENERGY_EVOLUTION_TURNS, COULOMB_BARRIER_THRESHOLD, MAX_ENERGY
+} from '../constants';
 import { generateEntities, calculateMoveResult } from '../utils/gameLogic';
 import { processUnlocks } from '../utils/unlockSystem';
-import { calculateDecayEffects, getDecayDeltas } from '../utils/decaySystem';
-import { packBinary, unpackBinary } from '../services/serializationService';
-
-export const COMBO_WINDOW_MS = 8000;
-const ENERGY_EVOLUTION_TURNS = 60; 
-const COULOMB_BARRIER_THRESHOLD = 20;
-const STABILIZE_COST = 5;
-const NUCLEOSYNTHESIS_COST = 200;
-const FORCE_DECAY_COST = 5;
-const MAX_ENERGY = 4294967295;
-
-const getInitialState = (): GameState => ({
-    turn: 0,
-    score: 0,
-    energyPoints: 0,
-    playerPos: { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) },
-    gridEntities: [],
-    currentNuclide: INITIAL_NUCLIDE,
-    hp: INITIAL_HP,
-    maxHp: INITIAL_HP,
-    messages: ["Welcome to the Nucleus!", "Master radioactive decays to increase your Mastery Level."],
-    gameOver: false,
-    gameOverReason: undefined,
-    loadingData: false,
-    unlockedElements: [], 
-    unlockedGroups: [],
-    disabledSkills: [],
-    effects: [],
-    combo: 0,
-    maxCombo: 0,
-    lastComboTime: 0,
-    isTimeStopped: false,
-    playerLevel: 0,
-    masteredDecays: [],
-    comboScore: 0,
-    consecutiveProtons: 0,
-    consecutiveNeutrons: 0,
-    consecutiveElectrons: 0,
-    lastConsumedType: null,
-    reincarnations: 0,
-    magicBarrierCharges: 0,
-    tutorialMessage: "Capture particle to transform",
-    hasSeenDecayTutorial: false,
-    hasSeenCaptureTutorial: false,
-    decayStats: {
-        [DecayMode.ALPHA]: 0,
-        [DecayMode.BETA_MINUS]: 0,
-        [DecayMode.BETA_PLUS]: 0,
-        [DecayMode.ELECTRON_CAPTURE]: 0,
-        [DecayMode.SPONTANEOUS_FISSION]: 0,
-        [DecayMode.NEUTRON_EMISSION]: 0,
-        [DecayMode.PROTON_EMISSION]: 0,
-        [DecayMode.GAMMA]: 0,
-    },
-    reactionStats: {
-        [HISTORY_METHODS.REACTION_NG]: 0,
-        [HISTORY_METHODS.REACTION_NP]: 0,
-        [HISTORY_METHODS.REACTION_N2N]: 0,
-        [HISTORY_METHODS.REACTION_NA]: 0,
-        [HISTORY_METHODS.REACTION_NF]: 0,
-    }
-});
+import { isTemporalInversionEligible, calculateComboCompletionBonus } from '../utils/scoreLogic';
+import { getHistoryMethod } from '../utils/historyLogic';
+import { getInitialState } from './useNucleusDefaults';
+import { useStabilityTimer } from './useStabilityTimer';
+import { useComboTimer } from './useComboTimer';
+import { useVisualCleanup } from './useVisualCleanup';
+import { useMoveController } from './useMoveController';
+import { usePersistence } from './usePersistence';
+import { useUIFeedback } from './useUIFeedback';
+import { useSkillController } from './useSkillController';
+import { useDecayController } from './useDecayController';
 
 export const useNucleusEngine = (triggerTTS: (text: string) => void) => {
     const [gameState, setGameState] = useState<GameState>(getInitialState());
-    const [evolutionHistory, setEvolutionHistory] = useState<HistoryEntry[]>([]);
+    // FIX: Changed state type from HistoryEntry[] to Record<string, HistoryEntry> to satisfy hook parameter requirements
+    const [evolutionHistory, setEvolutionHistory] = useState<Record<string, HistoryEntry>>({});
+
+    // FIX: Initialize bridge refs to break circular dependency between moveStep and useMoveController
+    const stopAutoMoveRef = useRef<() => void>(() => {});
+
+    // UI Feedback hook integration
+    const {
+        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, resetVisuals
+    } = useUIFeedback();
+
+    // Stability monitoring hook
+    useStabilityTimer(gameState, setGameState);
     
-    // UI Feedback States
-    const [isScreenShaking, setIsScreenShaking] = useState(false);
-    const [isFlashBang, setIsFlashBang] = useState(false);
-    const [flashColor, setFlashColor] = useState('bg-neon-blue');
-    const [lastDecayEvent, setLastDecayEvent] = useState<{mode: DecayMode, timestamp: number} | null>(null);
-    const [finalCombo, setFinalCombo] = useState<{count: number, id: number} | null>(null);
+    // Combo monitoring hook
+    useComboTimer(gameState, setGameState, setFinalCombo);
 
-    const moveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const moveQueueRef = useRef<{dx: number, dy: number}[]>([]);
-    const continuousDirRef = useRef<{dx: number, dy: number} | null>(null);
+    // Visual cleanup hook
+    useVisualCleanup(gameState, setGameState);
 
-    // Initial Setup
-    useEffect(() => {
-        const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
-        setGameState(prev => ({ ...prev, gridEntities: initialEntities }));
-        setEvolutionHistory([{
-            turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
-            z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN
-        }]);
-    }, []);
-
-    // Effects cleanup
-    useEffect(() => {
-        if (gameState.effects.length === 0 && !gameState.activeEvent) return;
-        const timer = setTimeout(() => {
-            setGameState(prev => {
-                const now = Date.now();
-                const remainingEffects = prev.effects.filter(e => now - e.timestamp < 1000);
-                const eventStillActive = prev.activeEvent && (now - prev.activeEvent.timestamp < 1000);
-                
-                if (remainingEffects.length === prev.effects.length && eventStillActive) return prev;
-                return { 
-                    ...prev, 
-                    effects: remainingEffects,
-                    activeEvent: eventStillActive ? prev.activeEvent : undefined 
-                };
-            });
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [gameState.effects, gameState.activeEvent]);
-
-    // Combo Timer
-    useEffect(() => {
-        if (gameState.combo === 0 || gameState.gameOver || gameState.isTimeStopped) return;
-        const interval = setInterval(() => {
-            const now = Date.now();
-            if (now - gameState.lastComboTime > COMBO_WINDOW_MS) {
-                setGameState(prev => {
-                    if (prev.combo === 0) return prev;
-                    let inversionMatched = false;
-                    if (prev.comboStartNuclide && prev.currentNuclide.z === prev.comboStartNuclide.z && prev.currentNuclide.a === prev.comboStartNuclide.a) {
-                        if (!prev.disabledSkills.includes("Temporal Inversion")) inversionMatched = true;
-                    }
-                    if (inversionMatched) {
-                        const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, true, prev.comboScore);
-                        if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
-                        return { 
-                            ...prev, score: prev.score + unlockResult.scoreBonus, unlockedGroups: unlockResult.updatedGroups,
-                            messages: [...prev.messages, ...unlockResult.messages].slice(-10), combo: 0, comboScore: 0, comboStartNuclide: undefined 
-                        };
-                    }
-                    if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
-                    return { ...prev, combo: 0, comboScore: 0, comboStartNuclide: undefined };
-                });
-            }
-        }, 100);
-        return () => clearInterval(interval);
-    }, [gameState.combo, gameState.lastComboTime, gameState.gameOver, gameState.isTimeStopped]);
-
-    // Stability (HP) decay
-    useEffect(() => {
-        if (gameState.gameOver) return;
-        let timer: ReturnType<typeof setInterval>;
-        if (!gameState.currentNuclide.isStable) {
-            const hl = gameState.currentNuclide.halfLifeSeconds;
-            let decayRate = 1000, damage = 1;
-            if (hl > 3600) { decayRate = 2000; damage = 0; }
-            else if (hl > 60) { decayRate = 1000; damage = 1; }
-            else if (hl > 1) { decayRate = 500; damage = 2; }
-            else { decayRate = 200; damage = 5; }
-
-            timer = setInterval(() => {
-                setGameState(prev => {
-                    if (prev.isTimeStopped) return prev; 
-                    const newHp = Math.min(prev.maxHp, Math.max(0, prev.hp - damage));
-                    if (newHp === 0 && !prev.gameOver) {
-                        if (prev.unlockedGroups.includes("Temporal Inversion") && !prev.disabledSkills.includes("Temporal Inversion") && prev.energyPoints >= 5) {
-                            return {
-                                ...prev, hp: prev.maxHp, energyPoints: Math.max(0, prev.energyPoints - 5),
-                                messages: [...prev.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10),
-                                effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...prev.playerPos }, timestamp: Date.now() }]
-                            };
-                        }
-                        return { ...prev, hp: 0, energyPoints: 0, gameOver: true, gameOverReason: "CRITICAL_DECAY", combo: 0, comboScore: 0, comboStartNuclide: undefined };
-                    }
-                    return { ...prev, hp: newHp };
-                });
-            }, decayRate);
-        }
-        return () => timer && clearInterval(timer);
-    }, [gameState.currentNuclide, gameState.gameOver, gameState.isTimeStopped]);
-
-    const stopAutoMove = useCallback(() => {
-        if (moveIntervalRef.current) { clearInterval(moveIntervalRef.current); moveIntervalRef.current = null; }
-        moveQueueRef.current = [];
-        continuousDirRef.current = null;
-        setGameState(prev => ({ ...prev, targetPos: undefined }));
-    }, []);
-
+    // Step logic for player movement
     const moveStep = useCallback((dx: number, dy: number) => {
         setGameState(prev => {
-            if (prev.gameOver || prev.loadingData || prev.isTimeStopped) { stopAutoMove(); return prev; }
+            if (prev.gameOver || prev.loadingData || prev.isTimeStopped) {
+                // FIX: Use bridged stopAutoMove function
+                stopAutoMoveRef.current();
+                return prev;
+            }
             const result = calculateMoveResult(prev, dx, dy, COULOMB_BARRIER_THRESHOLD, ENERGY_EVOLUTION_TURNS, prev.playerLevel);
-            if (!result.moved) { if (continuousDirRef.current) stopAutoMove(); return prev; }
+            if (!result.moved) {
+                // FIX: Use bridged refs to handle movement state cleanup
+                stopAutoMoveRef.current();
+                return prev;
+            }
             
             const nextState = { ...result.state };
             if (nextState.energyPoints > MAX_ENERGY) nextState.energyPoints = MAX_ENERGY;
-
             if (nextState.gameOver) nextState.energyPoints = 0;
+
+            if (result.shouldShake) triggerShake();
+            if (result.shouldFlash) triggerFlash('bg-neon-blue');
+            
+            if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
             if (result.inducedDecayMode && result.inducedReactionLabel) {
                 setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
                 nextState.reactionStats = { ...nextState.reactionStats, [result.inducedReactionLabel]: (nextState.reactionStats[result.inducedReactionLabel] || 0) + 1 };
-                if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
-                if (result.shouldFlash) { setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
-                if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
-            } else if (result.shouldFlash) {
-                if (result.flashColor) setFlashColor(result.flashColor);
-                else setFlashColor('bg-neon-blue');
-                setIsFlashBang(true); 
-                setTimeout(() => setIsFlashBang(false), 500);
-                if (result.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
             }
 
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
-                  if (prev.tutorialMessage === "Capture particle to transform") {
-                      nextState.tutorialMessage = null;
-                      nextState.hasSeenCaptureTutorial = true;
-                  }
-                  if (!result.inducedDecayMode) setLastDecayEvent(null);
-                  const targetEntity = prev.gridEntities.find(e => e.position.x === nextState.playerPos.x && e.position.y === nextState.playerPos.y);
-                  let method = HISTORY_METHODS.TRANSMUTATION;
-                  if (result.isPpFusion) { method = HISTORY_METHODS.FUSION; triggerTTS("Nuclear Fusion"); }
-                  else if (result.isPositronAbsorption) { method = HISTORY_METHODS.POSITRON_CAPTURE; }
-                  else if (targetEntity) {
-                      if (targetEntity.type === EntityType.PROTON) method = HISTORY_METHODS.PROTON_CAPTURE;
-                      else if (targetEntity.type === EntityType.NEUTRON) method = HISTORY_METHODS.NEUTRON_CAPTURE;
-                      else if (targetEntity.type === EntityType.ENEMY_ELECTRON) method = HISTORY_METHODS.ELECTRON_CAPTURE_PLAYER;
-                  }
-                  
-                  // Use reaction label directly if provided by interaction logic
-                  if (result.inducedReactionLabel) {
-                      method = result.inducedReactionLabel;
-                  }
+                if (prev.tutorialMessage === "Capture particle to transform") { nextState.tutorialMessage = null; nextState.hasSeenCaptureTutorial = true; }
+                if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) nextState.tutorialMessage = "Decay to be stable";
 
-                  setEvolutionHistory(h => [...h, { turn: nextState.turn, name: nextState.currentNuclide.name, symbol: nextState.currentNuclide.symbol, z: nextState.currentNuclide.z, a: nextState.currentNuclide.a, method }]);
-                  if (!nextState.currentNuclide.isStable && !prev.hasSeenDecayTutorial) nextState.tutorialMessage = "Decay to be stable";
-                  if (nextState.combo === 0 && !nextState.currentNuclide.isStable) nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
-                  const scoreDiff = nextState.score - prev.score;
-                  nextState.comboScore = (nextState.combo === 0) ? scoreDiff : prev.comboScore + scoreDiff;
-                  if (nextState.currentNuclide.isStable && prev.combo > 0) {
-                      let inversionMatched = false;
-                      if (prev.comboStartNuclide && nextState.currentNuclide.z === prev.comboStartNuclide.z && nextState.currentNuclide.a === prev.comboStartNuclide.a) {
-                          if (!prev.disabledSkills.includes("Temporal Inversion")) inversionMatched = true;
-                      }
-                      if (inversionMatched) {
-                          // FIX: nextBetaPlusCount and nextBetaMinusCount were missing in moveStep setter.
-                          // Using current values from prev.decayStats since counts don't change during moves.
-                          const currentBetaPlusCount = prev.decayStats[DecayMode.BETA_PLUS] || 0;
-                          const currentBetaMinusCount = prev.decayStats[DecayMode.BETA_MINUS] || 0;
-                          const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, currentBetaPlusCount, currentBetaMinusCount);
-                          nextState.score += unlockResult.scoreBonus; nextState.unlockedGroups = unlockResult.updatedGroups; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
-                      }
-                      if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
-                      nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
-                  }
+                const method = getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel);
+                // FIX: Updated setEvolutionHistory to use Record structure [Z-A]: Entry
+                setEvolutionHistory(h => ({
+                    ...h,
+                    [`${nextState.currentNuclide.z}-${nextState.currentNuclide.a}`]: { 
+                        turn: nextState.turn, 
+                        name: nextState.currentNuclide.name, 
+                        symbol: nextState.currentNuclide.symbol, 
+                        z: nextState.currentNuclide.z, 
+                        a: nextState.currentNuclide.a, 
+                        method,
+                        pz: prev.currentNuclide.z,
+                        pa: prev.currentNuclide.a
+                    }
+                }));
+
+                if (result.isPpFusion) triggerTTS("Nuclear Fusion");
+
+                if (nextState.combo === 0 && !nextState.currentNuclide.isStable) nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
+                const scoreDiff = nextState.score - prev.score;
+                nextState.comboScore = (nextState.combo === 0) ? scoreDiff : prev.comboScore + scoreDiff;
+
+                if (nextState.currentNuclide.isStable && prev.combo > 0) {
+                    const inversionEligible = isTemporalInversionEligible(nextState.currentNuclide.z, nextState.currentNuclide.a, prev.comboStartNuclide, nextState.unlockedGroups, prev.disabledSkills);
+                    if (inversionEligible) {
+                        const scoreBonus = calculateComboCompletionBonus(nextState.comboScore, true);
+                        const unlockResult = processUnlocks(nextState.unlockedElements, nextState.unlockedGroups, nextState.currentNuclide.z, nextState.currentNuclide.a, false, false, false, true, nextState.comboScore, false, false, false, false, false, prev.decayStats[DecayMode.BETA_PLUS] || 0, prev.decayStats[DecayMode.BETA_MINUS] || 0);
+                        nextState.score += scoreBonus + unlockResult.scoreBonus; nextState.unlockedGroups = unlockResult.updatedGroups; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
+                    }
+                    if (prev.combo >= 2) setFinalCombo({ count: prev.combo, id: Date.now() });
+                    nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
+                }
             }
+
             if (nextState.hp <= 0 && !nextState.gameOver) {
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
                     nextState.hp = nextState.maxHp; nextState.energyPoints -= 5; nextState.messages = [...nextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
                     nextState.effects = [...nextState.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextState.playerPos }, timestamp: Date.now() }];
-                } else {
-                    nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined;
-                }
+                } else { nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; nextState.comboScore = 0; nextState.comboStartNuclide = undefined; }
             }
             return nextState;
         });
-    }, [stopAutoMove, triggerTTS]);
+    }, [triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo]);
 
-    const handleStabilize = useCallback(() => {
-        if (gameState.playerLevel < 2) return;
-        setGameState(prev => {
-            const isSynth = prev.energyPoints >= NUCLEOSYNTHESIS_COST && prev.playerLevel >= 5 && !prev.disabledSkills.includes("Nucleosynthesis");
-            const cost = isSynth ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
-            if (prev.energyPoints < cost) return { ...prev, messages: [...prev.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
-            const now = Date.now();
-            const effectType = isSynth ? DecayMode.NUCLEOSYNTHESIS_ZAP : DecayMode.STABILIZE_ZAP;
-            const zapEffect: VisualEffect = { id: Math.random().toString(36).substr(2, 9), type: effectType, position: { ...prev.playerPos }, timestamp: now };
-            if (isSynth) {
-                const nextZ = prev.currentNuclide.z + 1;
-                if (nextZ > 118) return { ...prev, messages: [...prev.messages, "⚠️ Oganesson limit reached!"].slice(-10) };
-                const validAs = getValidAsForZ(nextZ);
-                if (validAs.length === 0) return { ...prev, messages: [...prev.messages, "⚠️ Synthesis failed: Unstable zone."].slice(-10) };
-                const randomA = validAs[Math.floor(Math.random() * validAs.length)];
-                const newData = getNuclideDataSync(nextZ, randomA);
-                if (newData.exists) {
-                    const nextTurn = prev.turn + 1;
-                    const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
-                    triggerTTS("Nucleosynthesis");
-                    setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-                    setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.NUCLEOSYNTHESIS }]);
-                    const synthBonus = nextZ * 10000;
-                    let nextTutorial = prev.tutorialMessage;
-                    if (prev.tutorialMessage === "Capture particle to transform") nextTutorial = null;
-                    return {
-                        ...prev, currentNuclide: newData, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - NUCLEOSYNTHESIS_COST)),
-                        turn: nextTurn, tutorialMessage: nextTutorial, hasSeenCaptureTutorial: true,
-                        score: prev.score + synthBonus + unlockResult.scoreBonus, effects: [...prev.effects, zapEffect],
-                        unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
-                        messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...unlockResult.messages].slice(-10),
-                        isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
-                    };
-                }
-                return prev;
-            } else {
-                return { ...prev, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - STABILIZE_COST)), effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
+    // Decay controller hook integration (Handles manual decay and interaction glue)
+    const { 
+        handleDecayAction, handlePlayerInteract 
+    } = useDecayController(
+        gameState, setGameState, setEvolutionHistory, triggerTTS, 
+        triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, () => stopAutoMoveRef.current()
+    );
+
+    // Movement controller hook integration
+    // FIX: Remove non-existent continuousDirRef from useMoveController destructuring
+    const { handleCellClick, stopAutoMove } = useMoveController(
+        gameState,
+        setGameState,
+        moveStep,
+        handlePlayerInteract
+    );
+
+    // FIX: Synchronize bridge refs with move controller outputs in an effect to handle cross-hook availability
+    useEffect(() => {
+        stopAutoMoveRef.current = stopAutoMove;
+    });
+
+    // Skill controller hook integration
+    const {
+        handleStabilize, handleUltimateSynthesis, handleToggleTimeStop,
+        handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay
+    } = useSkillController(
+        gameState, setGameState, setEvolutionHistory, triggerTTS, triggerFlash,
+        stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
+    );
+
+    // Persistence controller hook integration
+    const { generateSaveCode, loadSaveCode } = usePersistence(
+        gameState,
+        setGameState,
+        evolutionHistory,
+        setEvolutionHistory,
+        resetVisuals
+    );
+
+    useEffect(() => {
+        const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
+        setGameState(prev => ({ ...prev, gridEntities: initialEntities }));
+        // FIX: Seed history as Record instead of Array
+        setEvolutionHistory({
+            [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
+                turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
+                z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN
             }
-        });
-    }, [gameState.playerLevel, triggerTTS]);
-
-    const handleDecayAction = useCallback((mode: DecayMode) => {
-        stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
-        const currentTime = Date.now();
-        let actualMode = mode;
-        if (mode === DecayMode.UNKNOWN) {
-            const candidates = [DecayMode.ALPHA, DecayMode.BETA_MINUS, DecayMode.BETA_PLUS, DecayMode.PROTON_EMISSION, DecayMode.NEUTRON_EMISSION, DecayMode.SPONTANEOUS_FISSION, DecayMode.GAMMA];
-            let found = false, attempts = 0;
-            while (!found && attempts < 50) {
-                attempts++; const rnd = candidates[Math.floor(Math.random() * candidates.length)];
-                if (rnd === DecayMode.GAMMA) { actualMode = rnd; found = true; break; }
-                const deltas = getDecayDeltas(rnd);
-                if (getNuclideDataSync(gameState.currentNuclide.z + deltas.dZ, gameState.currentNuclide.a + deltas.dA).exists) { actualMode = rnd; found = true; }
-            }
-            if (!found) return;
-        }
-        const isPairUnlocked = gameState.unlockedGroups.includes("Pair annihilation");
-        const isPairEnabled = !gameState.disabledSkills.includes("Pair annihilation");
-        const isNeutronStarUnlocked = gameState.unlockedGroups.includes("Neutronization");
-        const isNeutronStarEnabled = !gameState.disabledSkills.includes("Neutronization");
-        const annihilationEnabled = actualMode === DecayMode.BETA_MINUS ? true : (isPairUnlocked && isPairEnabled);
-        const fissionEnabled = !gameState.disabledSkills.includes("Fission");
-        const decayResult = calculateDecayEffects(actualMode, gameState, currentTime, annihilationEnabled, fissionEnabled, isNeutronStarUnlocked && isNeutronStarEnabled);
-        if (decayResult.dZ === 0 && decayResult.dA === 0 && decayResult.trigger === "") return; 
-        const visualMode = (actualMode === DecayMode.SPONTANEOUS_FISSION && !fissionEnabled) ? DecayMode.ALPHA : actualMode;
-        setLastDecayEvent({ mode: visualMode, timestamp: currentTime });
-        if (decayResult.shouldShake) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 300); }
-        if (decayResult.shouldFlash) { setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
-        if (decayResult.shouldFlash) { setFlashColor(visualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 500); }
-        if (decayResult.speechOverride) triggerTTS(decayResult.speechOverride);
-        setGameState(prev => {
-            const newData = getNuclideDataSync(prev.currentNuclide.z + decayResult.dZ, prev.currentNuclide.a + decayResult.dA);
-            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0, comboScore: 0, comboStartNuclide: undefined }; 
-            let rawCombo = (currentTime - prev.lastComboTime <= COMBO_WINDOW_MS) ? prev.combo + 1 : 1;
-            let nextComboStartNuclide = (rawCombo === 1) ? { z: prev.currentNuclide.z, a: prev.currentNuclide.a } : prev.comboStartNuclide;
-            const scoreIncrease = ((newData.a * 10 + (newData.isStable ? 100 : 10) + decayResult.actionBonusScore) * rawCombo);
-            let nextComboScore = (rawCombo === 1) ? scoreIncrease : prev.comboScore + scoreIncrease;
-            let inversionMatched = false;
-            if (newData.isStable && nextComboStartNuclide && newData.z === nextComboStartNuclide.z && newData.a === nextComboStartNuclide.a) { if (!prev.disabledSkills.includes("Temporal Inversion")) inversionMatched = true; }
-            const nextBetaPlusCount = prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0);
-            const nextBetaMinusCount = prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0);
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, decayResult.isAnnihilation, false, inversionMatched, nextComboScore, false, false, false, false, false, nextBetaPlusCount, nextBetaMinusCount);
-            let finalComboCount = rawCombo;
-            if (newData.isStable) { if (rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); finalComboCount = 0; }
-            const nextPlayerPos = decayResult.newPosition || prev.playerPos;
-            let nextLevel = prev.playerLevel, nextMastered = prev.masteredDecays;
-            const isNewMastery = !prev.masteredDecays.includes(actualMode) && nextLevel < 6;
-            let levelUpMessages: string[] = [];
-            if (isNewMastery) {
-                nextLevel += 1; nextMastered = [...prev.masteredDecays, actualMode]; triggerTTS("Mastery Level Up !");
-                if (nextLevel === 1) levelUpMessages.push("☢️ MASTERY Lv 1: Magic shells grant a 3-charge protective barrier!");
-                if (nextLevel === 2) levelUpMessages.push("☢️ MASTERY Lv 2: Use [🔬] to convert energy into stability.");
-                if (nextLevel === 3) levelUpMessages.push("☢️ MASTERY Lv 3: Magic N-shells can freeze time.");
-                if (nextLevel === 4) levelUpMessages.push("☢️ MASTERY Lv 4: [🔮] Exp. Replicate unlocked.");
-                if (nextLevel === 5) levelUpMessages.push("☢️ MASTERY Lv 5: Nucleosynthesis [🌟] unlocked.");
-                if (nextLevel === 6) levelUpMessages.push("☢️ MASTERY Lv 6: Final level of atomic mastery reached.");
-            }
-            const nextTurn = prev.turn + 1;
-            if (newData.z !== prev.currentNuclide.z || newData.a !== prev.currentNuclide.a) setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: decayResult.trigger }]);
-            let nextBarrierCharges = prev.magicBarrierCharges;
-            if (nextLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) {
-                nextBarrierCharges = 3;
-                levelUpMessages.push("✨ MAGIC SHELL: Barrier activated (3 charges)!");
-            }
-            const nextStateCandidate = { 
-                ...prev, currentNuclide: newData, playerPos: nextPlayerPos, energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + (decayResult.energyBonus || 0)),
-                turn: nextTurn, tutorialMessage: prev.tutorialMessage === "Decay to be stable" ? null : prev.tutorialMessage,
-                hasSeenDecayTutorial: prev.tutorialMessage === "Decay to be stable" ? true : prev.hasSeenDecayTutorial,
-                unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, gridEntities: decayResult.newGridEntities, 
-                effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects],
-                score: prev.score + scoreIncrease + unlockResult.scoreBonus, hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
-                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...levelUpMessages, ...unlockResult.messages, ...decayResult.extraMessages].slice(-10), 
-                combo: finalComboCount, maxCombo: Math.max(prev.maxCombo, rawCombo), lastComboTime: currentTime, playerLevel: nextLevel, masteredDecays: nextMastered,
-                comboScore: (newData.isStable) ? 0 : nextComboScore, comboStartNuclide: (newData.isStable) ? undefined : nextComboStartNuclide,
-                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
-                magicBarrierCharges: nextBarrierCharges
-            };
-            if (nextStateCandidate.hp <= 0 && !nextStateCandidate.gameOver) {
-                if (nextStateCandidate.unlockedGroups.includes("Temporal Inversion") && !nextStateCandidate.disabledSkills.includes("Temporal Inversion") && nextStateCandidate.energyPoints >= 5) {
-                    nextStateCandidate.hp = nextStateCandidate.maxHp; nextStateCandidate.energyPoints -= 5; nextStateCandidate.messages = [...nextStateCandidate.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
-                    nextStateCandidate.effects = [...nextStateCandidate.effects, { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...nextStateCandidate.playerPos }, timestamp: Date.now() }];
-                } else { nextStateCandidate.gameOver = true; nextStateCandidate.gameOverReason = "TRANSFORMATION_SHOCK"; nextStateCandidate.combo = 0; }
-            }
-            return nextStateCandidate;
-        });
-    }, [gameState.disabledSkills, gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, triggerTTS, gameState.unlockedGroups]);
-
-    const handleUltimateSynthesis = useCallback(() => {
-        if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
-        setGameState(prev => {
-            if (prev.isTimeStopped) return { ...prev, messages: [...prev.messages, "⚠️ System Error: Spacetime stabilization prevents accretion."].slice(-10) };
-            let absorbedP = 0, absorbedN = 0, absorbedE = 0, absorbedPos = 0;
-            prev.gridEntities.forEach(e => {
-                if (e.type === EntityType.PROTON) absorbedP++;
-                else if (e.type === EntityType.NEUTRON) absorbedN++;
-                else if (e.type === EntityType.ENEMY_ELECTRON) absorbedE++;
-                else if (e.type === EntityType.ENEMY_POSITRON) absorbedPos++;
-            });
-            const totalAbsorbed = absorbedP + absorbedN + absorbedE + absorbedPos;
-            if (totalAbsorbed === 0) return prev;
-            const nextZ = prev.currentNuclide.z + absorbedP - absorbedE + absorbedPos;
-            const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
-            setFlashColor('bg-white'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-            const newData = getNuclideDataSync(nextZ, nextA);
-            if (!newData.exists || nextZ < 0 || nextZ > 118) {
-                return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
-            }
-            const nextTurn = prev.turn + 1;
-            const synthBonus = totalAbsorbed * 50000;
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
-            setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.R_PROCESS }]);
-            triggerTTS("r-process nucleosynthesis");
-            return {
-                ...prev, currentNuclide: newData, hp: prev.maxHp, turn: nextTurn, gridEntities: [], tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, hasSeenCaptureTutorial: true,
-                score: prev.score + synthBonus + unlockResult.scoreBonus, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, playerLevel: 0, masteredDecays: [],
-                messages: [...prev.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."].slice(-10),
-                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null
-            };
-        });
-    }, [gameState.playerLevel, gameState.disabledSkills, triggerTTS]);
-
-    const handlePlayerInteract = useCallback(() => {
-        stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
-        if (gameState.currentNuclide.isStable) return;
-        let activeMode = gameState.currentNuclide.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) || (gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : null);
-        if (activeMode) handleDecayAction(activeMode);
-    }, [gameState, handleDecayAction, stopAutoMove]);
-
-    const handleToggleTimeStop = useCallback(() => {
-        if (gameState.playerLevel < 3) return; 
-        const neutronNumber = gameState.currentNuclide.a - gameState.currentNuclide.z;
-        if (MAGIC_NUMBERS.includes(neutronNumber)) {
-            setGameState(prev => {
-                const nextState = !prev.isTimeStopped;
-                if (nextState) stopAutoMove();
-                setFinalCombo(null);
-                return { ...prev, isTimeStopped: nextState, effects: [], messages: [...prev.messages, nextState ? "✨ FROZEN TIME: Locked by neutron shell." : "✨ TIME RESTORED."].slice(-10) };
-            });
-        }
-    }, [gameState.playerLevel, gameState.currentNuclide.a, gameState.currentNuclide.z, stopAutoMove]);
-
-    const handleTransmute = useCallback((selectedZ: number) => {
-        if (gameState.playerLevel < 4 || gameState.disabledSkills.includes("Exp. Replicate")) return; 
-        const validAs = getValidAsForZ(selectedZ); if (validAs.length === 0) return;
-        const randomA = validAs[Math.floor(Math.random() * validAs.length)];
-        const newData = getNuclideDataSync(selectedZ, randomA);
-        if (newData.exists) {
-            setGameState(prev => {
-                const nextTurn = prev.turn + 1;
-                const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
-                setLastDecayEvent(null);
-                setEvolutionHistory(h => [...h, { turn: nextTurn, name: newData.name, symbol: newData.symbol, z: newData.z, a: newData.a, method: HISTORY_METHODS.EXP_REPLICATE }]);
-                triggerTTS("Experimental Replicate"); setFlashColor('bg-neon-blue'); setIsFlashBang(true); setTimeout(() => setIsFlashBang(false), 800);
-                let nextBarrierCharges = prev.magicBarrierCharges;
-                if (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && nextBarrierCharges === 0) nextBarrierCharges = 3;
-                return {
-                    ...prev, currentNuclide: newData, turn: nextTurn, tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, hasSeenCaptureTutorial: true, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups,
-                    score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10),
-                    isTimeStopped: false, combo: 0, comboScore: 0, comboStartNuclide: undefined, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, magicBarrierCharges: nextBarrierCharges
-                };
-            });
-        }
-    }, [gameState.playerLevel, gameState.disabledSkills, triggerTTS]);
-
-    const handleToggleHiddenSkill = useCallback((skillName: string) => {
-        setGameState(prev => {
-            const isDisabled = prev.disabledSkills.includes(skillName);
-            const nextDisabled = isDisabled ? prev.disabledSkills.filter(s => s !== skillName) : [...prev.disabledSkills, skillName];
-            return { ...prev, disabledSkills: nextDisabled, messages: [...prev.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10) };
         });
     }, []);
-
-    const restartGame = (randomStart: boolean = false) => {
-        const currentTitles = gameState.unlockedElements;
-        const currentGroups = gameState.unlockedGroups;
-        const currentMaxCombo = randomStart ? gameState.maxCombo : 0;
-        const currentReincarnations = gameState.reincarnations;
-        const currentSeenCapture = gameState.hasSeenCaptureTutorial;
-        const currentSeenDecay = gameState.hasSeenDecayTutorial;
-        const newState = getInitialState();
-        let startNuclide = INITIAL_NUCLIDE;
-        if (randomStart) {
-            let coords = getRandomKnownNuclideCoordinates(); 
-            if (coords) { const data = getNuclideDataSync(coords.z, coords.a); if (data.exists) startNuclide = data; }
-        }
-        let nextDisabledSkills = randomStart ? gameState.disabledSkills : [];
-        let nextUnlockedElements = randomStart ? [...currentTitles] : [];
-        let nextUnlockedGroups = randomStart ? [...currentGroups] : [];
-        let unlockResult = randomStart ? processUnlocks(nextUnlockedElements, nextUnlockedGroups, startNuclide.z, startNuclide.a) : { updatedElements: nextUnlockedElements, updatedGroups: nextUnlockedGroups, scoreBonus: 0, messages: [] as string[] };
-        setLastDecayEvent(null); setFinalCombo(null);
-        setEvolutionHistory([{ turn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: HISTORY_METHODS.ORIGIN }]);
-        const nextReincarnations = randomStart ? currentReincarnations + 1 : 0;
-        setGameState({
-            ...newState, disabledSkills: nextDisabledSkills, score: unlockResult.scoreBonus, currentNuclide: startNuclide,
-            gridEntities: generateEntities(5, [], newState.playerPos, 0), unlockedElements: unlockResult.updatedElements,
-            unlockedGroups: unlockResult.updatedGroups, maxCombo: currentMaxCombo, reincarnations: nextReincarnations,
-            hasSeenCaptureTutorial: randomStart ? currentSeenCapture : false, hasSeenDecayTutorial: randomStart ? currentSeenDecay : false,
-            tutorialMessage: (randomStart && currentSeenCapture) ? null : "Capture particle to transform",
-            messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10)
-        });
-    };
-
-    const handleCellClick = useCallback((x: number, y: number) => {
-        if (x === gameState.playerPos.x && y === gameState.playerPos.y) { handlePlayerInteract(); return; }
-        stopAutoMove(); if (gameState.gameOver || gameState.loadingData || gameState.isTimeStopped) return;
-        const dx = x - gameState.playerPos.x, dy = y - gameState.playerPos.y;
-        const adx = Math.abs(dx), ady = Math.abs(dy);
-        if (adx === 1 && ady === 1) { moveStep(dx, dy); return; }
-        const path: {dx: number, dy: number}[] = [];
-        for (let i = 0; i < adx; i++) path.push({dx: dx > 0 ? 1 : -1, dy: 0});
-        for (let i = 0; i < ady; i++) path.push({dx: 0, dy: dy > 0 ? 1 : -1});
-        if (path.length > 0) {
-            stopAutoMove(); moveQueueRef.current = path;
-            setGameState(prev => ({ ...prev, targetPos: { x, y } }));
-            if (moveIntervalRef.current) clearInterval(moveIntervalRef.current);
-            moveIntervalRef.current = setInterval(() => {
-                if (moveQueueRef.current.length > 0) { const step = moveQueueRef.current.shift(); if (step) moveStep(step.dx, step.dy); }
-                else stopAutoMove();
-            }, 100);
-        }
-    }, [gameState, handlePlayerInteract, stopAutoMove, moveStep]);
-
-    const handleForceUnknownDecay = useCallback(() => {
-        if (gameState.playerLevel < 6 || !gameState.currentNuclide.isStable || gameState.energyPoints < FORCE_DECAY_COST || gameState.gameOver || gameState.isTimeStopped) return;
-        setGameState(prev => ({ ...prev, energyPoints: Math.max(0, prev.energyPoints - FORCE_DECAY_COST), messages: [...prev.messages, "⚠️ ANOMALY: Forced decay triggered!"].slice(-10) }));
-        handleDecayAction(DecayMode.UNKNOWN);
-    }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, gameState.gameOver, gameState.isTimeStopped, handleDecayAction]);
 
     const setHP = useCallback((val: number) => setGameState(prev => ({ ...prev, hp: val })), []);
-
-    // --- Save & Load System (Async Binary Compression) ---
-    const generateSaveCode = useCallback(async () => {
-        return await packBinary(gameState, evolutionHistory);
-    }, [gameState, evolutionHistory]);
-
-    const loadSaveCode = useCallback(async (code: string) => {
-        if (!code || code.trim().length === 0) return false;
-        
-        const payload = await unpackBinary(code);
-        if (!payload) return false;
-
-        try {
-            const currentData = getNuclideDataSync(payload.cz!, payload.ca!);
-            if (!currentData.exists) throw new Error("Invalid current nuclide in save data");
-
-            const restoredHistory: HistoryEntry[] = Object.entries(payload.ev || {}).map(([key, method]) => {
-                const [z, a] = key.split('-').map(Number);
-                const data = getNuclideDataSync(z, a);
-                return { turn: 0, name: data.name, symbol: data.symbol, z, a, method };
-            });
-
-            const newState: GameState = {
-                ...getInitialState(),
-                score: payload.s!,
-                energyPoints: Math.min(MAX_ENERGY, payload.e!),
-                hp: payload.h!,
-                playerLevel: payload.l!,
-                reincarnations: payload.r!,
-                maxCombo: payload.mc || 0,
-                magicBarrierCharges: payload.mb || 0,
-                currentNuclide: currentData,
-                unlockedElements: payload.ue || [],
-                unlockedGroups: payload.ug || [],
-                disabledSkills: payload.ds || [],
-                masteredDecays: payload.md || [],
-                decayStats: payload.st || getInitialState().decayStats,
-                reactionStats: payload.rs || getInitialState().reactionStats,
-                messages: ["Previous research is cited."],
-                tutorialMessage: null,
-                hasSeenCaptureTutorial: true,
-                hasSeenDecayTutorial: true,
-                gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, 0)
-            };
-
-            setGameState(newState);
-            setEvolutionHistory(restoredHistory);
-            setLastDecayEvent(null);
-            setFinalCombo(null);
-            return true;
-        } catch (e) {
-            console.error("Load failed during state restoration", e);
-            return false;
-        }
-    }, []);
 
     return {
         gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,

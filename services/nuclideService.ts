@@ -1,20 +1,8 @@
 
 import { NuclideData, DecayMode, NuclideCategory } from "../types";
 import { getSymbol, getName } from "../constants";
-import { getAllNuclides } from "../data/staticNuclides";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
-
-const nuclideMap = new Map<string, { mode: DecayMode, hl: number, cat: NuclideCategory }>();
-let isCacheInitialized = false;
-
-const initCache = () => {
-    if (isCacheInitialized) return;
-    const all = getAllNuclides();
-    all.forEach(n => {
-        nuclideMap.set(`${n.z}-${n.a}`, { mode: n.mode, hl: n.halflife, cat: n.cat });
-    });
-    isCacheInitialized = true;
-};
+import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
 
 const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
     if (isStable) return 'Stable nuclide';
@@ -51,7 +39,6 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
 
 /**
  * Formats the decay modes of a nuclide into a single string.
- * Handles special cases like Stable nuclei.
  */
 export const formatDecayModes = (nuclide: NuclideData): string => {
     if (nuclide.isStable) return "Stable";
@@ -64,6 +51,9 @@ export const formatDecayModes = (nuclide: NuclideData): string => {
     return modes.map(getDecayModeLabel).join(", ");
 };
 
+/**
+ * Rich factory to create the UI-facing NuclideData structure.
+ */
 const createNuclide = (
     z: number, 
     a: number, 
@@ -94,10 +84,7 @@ const createNuclide = (
     else if (halfLife < 31536000) hlText = `${Math.round(halfLife/86400)} d`;
     else hlText = `${(halfLife/31536000).toExponential(2)} y`;
 
-    // Hybrid description logic: check static database first
     let description = NUCLIDE_FACTS[`${z}-${a}`] || getDecayDescription(mainMode, isStable);
-    
-    // Special ANOMALY overrides (preserving Tetraneutron as requested)
     if (z === 0 && a === 4) description = '⚠ ANOMALY DETECTED: Tetraneutron.';
 
     return {
@@ -109,21 +96,20 @@ const createNuclide = (
     };
 };
 
+/**
+ * Accesses pre-parsed data from the repository and attaches metadata for the UI.
+ */
 export const getNuclideDataSync = (z: number, a: number): NuclideData => {
-    initCache();
-    const cached = nuclideMap.get(`${z}-${a}`);
-    if (cached) {
-        return createNuclide(z, a, cached.cat, cached.mode, cached.hl, cached.cat === NuclideCategory.STABLE, true);
+    const record = NUCLIDE_REPOSITORY.get(`${z}-${a}`);
+    if (record) {
+        return createNuclide(z, a, record.category, record.mode, record.halflife, record.category === NuclideCategory.STABLE, true);
     }
     return createNuclide(z, a, NuclideCategory.NON_EXISTENT, DecayMode.UNKNOWN, 0, false, false);
 };
 
+/**
+ * Retrieves valid A values for a given Z from the static repository.
+ */
 export const getValidAsForZ = (z: number): number[] => {
-    initCache();
-    const validAs: number[] = [];
-    for (const key of nuclideMap.keys()) {
-        const [kZ, kA] = key.split('-').map(Number);
-        if (kZ === z) validAs.push(kA);
-    }
-    return validAs;
+    return getRepositoryValidAsForZ(z);
 };

@@ -1,8 +1,11 @@
+
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, BONUS_SCORES, HISTORY_METHODS } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, BONUS_SCORES, HISTORY_METHODS } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
-import { calculateDecayEffects } from './decaySystem';
+import { processRandomBackgroundEvents } from './randomEvents';
+import { isWithinBounds, findEntityAt } from './gridUtils';
+import { calculateInteraction, calculateNeutronReaction } from './atomicCalculator';
 
 export interface MoveResult {
     moved: boolean;
@@ -15,6 +18,7 @@ export interface MoveResult {
     additionalEffects?: VisualEffect[];
     isPpFusion?: boolean;
     isPositronAbsorption?: boolean;
+    targetEntity?: GridEntity;
 }
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
@@ -60,36 +64,24 @@ export const calculateMoveResult = (
     ENERGY_EVOLUTION_TURNS: number,
     playerLevel: number = 0
 ): MoveResult => {
-    const newX = prev.playerPos.x + dx;
-    const newY = prev.playerPos.y + dy;
+    const newPos: Position = { x: prev.playerPos.x + dx, y: prev.playerPos.y + dy };
 
-    if (newX < 0 || newX >= GRID_WIDTH || newY < 0 || newY >= GRID_HEIGHT) return { moved: false, state: prev };
+    // 1. Validation
+    if (!isWithinBounds(newPos)) return { moved: false, state: prev };
 
-    let entityIndex = -1;
-    for (let i = prev.gridEntities.length - 1; i >= 0; i--) {
-        const e = prev.gridEntities[i];
-        if (e.position.x === newX && e.position.y === newY) {
-            entityIndex = i;
-            break;
-        }
-    }
+    // 2. Interaction
+    const entityMatch = findEntityAt(prev.gridEntities, newPos);
     
-    let dZ = 0, dA = 0, hpPenalty = 0;
-    let chainDecayResult: any = null;
-    let chainReactionLabel = "";
+    let dZ = 0, dA = 0, hpPenalty = 0, energyBonus = 0, actionBonusScore = 0;
     let inducedDecayMode: DecayMode | undefined = undefined;
-    let magicProtectionBonus = 0;
-    let scatteredMessage = "";
-    let isPpFusion = false;
-    let isPositronAbsorption = false;
-    let isCoulombScattered = false;
-    let isBremsAchieved = false;
-    let isGluttonyAchieved = false;
-    
+    let reactionLabel = "";
+    let additionalMessages: string[] = [];
+    let interactionResult: any = null;
     let nextEntities = [...prev.gridEntities];
-
-    const annihilationEnabled = !prev.disabledSkills.includes("Pair annihilation");
-    const isFissionDisabled = prev.disabledSkills.includes("Fission");
+    let shouldShake = false;
+    let shouldFlash = false;
+    let targetEntity: GridEntity | undefined;
+    let gluttonyTrigger = false;
 
     let cP = prev.consecutiveProtons;
     let cN = prev.consecutiveNeutrons;
@@ -97,191 +89,123 @@ export const calculateMoveResult = (
     let lT = prev.lastConsumedType;
     let currentCharges = prev.magicBarrierCharges;
 
-    // Grant charges if player is at magic Z and charges is 0 (Mastery Level 1 required)
-    if (playerLevel >= 1 && MAGIC_NUMBERS.includes(prev.currentNuclide.z) && currentCharges === 0) {
-        currentCharges = 3;
-    }
+    if (entityMatch) {
+        targetEntity = entityMatch.entity;
+        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) return { moved: false, state: prev };
 
-    if (entityIndex !== -1) {
-        const entity = prev.gridEntities[entityIndex];
+        nextEntities.splice(entityMatch.index, 1);
+        if (nextEntities.length === 0) gluttonyTrigger = true;
 
-        if (entity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) {
-            return { moved: false, state: prev };
+        // Streak maintenance
+        if (targetEntity.type === EntityType.PROTON) {
+            if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+        } else if (targetEntity.type === EntityType.NEUTRON) {
+            if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
+        } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
+            if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
         }
 
-        nextEntities.splice(entityIndex, 1);
+        // Check for high energy neutron reaction first
+        const neutronReaction = calculateNeutronReaction(
+            prev.currentNuclide, 
+            targetEntity, 
+            newPos, 
+            nextEntities, 
+            Date.now(), 
+            !prev.disabledSkills.includes("Pair annihilation"), 
+            !prev.disabledSkills.includes("Fission"),
+            prev.unlockedGroups.includes("Neutronization") && !prev.disabledSkills.includes("Neutronization")
+        );
 
-        if (nextEntities.length === 0) {
-            isGluttonyAchieved = true;
+        if (neutronReaction) {
+            interactionResult = neutronReaction;
+            nextEntities = neutronReaction.newGridEntities || nextEntities;
+        } else {
+            interactionResult = calculateInteraction(
+                prev.currentNuclide, targetEntity, cE, prev.hp, currentCharges, 
+                prev.unlockedGroups, prev.disabledSkills
+            );
         }
 
-        if (entity.type === EntityType.PROTON) {
-            if (lT === EntityType.PROTON) cP++;
-            else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-        } else if (entity.type === EntityType.NEUTRON) {
-            if (lT === EntityType.NEUTRON) cN++;
-            else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
-        } else if (entity.type === EntityType.ENEMY_ELECTRON) {
-            if (lT === EntityType.ENEMY_ELECTRON) cE++;
-            else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
+        dZ = interactionResult.dZ;
+        dA = interactionResult.dA;
+        hpPenalty = interactionResult.hpPenalty;
+        energyBonus = interactionResult.energyBonus || 0;
+        actionBonusScore = interactionResult.actionBonusScore || 0;
+        inducedDecayMode = interactionResult.inducedDecayMode;
+        reactionLabel = interactionResult.inducedReactionLabel || "";
+        shouldShake = !!interactionResult.shouldShake;
+        shouldFlash = !!interactionResult.shouldFlash;
+        currentCharges -= interactionResult.chargesUsed;
+
+        if (interactionResult.isPpFusion) {
+            nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
+            gluttonyTrigger = false;
         }
 
-        if (entity.type === EntityType.PROTON) { 
-            const isFusionDisabled = prev.disabledSkills.includes("Fusion");
-            if (isFusionDisabled) {
-                dZ = 0; dA = 0;
-                scatteredMessage = "Proton was blocked by Coulomb barrier";
-            } else {
-                if (prev.currentNuclide.z === 1 && prev.currentNuclide.a === 1 && entity.isHighEnergy) {
-                    isPpFusion = true;
-                    dZ = 0; dA = 1; 
-                    nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
-                    isGluttonyAchieved = false;
-                }
-                else if (currentCharges > 0 || entity.isHighEnergy || prev.currentNuclide.z === 0) { 
-                    dZ = 1; dA = 1; 
-                    if (currentCharges > 0 && !entity.isHighEnergy && prev.currentNuclide.z !== 0) {
-                        currentCharges -= 1;
-                        magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
-                    }
-                }
-                else if (prev.hp > COULOMB_BAR_THRESHOLD) { 
-                    hpPenalty = 20; dZ = 1; dA = 1; 
-                }
-                else { 
-                    isCoulombScattered = true;
-                    scatteredMessage = "Proton was scattered by Coulomb barrier";
-                }
-                if (isCoulombScattered) {
-                    let respawnPos: Position;
-                    let attempts = 0;
-                    do { respawnPos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) }; attempts++; } while ( (respawnPos.x === newX && respawnPos.y === newY) || nextEntities.some(e => e.position.x === respawnPos.x && e.position.y === respawnPos.y) && attempts < 10 );
-                    nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: EntityType.PROTON, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
-                    isGluttonyAchieved = false;
-                }
-            }
-        } else if (entity.type === EntityType.NEUTRON) { 
-            const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
-            if (isZeroBarnActive) {
-                dZ = 0; dA = 0;
-                scatteredMessage = "Neutron was not absorbed due to 0 barn";
-            } else {
-                dZ = 0; dA = 1; 
-                if (entity.isHighEnergy) {
-                    const intermediateData = getNuclideDataSync(prev.currentNuclide.z, prev.currentNuclide.a + 1);
-                    if (intermediateData.exists) {
-                        const tempState = { ...prev, playerPos: { x: newX, y: newY }, currentNuclide: intermediateData, gridEntities: nextEntities };
-                        const options = [
-                            { mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG }, 
-                            { mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP }, 
-                            { mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N }
-                        ];
-                        if (intermediateData.z >= 92) {
-                            if (isFissionDisabled) options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
-                            else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: HISTORY_METHODS.REACTION_NF });
-                        }
-                        const chosen = options[Math.floor(Math.random() * options.length)];
-                        chainDecayResult = calculateDecayEffects(chosen.mode, tempState, Date.now(), annihilationEnabled, !isFissionDisabled);
-                        chainReactionLabel = chosen.label;
-                        inducedDecayMode = chosen.mode;
-                        if (chosen.mode === DecayMode.SPONTANEOUS_FISSION) {
-                            dZ = chainDecayResult.dZ;
-                            dA = 1 + chainDecayResult.dA; 
-                        } else if (chosen.mode === DecayMode.PROTON_EMISSION) {
-                            dZ = -1; dA = 0; 
-                        } else if (chosen.mode === DecayMode.NEUTRON_EMISSION) {
-                            dZ = 0; dA = -1; 
-                        } else {
-                            dZ = chainDecayResult.dZ;
-                            dA = 1 + chainDecayResult.dA;
-                        }
-                        if (chainDecayResult.newGridEntities && chainDecayResult.newGridEntities.length > 0) {
-                            isGluttonyAchieved = false;
-                        }
-                    }
-                }
-            }
-        } else if (entity.type === EntityType.ENEMY_ELECTRON) { 
-            const scatteringActive = prev.unlockedGroups.includes("Electron scattering") && !prev.disabledSkills.includes("Electron scattering");
-            if (scatteringActive) {
-                dZ = 0; dA = 0;
-                scatteredMessage = "Electron scattering prevents capture";
-            } else {
-                if (prev.hp <= 10 && cE >= 5) {
-                    isBremsAchieved = true;
-                }
-                if (currentCharges > 0 || entity.isHighEnergy) { 
-                    dZ = -1; dA = 0; 
-                    if (currentCharges > 0 && !entity.isHighEnergy) {
-                        currentCharges -= 1;
-                        magicProtectionBonus = prev.currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
-                    }
-                } else { 
-                    hpPenalty = prev.hp * 0.5; dZ = -1; dA = 0; 
-                }
-            }
-        } else if (entity.type === EntityType.ENEMY_POSITRON) {
-            isPositronAbsorption = true; dZ = 1; dA = 0;
+        if (interactionResult.isCoulombScattered) {
+            let attempts = 0, respawnPos: Position;
+            do { respawnPos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) }; attempts++; } 
+            while ( (respawnPos.x === newPos.x && respawnPos.y === newPos.y) || nextEntities.some(e => e.position.x === respawnPos.x && e.position.y === respawnPos.y) && attempts < 10 );
+            nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: EntityType.PROTON, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+            gluttonyTrigger = false;
         }
     }
 
-    const potentialZ = prev.currentNuclide.z + dZ;
-    const potentialA = prev.currentNuclide.a + dA;
-    
-    // Check if new Z is magic to grant charges
-    if (playerLevel >= 1 && MAGIC_NUMBERS.includes(potentialZ) && currentCharges === 0) {
-        currentCharges = 3;
-    }
-
-    const evolvedEntities = (chainDecayResult?.newGridEntities || nextEntities).map(e => {
+    // 3. Evolution of Entities
+    const evolvedEntities = nextEntities.map(e => {
         if (e.type === EntityType.PROTON || e.type === EntityType.ENEMY_ELECTRON) {
             const elapsed = (prev.turn + 1) - e.spawnTurn;
             const shouldBeHigh = Math.floor(elapsed / ENERGY_EVOLUTION_TURNS) % 2 === 1;
-            if (e.isHighEnergy !== shouldBeHigh) {
-                return { ...e, isHighEnergy: shouldBeHigh };
-            }
+            if (e.isHighEnergy !== shouldBeHigh) return { ...e, isHighEnergy: shouldBeHigh };
         }
         return e;
     });
 
-    let nextState = { ...prev, playerPos: { x: newX, y: newY }, gridEntities: evolvedEntities, turn: prev.turn + 1, consecutiveProtons: cP, consecutiveNeutrons: cN, consecutiveElectrons: cE, lastConsumedType: lT, magicBarrierCharges: currentCharges };
+    // 4. Create Next State
+    let nextState: GameState = { 
+        ...prev, 
+        playerPos: newPos, 
+        gridEntities: evolvedEntities, 
+        turn: prev.turn + 1, 
+        consecutiveProtons: cP, 
+        consecutiveNeutrons: cN, 
+        consecutiveElectrons: cE, 
+        lastConsumedType: lT, 
+        magicBarrierCharges: currentCharges 
+    };
 
-    let shouldShakeEvent = chainDecayResult?.shouldShake || isCoulombScattered || isPpFusion || isPositronAbsorption;
-    let shouldFlashEvent = chainDecayResult?.shouldFlash || isPpFusion || isPositronAbsorption;
-    let resultFlashColor = undefined;
-
-    if (dZ !== 0 || dA !== 0 || chainDecayResult || isCoulombScattered || isPpFusion || isPositronAbsorption) {
-        const newData = (dZ === 0 && dA === 0 && !isPpFusion && !isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
+    if (dZ !== 0 || dA !== 0 || reactionLabel || interactionResult?.isCoulombScattered || interactionResult?.isPpFusion || interactionResult?.isPositronAbsorption) {
+        const potentialZ = prev.currentNuclide.z + dZ;
+        const potentialA = prev.currentNuclide.a + dA;
+        const newData = (dZ === 0 && dA === 0 && !interactionResult?.isPpFusion && !interactionResult?.isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
+        
         if (newData.exists) {
             const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
             const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, isCoulombScattered, isPpFusion, isFissionAchieved, isZeroBarnAchieved, isBremsAchieved, 0, 0, isGluttonyAchieved);
-            const protectionMsg = magicProtectionBonus > 0 ? [`✨ ${isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${magicProtectionBonus.toLocaleString()} PTS`] : [];
-            const fusionMsg = isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
-            let coreMsg = scatteredMessage && !isPositronAbsorption ? `⚠️ ${scatteredMessage}` : isPpFusion ? `Fusion: Deuterium Synthesized.` : isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${chainReactionLabel ? chainReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
-            const messages = [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);
-            nextState = { ...nextState, currentNuclide: newData, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages, energyPoints: prev.energyPoints + (chainDecayResult?.energyBonus || 0), score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + (chainDecayResult?.actionBonusScore || 0) + unlockResult.scoreBonus + magicProtectionBonus + (isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0), hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) };
-            if (nextState.hp <= 0) { 
-                if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                } else {
-                    nextState.gameOver = true; nextState.gameOverReason = "TRANSFORMATION_SHOCK"; nextState.combo = 0; 
-                }
-            }
-            if (newData.isStable && (dZ !== 0 || dA !== 0 || isPpFusion || isPositronAbsorption)) nextState.combo = 0;
+            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, !!interactionResult?.isCoulombScattered, !!interactionResult?.isPpFusion, isFissionAchieved, isZeroBarnAchieved, !!interactionResult?.isBremsAchieved, 0, 0, gluttonyTrigger);
+            
+            const protectionMsg = (interactionResult?.magicProtectionBonus || 0) > 0 ? [`✨ ${interactionResult.isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${interactionResult.magicProtectionBonus.toLocaleString()} PTS`] : [];
+            const fusionMsg = interactionResult?.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
+            let coreMsg = interactionResult?.scatteredMessage && !interactionResult.isPositronAbsorption ? `⚠️ ${interactionResult.scatteredMessage}` : interactionResult?.isPpFusion ? `Fusion: Deuterium Synthesized.` : interactionResult?.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${reactionLabel ? reactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
+            
+            nextState = { 
+                ...nextState, 
+                currentNuclide: newData, 
+                unlockedElements: unlockResult.updatedElements, 
+                unlockedGroups: unlockResult.updatedGroups, 
+                messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10), 
+                energyPoints: prev.energyPoints + energyBonus, 
+                score: nextState.score + (newData.a * 10) + (newData.isStable ? 200 : 10) + actionBonusScore + unlockResult.scoreBonus + (interactionResult?.magicProtectionBonus || 0) + (interactionResult?.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0), 
+                hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) 
+            };
+            if (newData.isStable && (dZ !== 0 || dA !== 0 || interactionResult?.isPpFusion || interactionResult?.isPositronAbsorption)) nextState.combo = 0;
         } else {
-            if (isBremsAchieved) {
+            if (interactionResult?.isBremsAchieved) {
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
-                nextState.unlockedGroups = unlockResult.updatedGroups;
-                nextState.score += unlockResult.scoreBonus;
-                nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
+                nextState.unlockedGroups = unlockResult.updatedGroups; nextState.score += unlockResult.scoreBonus; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
             }
             nextState.hp = Math.max(0, prev.hp - hpPenalty);
-            if (nextState.hp <= 0 && hpPenalty > 0) { 
-                if (nextState.unlockedGroups.includes("Temporal Inversion") && !nextState.disabledSkills.includes("Temporal Inversion") && nextState.energyPoints >= 5) {
-                } else {
-                    nextState.gameOver = true; nextState.gameOverReason = "PARTICLE_COLLISION"; nextState.combo = 0; 
-                }
-            }
         }
     } else {
         if (nextState.currentNuclide.isStable) nextState.hp = Math.min(prev.maxHp, prev.hp + 1);
@@ -290,63 +214,27 @@ export const calculateMoveResult = (
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
             nextState = { ...nextState, unlockedGroups: unlockResult.updatedGroups, messages: [...prev.messages, ...unlockResult.messages].slice(-10), score: nextState.score + unlockResult.scoreBonus };
         }
-        if (scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${scatteredMessage}`].slice(-10);
+        if (interactionResult?.scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${interactionResult.scatteredMessage}`].slice(-10);
     }
 
-    const isUnknownSkillActive = nextState.unlockedGroups.includes("Unknown") && !nextState.disabledSkills.includes("Unknown");
-    let eventTriggered = false;
-
-    if (isUnknownSkillActive) {
-        const randEvent = Math.random();
-        if (randEvent < 0.02) {
-            let eventMsg = "";
-            let signalType = "";
-            let signalColor = "";
-            
-            if (randEvent < 0.01) {
-                eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!";
-                signalType = "INVERSION";
-                signalColor = "#bc13fe";
-                nextState.gridEntities = nextState.gridEntities.map(e => {
-                    if (e.type === EntityType.PROTON) return { ...e, type: EntityType.NEUTRON };
-                    if (e.type === EntityType.NEUTRON) return { ...e, type: EntityType.PROTON };
-                    if (e.type === EntityType.ENEMY_ELECTRON) return { ...e, isHighEnergy: !e.isHighEnergy };
-                    return e;
-                });
-            } else if (randEvent < 0.016) {
-                eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!";
-                signalType = "NEUTRON_STORM";
-                signalColor = "#00f3ff";
-                nextState.gridEntities = nextState.gridEntities.map(e => 
-                    e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.NEUTRON } : e
-                );
-            } else if (randEvent < 0.019) {
-                eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!";
-                signalType = "PROTON_BURST";
-                signalColor = "#ff0055";
-                nextState.gridEntities = nextState.gridEntities.map(e => 
-                    e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.PROTON } : e
-                );
-            } else {
-                eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!";
-                signalType = "ELECTRON_FLUCTUATION";
-                signalColor = "#facc15";
-                nextState.gridEntities = nextState.gridEntities.map(e => 
-                    e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.ENEMY_ELECTRON } : e
-                );
-            }
-            
-            nextState.messages = [...nextState.messages, eventMsg].slice(-10);
-            nextState.activeEvent = { type: signalType, color: signalColor, timestamp: Date.now() };
-            eventTriggered = true;
-        }
-    }
-
-    const isGluttonySkillActive = nextState.unlockedGroups.includes("Gluttony") && !nextState.disabledSkills.includes("Gluttony");
-
-    if (!isGluttonySkillActive && !eventTriggered && Math.random() < 0.15) {
-        nextState.gridEntities = generateEntities(1, nextState.gridEntities, nextState.playerPos, nextState.turn);
-    }
+    // 5. Background Events
+    const backgroundResult = processRandomBackgroundEvents(nextState);
     
-    return { moved: true, state: nextState, inducedDecayMode, inducedReactionLabel: chainReactionLabel, shouldShake: shouldShakeEvent, shouldFlash: shouldFlashEvent, flashColor: resultFlashColor, additionalEffects: chainDecayResult?.additionalEffects, isPpFusion, isPositronAbsorption };
+    return { 
+        moved: true, 
+        state: {
+            ...nextState,
+            gridEntities: backgroundResult.gridEntities,
+            messages: backgroundResult.messages,
+            activeEvent: backgroundResult.activeEvent
+        }, 
+        inducedDecayMode, 
+        inducedReactionLabel: reactionLabel, 
+        shouldShake: shouldShake || !!interactionResult?.isCoulombScattered || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        shouldFlash: shouldFlash || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        additionalEffects: interactionResult?.chainDecayResult?.additionalEffects, 
+        isPpFusion: !!interactionResult?.isPpFusion, 
+        isPositronAbsorption: !!interactionResult?.isPositronAbsorption, 
+        targetEntity 
+    };
 };

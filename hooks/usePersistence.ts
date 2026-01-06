@@ -1,0 +1,104 @@
+// Added React import to provide access to React namespace
+import React, { useCallback } from 'react';
+import { GameState, HistoryEntry } from '../types';
+import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT } from '../constants';
+import { packBinary, unpackBinary } from '../services/serializationService';
+import { getNuclideDataSync } from '../services/nuclideService';
+import { generateEntities } from '../utils/gameLogic';
+import { getInitialState } from '../utils/initialState';
+
+/**
+ * Custom hook to handle game persistence (saving and loading data).
+ * Isolates serialization logic from the core game engine.
+ */
+export const usePersistence = (
+    gameState: GameState,
+    setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+    evolutionHistory: Record<string, HistoryEntry>,
+    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
+    resetVisualEvents: () => void
+) => {
+    const generateSaveCode = useCallback(async () => {
+        return await packBinary(gameState, evolutionHistory);
+    }, [gameState, evolutionHistory]);
+
+    const loadSaveCode = useCallback(async (code: string) => {
+        if (!code || code.trim().length === 0) return false;
+        
+        const payload = await unpackBinary(code);
+        if (!payload) return false;
+
+        try {
+            const currentData = getNuclideDataSync(payload.cz!, payload.ca!);
+            
+            // Reconstruct the discovery map from saved payload
+            const restoredHistory: Record<string, HistoryEntry> = {};
+            Object.entries(payload.ev || {}).forEach(([key, val]) => {
+                const parts = key.split('-');
+                let z, a;
+                if (parts.length === 4) {
+                    // Backwards compatibility with old "pz-pa-z-a" key format
+                    z = parseInt(parts[2]);
+                    a = parseInt(parts[3]);
+                } else {
+                    z = parseInt(parts[0]);
+                    a = parseInt(parts[1]);
+                }
+                
+                let pz = 0, pa = 0, method = val, turn = 0;
+                if (val.includes(':')) {
+                    const valParts = val.split(':');
+                    pz = parseInt(valParts[0]);
+                    pa = parseInt(valParts[1]);
+                    method = valParts[2];
+                    if (valParts.length >= 4) {
+                        turn = parseInt(valParts[3]);
+                    }
+                }
+
+                const data = getNuclideDataSync(z, a);
+                restoredHistory[`${z}-${a}`] = { 
+                    turn: turn, 
+                    name: data.name, 
+                    symbol: data.symbol, 
+                    z, a, method,
+                    pz: pz || undefined,
+                    pa: pa || undefined
+                };
+            });
+
+            setGameState({ 
+                ...getInitialState(), 
+                score: payload.s!, 
+                energyPoints: Math.min(MAX_ENERGY, payload.e!), 
+                hp: payload.h!, 
+                playerLevel: payload.l!, 
+                reincarnations: payload.r!, 
+                turn: payload.t || 0, // Restore global game turn
+                maxCombo: payload.mc || 0, 
+                magicBarrierCharges: payload.mb || 0, 
+                currentNuclide: currentData, 
+                unlockedElements: payload.ue || [], 
+                unlockedGroups: payload.ug || [], 
+                disabledSkills: payload.ds || [], 
+                masteredDecays: payload.md || [], 
+                decayStats: payload.st || getInitialState().decayStats, 
+                reactionStats: payload.rs || getInitialState().reactionStats, 
+                messages: ["Previous research is cited."], 
+                tutorialMessage: null, 
+                hasSeenCaptureTutorial: true, 
+                hasSeenDecayTutorial: true, 
+                gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, payload.t || 0) 
+            });
+
+            setEvolutionHistory(restoredHistory);
+            resetVisualEvents();
+            return true;
+        } catch (e) {
+            console.error("Failed to restore game state from code:", e);
+            return false;
+        }
+    }, [setGameState, setEvolutionHistory, resetVisualEvents]);
+
+    return { generateSaveCode, loadSaveCode };
+};

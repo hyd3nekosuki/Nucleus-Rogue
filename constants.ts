@@ -1,14 +1,24 @@
+
 import { DecayMode, NuclideData, NuclideCategory } from './types';
 
 export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
 
-export const APP_VERSION = "1.3.5.1";
+export const APP_VERSION = "1.3.5.5";
 
 export const KNOWN_Z_LIMIT = 118;
 
 export const MAGIC_NUMBERS = [2, 8, 20, 28, 50, 82, 126];
+
+// --- Game Balance Constants ---
+export const COMBO_WINDOW_MS = 8000;
+export const ENERGY_EVOLUTION_TURNS = 60; 
+export const COULOMB_BARRIER_THRESHOLD = 20;
+export const STABILIZE_COST = 5;
+export const NUCLEOSYNTHESIS_COST = 200;
+export const FORCE_DECAY_COST = 5;
+export const MAX_ENERGY = 4294967295;
 
 // History Method Labels - Streamlined for scientific accuracy
 export const HISTORY_METHODS = {
@@ -91,8 +101,10 @@ export const ELEMENT_NAMES = [
   "Antimony", "Tellurium", "Iodine", "Xenon", "Caesium", "Barium", "Lanthanum", "Cerium", "Praseodymium", "Neodymium",
   "Promethium", "Samarium", "Europium", "Gadolinium", "Terbium", "Dysprosium", "Holmium", "Erbium", "Thulium", "Ytterbium",
   "Lutetium", "Hafnium", "Tantalum", "Tungsten", "Rhenium", "Osmium", "Iridium", "Platinum", "Gold", "Mercury",
-  "Thallium", "Lead", "Bismuth", "Polonium", "Astatine", "Radon", "Francium", "Radium", "Actinium", "Thorium", "Protactinium", "Uranium", "Neptunium", "Plutonium", "Americium", "Curium", "Berkelium", "Californium", "Einsteinium", "Fermium",
-  "Mendelevium", "Nobelium", "Lawrencium", "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium", "Roentgenium", "Copernicium", "Nihonium", "Flerovium", "Moscovium", "Livermorium", "Tennessine", "Oganesson"
+  "Thallium", "Lead", "Bismuth", "Polonium", "Astatine", "Radon", "Francium", "Radium", "Actinium", "Thorium",
+  "Protactinium", "Uranium", "Neptunium", "Plutonium", "Americium", "Curium", "Berkelium", "Californium", "Einsteinium", "Fermium",
+  "Mendelevium", "Nobelium", "Lawrencium", "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium",
+  "Roentgenium", "Copernicium", "Nihonium", "Flerovium", "Moscovium", "Livermorium", "Tennessine", "Oganesson"
 ];
 
 export const ELEMENT_GROUPS: Record<string, number[]> = {

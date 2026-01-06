@@ -1,3 +1,4 @@
+
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -51,6 +52,15 @@ export interface GridEntity {
   isHighEnergy: boolean;
 }
 
+/**
+ * Encapsulates changes to the grid entities during a single turn/reaction.
+ */
+export interface GridMutation {
+    removedEntityIds: string[];
+    modifiedEntities: GridEntity[];
+    addedEntities: GridEntity[];
+}
+
 export interface VisualEffect {
   id: string;
   type: DecayMode;
@@ -72,6 +82,44 @@ export interface NuclideData {
   description?: string;
 }
 
+/**
+ * Result of an atomic reaction calculation.
+ */
+export interface AtomicReactionResult {
+    dZ: number;
+    dA: number;
+    hpPenalty: number;
+    energyBonus: number;
+    actionBonusScore: number;
+    messages: string[];
+    inducedDecayMode?: DecayMode;
+    inducedReactionLabel?: string;
+    isPpFusion?: boolean;
+    isPositronAbsorption?: boolean;
+    isCoulombScattered?: boolean;
+    isBremsAchieved?: boolean;
+    magicProtectionBonus?: number;
+    chargesUsed: number;
+    scatteredMessage?: string;
+    shouldShake?: boolean;
+    shouldFlash?: boolean;
+    chainDecayResult?: any;
+    newGridEntities?: GridEntity[];
+    newPosition?: Position;
+    isAnnihilation?: boolean;
+}
+
+/**
+ * Strict internal representation of physical nuclide data.
+ */
+export interface NuclideRecord {
+  z: number;
+  a: number;
+  mode: DecayMode;
+  halflife: number;
+  category: NuclideCategory;
+}
+
 export interface HistoryEntry {
     turn: number;
     name: string;
@@ -79,6 +127,8 @@ export interface HistoryEntry {
     z: number;
     a: number;
     method: string;
+    pz?: number; // Parent Z (Atomic Number of origin)
+    pa?: number; // Parent A (Mass Number of origin)
 }
 
 export interface GameState {
@@ -124,10 +174,11 @@ export interface GameState {
 export interface SavePayload {
   v: string; // App Version
   s: number; // Score
-  e: number; // Energy (max 65535)
+  e: number; // Energy
   h: number; // HP
   l: number; // Player Level
   r: number; // Reincarnations
+  t: number; // Global Turn count
   cz: number; // Current Z
   ca: number; // Current A
   ue: number[]; // Unlocked Elements
