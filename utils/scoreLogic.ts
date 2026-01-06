@@ -1,18 +1,14 @@
+
 /**
- * Checks if the temporal inversion conditions are met.
+ * Checks if the physical temporal inversion condition (returning to the same nuclide) is met.
  */
 export const isTemporalInversionEligible = (
     currentZ: number, 
     currentA: number, 
-    startNuclide: { z: number, a: number } | undefined,
-    unlockedGroups: string[],
-    disabledSkills: string[]
+    startNuclide: { z: number, a: number } | undefined
 ): boolean => {
     if (!startNuclide) return false;
-    const isMatched = (currentZ === startNuclide.z && currentA === startNuclide.a);
-    const isUnlocked = unlockedGroups.includes("Temporal Inversion");
-    const isEnabled = !disabledSkills.includes("Temporal Inversion");
-    return isMatched && isUnlocked && isEnabled;
+    return (currentZ === startNuclide.z && currentA === startNuclide.a);
 };
 
 /**

@@ -78,14 +78,27 @@ export const useDecayController = (
             const scoreIncrease = ((newData.a * 10 + (newData.isStable ? 100 : 10) + decayResult.actionBonusScore) * rawCombo);
             let nextComboScore = (rawCombo === 1) ? scoreIncrease : prev.comboScore + scoreIncrease;
             
-            const inversionEligible = isTemporalInversionEligible(newData.z, newData.a, nextComboStartNuclide, prev.unlockedGroups, prev.disabledSkills);
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, false, !!decayResult.isAnnihilation, false, inversionEligible, nextComboScore, false, false, false, false, false, prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0), prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0));
+            // Check for physical match condition
+            const isMatched = isTemporalInversionEligible(newData.z, newData.a, nextComboStartNuclide);
+            const isUnlocked = prev.unlockedGroups.includes("Temporal Inversion");
+            const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
+            
+            // We want to trigger the logic if it's a physical match and (not yet unlocked OR (unlocked and not disabled))
+            const inversionTrigger = isMatched && (!isUnlocked || !isDisabled);
+
+            const unlockResult = processUnlocks(
+                prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, 
+                false, !!decayResult.isAnnihilation, false, inversionTrigger, nextComboScore, 
+                false, false, false, false, false, 
+                prev.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0), 
+                prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0)
+            );
             
             let finalComboCount = rawCombo, finalScoreBonus = 0;
             if (newData.isStable) { 
                 if (rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); 
                 finalComboCount = 0; 
-                finalScoreBonus = calculateComboCompletionBonus(nextComboScore, inversionEligible); 
+                finalScoreBonus = calculateComboCompletionBonus(nextComboScore, inversionTrigger); 
             }
             
             let nextLevel = prev.playerLevel, nextMastered = prev.masteredDecays;

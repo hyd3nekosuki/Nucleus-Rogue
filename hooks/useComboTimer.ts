@@ -25,15 +25,18 @@ export const useComboTimer = (
                     // Double check in callback to ensure state consistency
                     if (prev.combo === 0) return prev;
 
-                    const inversionEligible = isTemporalInversionEligible(
+                    // FIX: isTemporalInversionEligible expects 3 arguments, updated to match definition in utils/scoreLogic.ts.
+                    // Also extracted skill checks to match the orchestrator logic found in useMovementExecutor and useDecayController.
+                    const isMatched = isTemporalInversionEligible(
                         prev.currentNuclide.z,
                         prev.currentNuclide.a,
-                        prev.comboStartNuclide,
-                        prev.unlockedGroups,
-                        prev.disabledSkills
+                        prev.comboStartNuclide
                     );
+                    const isUnlocked = prev.unlockedGroups.includes("Temporal Inversion");
+                    const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
+                    const shouldTriggerInversion = isMatched && (!isUnlocked || !isDisabled);
 
-                    if (inversionEligible) {
+                    if (shouldTriggerInversion) {
                         const scoreBonus = calculateComboCompletionBonus(prev.comboScore, true);
                         const unlockResult = processUnlocks(
                             prev.unlockedElements,

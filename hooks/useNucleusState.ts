@@ -5,6 +5,7 @@ import { getInitialState } from '../utils/initialState';
 
 /**
  * Single Source of Truth hook for the raw game state and discovery history.
+ * Ensures state management is consistent across the application.
  */
 export const useNucleusState = () => {
     const [gameState, setGameState] = useState<GameState>(getInitialState());

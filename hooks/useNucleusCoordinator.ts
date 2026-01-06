@@ -1,5 +1,5 @@
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { DecayMode } from '../types';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 import { generateEntities } from '../utils/gameLogic';
@@ -19,22 +19,24 @@ import { useMovementExecutor } from './useMovementExecutor';
  * Manages the connection between state, execution, input control, and visual feedback.
  */
 export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
-    // 1. Raw State
+    // 1. 生の状態（Single Source of Truth）
     const { gameState, setGameState, evolutionHistory, setEvolutionHistory } = useNucleusState();
 
-    // 2. Visual Feedback States
+    // 2. 視覚的フィードバック状態
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, resetVisuals
     } = useVisualEffects();
 
-    // 3. Automated Passive Logic (Timers & Cleanup)
+    // 3. 受動的な自動ロジック（タイマーとクリーンアップ）
     useStabilityTimer(gameState, setGameState);
     useComboTimer(gameState, setGameState, setFinalCombo);
     useVisualCleanup(gameState, setGameState);
 
-    // 4. Movement Execution Logic
-    // We define this separately so moveStep can be passed to the controller
+    // 循環参照解決用の関数Ref
+    const stopAutoMoveRef = useRef<() => void>(() => {});
+
+    // 4. 移動実行ロジック（物理ルールと計算）
     const { moveStep } = useMovementExecutor({
         setGameState, 
         setEvolutionHistory, 
@@ -43,20 +45,19 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         triggerFlash, 
         setLastDecayEvent, 
         setFinalCombo,
-        // stopAutoMove is wired later via the controller, so we use a functional ref or simple stop dispatch here
-        onStopRequest: () => setGameState(prev => ({ ...prev, targetPos: undefined }))
+        onStopRequest: () => stopAutoMoveRef.current() // Ref経由で呼び出し
     });
 
-    // 5. Interaction Logic (Manual Decay)
+    // 5. 相互作用ロジック（手動崩壊、粒子接触時の動作）
     const { 
         handleDecayAction, handlePlayerInteract 
     } = useDecayController(
         gameState, setGameState, setEvolutionHistory, triggerTTS, 
         triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, 
-        () => setGameState(prev => ({ ...prev, targetPos: undefined }))
+        () => stopAutoMoveRef.current()
     );
 
-    // 6. User Input Control Logic (Movement & Pathing)
+    // 6. ユーザー入力・制御ロジック（自動移動・パス生成）
     const { handleCellClick, stopAutoMove } = useMoveController(
         gameState,
         setGameState,
@@ -64,7 +65,12 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         handlePlayerInteract
     );
 
-    // 7. High-Level Skill Control
+    // コントローラーの停止関数をRefに同期
+    useEffect(() => {
+        stopAutoMoveRef.current = stopAutoMove;
+    }, [stopAutoMove]);
+
+    // 7. 高レベルスキル制御（安定化、合成、時間停止等）
     const {
         handleStabilize, handleUltimateSynthesis, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay
@@ -73,7 +79,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
     );
 
-    // 8. Data Persistence (Save/Load)
+    // 8. データ永続化（セーブ・ロード）
     const { generateSaveCode, loadSaveCode } = usePersistence(
         gameState,
         setGameState,
@@ -82,7 +88,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         resetVisuals
     );
 
-    // Initial World Generation
+    // 初期世界生成
     useEffect(() => {
         const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
         setGameState(prev => ({ ...prev, gridEntities: initialEntities }));

@@ -21,8 +21,8 @@ interface MovementExecutorDeps {
 }
 
 /**
- * Handles the logic of executing a single movement step and its immediate consequences.
- * Decoupled from user input management.
+ * Movement Execution Unit: Responsible for processing one 'step' of movement.
+ * It coordinates the atomic physics logic, game rules, and immediate UI effects.
  */
 export const useMovementExecutor = (deps: MovementExecutorDeps) => {
     const {
@@ -32,28 +32,38 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
     } = deps;
 
     const moveStep = useCallback((dx: number, dy: number) => {
+        let shouldStop = false;
+
         setGameState(prev => {
-            // Guard: Cannot move if game is over, data is loading, or time is frozen
+            // Pre-move guards
             if (prev.gameOver || prev.loadingData || prev.isTimeStopped) {
-                onStopRequest();
+                shouldStop = true;
                 return prev;
             }
 
-            const result = calculateMoveResult(prev, dx, dy, COULOMB_BARRIER_THRESHOLD, ENERGY_EVOLUTION_TURNS, prev.playerLevel);
+            // Calculate the physical outcome of the move
+            const result = calculateMoveResult(
+                prev, 
+                dx, 
+                dy, 
+                COULOMB_BARRIER_THRESHOLD, 
+                ENERGY_EVOLUTION_TURNS, 
+                prev.playerLevel
+            );
             
-            // If movement was physically blocked
+            // If movement was blocked by boundaries or specific game logic
             if (!result.moved) {
-                onStopRequest();
+                shouldStop = true;
                 return prev;
             }
             
             const nextState = { ...result.state };
             
-            // Energy Cap
+            // Apply physical constraints and secondary effects
             if (nextState.energyPoints > MAX_ENERGY) nextState.energyPoints = MAX_ENERGY;
             if (nextState.gameOver) nextState.energyPoints = 0;
 
-            // UI Feedback
+            // Trigger sensory feedback
             if (result.shouldShake) triggerShake();
             if (result.shouldFlash) triggerFlash('bg-neon-blue');
             
@@ -61,7 +71,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 nextState.effects = [...nextState.effects, ...result.additionalEffects];
             }
 
-            // Induced Reactions (e.g. Neutron capture reactions)
+            // Handle induced nuclear reactions (e.g., neutron-induced fission/capture)
             if (result.inducedDecayMode && result.inducedReactionLabel) {
                 setLastDecayEvent({ mode: result.inducedDecayMode, timestamp: Date.now() });
                 nextState.reactionStats = { 
@@ -70,9 +80,9 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 };
             }
 
-            // Nuclide Transformation Logic
+            // Check for Nuclide Transformation (Discovery)
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
-                // Tutorial Management
+                // Update tutorial state
                 if (prev.tutorialMessage === "Capture particle to transform") {
                     nextState.tutorialMessage = null;
                     nextState.hasSeenCaptureTutorial = true;
@@ -81,7 +91,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     nextState.tutorialMessage = "Decay to be stable";
                 }
 
-                // Discovery History Update
+                // Record discovery in evolution history
                 const method = getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel);
                 setEvolutionHistory(h => ({
                     ...h,
@@ -99,7 +109,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
 
                 if (result.isPpFusion) triggerTTS("Nuclear Fusion");
 
-                // Combo Start Tracking
+                // Manage combo chains
                 if (nextState.combo === 0 && !nextState.currentNuclide.isStable) {
                     nextState.comboStartNuclide = { z: prev.currentNuclide.z, a: prev.currentNuclide.a };
                 }
@@ -107,17 +117,20 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 const scoreDiff = nextState.score - prev.score;
                 nextState.comboScore = (nextState.combo === 0) ? scoreDiff : prev.comboScore + scoreDiff;
 
-                // Auto-Settlement on reaching Stable state
+                // Handle Automatic Settlement (Reached Stability during move)
                 if (nextState.currentNuclide.isStable && prev.combo > 0) {
-                    const inversionEligible = isTemporalInversionEligible(
+                    const isMatched = isTemporalInversionEligible(
                         nextState.currentNuclide.z, 
                         nextState.currentNuclide.a, 
-                        prev.comboStartNuclide, 
-                        nextState.unlockedGroups, 
-                        prev.disabledSkills
+                        prev.comboStartNuclide
                     );
+                    
+                    const isUnlocked = prev.unlockedGroups.includes("Temporal Inversion");
+                    const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
+                    // Trigger unlock if not unlocked, or apply bonus if unlocked and enabled
+                    const shouldTriggerInversion = isMatched && (!isUnlocked || !isDisabled);
 
-                    if (inversionEligible) {
+                    if (shouldTriggerInversion) {
                         const scoreBonus = calculateComboCompletionBonus(nextState.comboScore, true);
                         const unlockResult = processUnlocks(
                             nextState.unlockedElements, nextState.unlockedGroups, 
@@ -139,8 +152,9 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 }
             }
 
-            // Death Check (with Temporal Inversion mitigation)
+            // Life cycle safety: Death Check
             if (nextState.hp <= 0 && !nextState.gameOver) {
+                // Check for Temporal Inversion auto-save
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && 
                     !nextState.disabledSkills.includes("Temporal Inversion") && 
                     nextState.energyPoints >= 5) {
@@ -158,10 +172,16 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     nextState.combo = 0;
                     nextState.comboScore = 0;
                     nextState.comboStartNuclide = undefined;
+                    shouldStop = true;
                 }
             }
             return nextState;
         });
+
+        // If something triggered a stop (game over, blockage), notify the controller
+        if (shouldStop) {
+            onStopRequest();
+        }
     }, [
         onStopRequest, triggerTTS, triggerShake, triggerFlash, 
         setLastDecayEvent, setFinalCombo, setGameState, setEvolutionHistory
