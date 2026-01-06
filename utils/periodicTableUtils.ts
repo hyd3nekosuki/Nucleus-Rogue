@@ -1,6 +1,4 @@
-
-import { ELEMENT_GROUPS } from '../constants';
-import { ELEMENT_CATEGORIES } from '../constants/periodicTableData';
+import { ELEMENT_GROUPS, ELEMENT_CATEGORIES } from '../constants';
 
 /**
  * Calculates the grid row and column for a given atomic number Z.

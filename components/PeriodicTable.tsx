@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
-import { getSymbol } from '../constants';
+import { getSymbol, SKILL_METADATA } from '../constants';
 import { DecayMode } from '../types';
 import { getElementGridPosition, getElementCategoryInfo } from '../utils/periodicTableUtils';
-import { SKILL_METADATA } from '../constants/periodicTableData';
 
 interface Props {
     unlocked: number[];
