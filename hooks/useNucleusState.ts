@@ -1,40 +1,50 @@
 
-import { useState, useCallback } from 'react';
-import { GameState, HistoryEntry, NuclideData } from '../types';
+import { useReducer, useCallback } from 'react';
+import { GameState, NuclideData, GameAction } from '../types';
 import { getInitialState } from '../utils/initialState';
-import { handleDiscoveryTransition, DiscoveryContext } from '../utils/stateTransitions';
+import { nucleusReducer, DiscoveryContext } from '../utils/stateTransitions';
 
 /**
  * Single Source of Truth hook for the raw game state and discovery history.
- * Ensures state management is consistent across the application.
+ * Uses a Reducer to ensure all complex state transitions are atomic.
  */
 export const useNucleusState = () => {
-    const [gameState, setGameState] = useState<GameState>(getInitialState());
-    const [evolutionHistory, setEvolutionHistory] = useState<Record<string, HistoryEntry>>({});
+    // Initialize integrated state
+    // FIX: Simplified initialization as getInitialState now correctly includes evolutionHistory
+    const initialState: GameState = getInitialState();
+
+    const [gameState, dispatch] = useReducer(nucleusReducer, initialState);
 
     /**
      * Atomically records a discovery and updates the associated game state.
-     * Prevents desync between the history map and the current core state.
+     * Dispatches the action to the reducer where history and core state are updated together.
      */
     const recordDiscovery = useCallback((nextNuclide: NuclideData, context: DiscoveryContext) => {
-        setGameState(prev => {
-            const { nextState, newHistoryEntry } = handleDiscoveryTransition(prev, nextNuclide, context);
-            
-            // Side effect within setter to ensure order of operations
-            setEvolutionHistory(h => ({
-                ...h,
-                [`${nextNuclide.z}-${nextNuclide.a}`]: newHistoryEntry
-            }));
-
-            return nextState;
+        dispatch({
+            type: 'DISCOVER_NUCLIDE',
+            payload: {
+                nextNuclide,
+                method: context.method,
+                pz: context.pz,
+                pa: context.pa,
+                addedScore: context.addedScore
+            }
         });
     }, []);
 
+    /**
+     * Helper to allow legacy-style updates while components migrate to specific dispatch actions.
+     * Removed dependency on local gameState to avoid stale closure lags.
+     */
+    const setGameState = useCallback((updater: Partial<GameState> | ((prev: GameState) => Partial<GameState>)) => {
+        dispatch({ type: 'UPDATE_BASIC_STATE', payload: updater });
+    }, [dispatch]);
+
     return {
         gameState,
-        setGameState,
-        evolutionHistory,
-        setEvolutionHistory,
+        setGameState, // Compatibility layer
+        dispatch,     // Native dispatch path
+        evolutionHistory: gameState.evolutionHistory,
         recordDiscovery
     };
 };

@@ -1,7 +1,6 @@
-
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
-import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT } from '../constants';
+import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
 import { packBinary, unpackBinary } from '../services/serializationService';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { generateEntities } from '../utils/gameLogic';
@@ -9,18 +8,19 @@ import { getInitialState } from '../utils/initialState';
 
 /**
  * Custom hook to handle game persistence (saving and loading data).
- * Isolates serialization logic from the core game engine.
+ * Now sources history directly from the integrated GameState.
  */
 export const usePersistence = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-    evolutionHistory: Record<string, HistoryEntry>,
-    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
+    evolutionHistory: Record<string, HistoryEntry>, // Passed for internal use, though now part of state
+    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>, // Legacy unused
     resetVisualEvents: () => void
 ) => {
     const generateSaveCode = useCallback(async () => {
-        return await packBinary(gameState, evolutionHistory);
-    }, [gameState, evolutionHistory]);
+        // evolutionHistory is now guaranteed to be in sync with gameState
+        return await packBinary(gameState, gameState.evolutionHistory);
+    }, [gameState]);
 
     const loadSaveCode = useCallback(async (code: string) => {
         if (!code || code.trim().length === 0) return false;
@@ -64,6 +64,7 @@ export const usePersistence = (
                 };
             });
 
+            // Atomic update of the entire game state including history
             setGameState({ 
                 ...getInitialState(), 
                 score: payload.s!, 
@@ -75,6 +76,7 @@ export const usePersistence = (
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
                 currentNuclide: currentData, 
+                evolutionHistory: restoredHistory,
                 unlockedElements: payload.ue || [], 
                 unlockedGroups: payload.ug || [], 
                 disabledSkills: payload.ds || [], 
@@ -88,14 +90,13 @@ export const usePersistence = (
                 gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, payload.t || 0) 
             });
 
-            setEvolutionHistory(restoredHistory);
             resetVisualEvents();
             return true;
         } catch (e) {
             console.error("Failed to restore game state from code:", e);
             return false;
         }
-    }, [setGameState, setEvolutionHistory, resetVisualEvents]);
+    }, [setGameState, resetVisualEvents]);
 
     return { generateSaveCode, loadSaveCode };
 };

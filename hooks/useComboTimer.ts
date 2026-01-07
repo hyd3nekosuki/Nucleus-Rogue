@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { GameState, DecayMode } from '../types';
 import { COMBO_WINDOW_MS } from '../constants';
-import { isTemporalInversionEligible, calculateComboCompletionBonus } from '../utils/scoreLogic';
+import { isTemporalInversionEligible } from '../utils/scoreLogic';
 import { processUnlocks } from '../utils/unlockSystem';
 
 /**
@@ -44,14 +44,13 @@ export const useComboTimer = (
                     // 3. Since stable nuclei reset the chain immediately in Transitions,
                     //    if we are here and matched, we are by definition at an unstable nucleus.
                     if (isMatched && prev.comboStartedUnstable && !isDisabled) {
-                        const inversionBonus = calculateComboCompletionBonus(prev.comboScore, true);
                         const unlockResult = processUnlocks(
                             prev.unlockedElements, prev.unlockedGroups, 
                             prev.currentNuclide.z, prev.currentNuclide.a, 
                             false, false, false, true, prev.comboScore
                         );
                         
-                        finalScoreBonus = inversionBonus + unlockResult.scoreBonus;
+                        finalScoreBonus = unlockResult.scoreBonus;
                         nextUnlockedGroups = unlockResult.updatedGroups;
                         nextMessages = [
                             ...nextMessages, 

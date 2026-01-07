@@ -10,8 +10,6 @@ import { getHistoryMethod } from '../utils/historyLogic';
 interface MovementExecutorDeps {
     gameState: GameState;
     setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>;
-    recordDiscovery: (nuclide: NuclideData, context: { method: string; pz: number | null; pa: number | null; addedScore: number }) => void;
     triggerTTS: (text: string) => void;
     triggerShake: () => void;
     triggerFlash: (color: string) => void;
@@ -25,7 +23,7 @@ interface MovementExecutorDeps {
  */
 export const useMovementExecutor = (deps: MovementExecutorDeps) => {
     const {
-        setGameState, recordDiscovery, triggerTTS,
+        setGameState, triggerTTS,
         triggerShake, triggerFlash, setLastDecayEvent, 
         onStopRequest
     } = deps;
@@ -73,7 +71,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 };
             }
 
-            // Discovery Handling - Delegate to specialized transition logic
+            // Discovery Handling - Integrated Synchronously
             if (nextState.currentNuclide.z !== prev.currentNuclide.z || nextState.currentNuclide.a !== prev.currentNuclide.a) {
                 if (prev.tutorialMessage === "Capture particle to transform") {
                     nextState.tutorialMessage = null;
@@ -85,24 +83,27 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
 
                 const method = getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel);
                 
-                // Calculate the score added in this single move interaction
-                const moveAddedScore = nextState.score - prev.score;
+                // Add to history within the same state transition to prevent map skipping
+                const newEntry: HistoryEntry = {
+                    turn: nextState.turn,
+                    name: nextState.currentNuclide.name,
+                    symbol: nextState.currentNuclide.symbol,
+                    z: nextState.currentNuclide.z,
+                    a: nextState.currentNuclide.a,
+                    method,
+                    pz: prev.currentNuclide.z,
+                    pa: prev.currentNuclide.a
+                };
 
-                // SIDE EFFECT ALERT: recordDiscovery will handle history and combo resets
-                setTimeout(() => {
-                    recordDiscovery(nextState.currentNuclide, {
-                        method,
-                        pz: prev.currentNuclide.z,
-                        pa: prev.currentNuclide.a,
-                        addedScore: moveAddedScore
-                    });
-                }, 0);
+                nextState.evolutionHistory = {
+                    ...prev.evolutionHistory,
+                    [`${nextState.currentNuclide.z}-${nextState.currentNuclide.a}`]: newEntry
+                };
 
                 if (result.isPpFusion) triggerTTS("Nuclear Fusion");
             }
 
             if (nextState.hp <= 0 && !nextState.gameOver) {
-                // Auto-Stabilization logic
                 if (nextState.unlockedGroups.includes("Temporal Inversion") && 
                     !nextState.disabledSkills.includes("Temporal Inversion") && 
                     nextState.energyPoints >= 5) {
@@ -126,7 +127,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
         if (shouldStop) {
             onStopRequest();
         }
-    }, [onStopRequest, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setGameState, recordDiscovery]);
+    }, [onStopRequest, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setGameState]);
 
     return { moveStep };
 };

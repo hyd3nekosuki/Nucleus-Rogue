@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
 import { 
@@ -10,8 +11,6 @@ import { processUnlocks } from '../utils/unlockSystem';
 export const useDecayController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
-    recordDiscovery: (nuclide: NuclideData, context: { method: string; pz: number | null; pa: number | null; addedScore: number }) => void,
     triggerTTS: (text: string) => void,
     triggerShake: () => void,
     triggerFlash: (color: string) => void,
@@ -68,11 +67,10 @@ export const useDecayController = (
 
         setGameState(prev => {
             const newData = getNuclideDataSync(prev.currentNuclide.z + decayResult.dZ, prev.currentNuclide.a + decayResult.dA);
-            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0, comboScore: 0, comboStartNuclide: undefined, comboStartedUnstable: false }; 
+            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0 }; 
 
             const rawCombo = (currentTime - prev.lastComboTime <= COMBO_WINDOW_MS) ? prev.combo + 1 : 1;
             
-            // Centralized Score Logic using Constants
             const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
             const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
             const scoreIncrease = (baseActionPoints + stabilityReward + decayResult.actionBonusScore) * rawCombo;
@@ -95,23 +93,27 @@ export const useDecayController = (
             }
             
             const nextTurn = prev.turn + 1;
-            
-            // Total score delta for this specific decay action
             const totalActionDelta = scoreIncrease + unlockResult.scoreBonus;
 
-            // Async Discovery call to handle complex chain effects and history
-            setTimeout(() => {
-                recordDiscovery(newData, {
-                    method: decayResult.trigger,
-                    pz: prev.currentNuclide.z,
-                    pa: prev.currentNuclide.a,
-                    addedScore: totalActionDelta
-                });
-            }, 0);
+            // Create synchronous history entry for atomic update
+            const newEntry: HistoryEntry = {
+                turn: nextTurn,
+                name: newData.name,
+                symbol: newData.symbol,
+                z: newData.z,
+                a: newData.a,
+                method: decayResult.trigger,
+                pz: prev.currentNuclide.z,
+                pa: prev.currentNuclide.a
+            };
 
             const nextState = { 
                 ...prev, 
                 currentNuclide: newData, 
+                evolutionHistory: {
+                    ...prev.evolutionHistory,
+                    [`${newData.z}-${newData.a}`]: newEntry
+                },
                 playerPos: decayResult.newPosition || prev.playerPos, 
                 energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + (decayResult.energyBonus || 0)), 
                 turn: nextTurn, 
@@ -130,7 +132,6 @@ export const useDecayController = (
                 playerLevel: nextLevel, 
                 masteredDecays: nextMastered, 
                 decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
-                // Streak reset logic: Decay actions always terminate particle streaks
                 consecutiveProtons: 0, 
                 consecutiveNeutrons: 0, 
                 consecutiveElectrons: 0, 
@@ -139,7 +140,7 @@ export const useDecayController = (
 
             return nextState;
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, stopAutoMove, setGameState, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, gameState.playerPos, gameState.gridEntities, recordDiscovery]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, stopAutoMove, setGameState, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, gameState.playerPos, gameState.gridEntities]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

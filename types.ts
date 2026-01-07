@@ -1,3 +1,4 @@
+
 export enum EntityType {
   PLAYER = 'PLAYER',
   PROTON = 'PROTON',
@@ -168,9 +169,10 @@ export interface GameState {
   score: number;
   energyPoints: number;
   playerPos: Position;
-  targetPos?: Position; // NEW: Destination mark for auto-move
+  targetPos?: Position; // Destination mark for auto-move
   gridEntities: GridEntity[];
   currentNuclide: NuclideData;
+  evolutionHistory: Record<string, HistoryEntry>; // Integrated Discovery History
   hp: number;
   maxHp: number;
   messages: string[];
@@ -179,7 +181,7 @@ export interface GameState {
   loadingData: boolean;
   unlockedElements: number[]; // Array of Z numbers
   unlockedGroups: string[]; // Array of Group Names (e.g., "Noble Gas")
-  disabledSkills: string[]; // NEW: List of toggled-off hidden skills
+  disabledSkills: string[]; // List of toggled-off hidden skills
   effects: VisualEffect[];
   combo: number; // Current chain combo count
   maxCombo: number; // Record max combo
@@ -187,9 +189,9 @@ export interface GameState {
   isTimeStopped: boolean; // Magic: Pause HP decay and movement
   playerLevel: number; // 0-5 based on trefoil completion
   masteredDecays: DecayMode[]; // Track first-time decays
-  comboStartNuclide?: NuclideState; // NEW: For Temporal Inversion
-  comboStartedUnstable?: boolean; // NEW: Eligibility tracking for Inversion
-  comboScore: number; // NEW: Track total points in current combo
+  comboStartNuclide?: NuclideState; // For Temporal Inversion
+  comboStartedUnstable?: boolean; // Eligibility tracking for Inversion
+  comboScore: number; // Track total points in current combo
   consecutiveProtons: number; // Hidden: Consecutive protons eaten
   consecutiveNeutrons: number; // Hidden: Consecutive neutrons eaten
   consecutiveElectrons: number; // Hidden: Consecutive electrons eaten
@@ -198,11 +200,20 @@ export interface GameState {
   reactionStats: Record<string, number>; // Counts of (n,γ), (n,p), (n,2n), (n,α), (n,fission)
   activeEvent?: { type: string; color: string; timestamp: number }; // For subtle background signals
   reincarnations: number; // Track random generation count
-  magicBarrierCharges: number; // NEW: Protects against HP loss from P/E capture (3 charges)
+  magicBarrierCharges: number; // Protects against HP loss from P/E capture (3 charges)
   tutorialMessage: string | null;
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
 }
+
+export type GameAction =
+  | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; method: string; pz: number | null; pa: number | null; addedScore: number } }
+  | { type: 'UPDATE_BASIC_STATE'; payload: Partial<GameState> | ((prev: GameState) => Partial<GameState>) }
+  | { type: 'RESET_STATE'; payload: GameState }
+  | { type: 'APPLY_STABILITY_DECAY'; payload: { hp: number; energyPoints?: number; messages?: string[]; effects?: VisualEffect[]; gameOver?: boolean; gameOverReason?: string } }
+  | { type: 'SET_HP'; payload: number }
+  | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
+  | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } };
 
 export interface SavePayload {
   v: string; // App Version

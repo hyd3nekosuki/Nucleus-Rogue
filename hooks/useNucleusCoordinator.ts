@@ -15,7 +15,7 @@ import { useDecayController } from './useDecayController';
 import { useMovementExecutor } from './useMovementExecutor';
 
 export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
-    const { gameState, setGameState, evolutionHistory, setEvolutionHistory, recordDiscovery } = useNucleusState();
+    const { gameState, setGameState, dispatch } = useNucleusState();
 
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
@@ -31,8 +31,6 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     const { moveStep } = useMovementExecutor({
         gameState,
         setGameState, 
-        setEvolutionHistory,
-        recordDiscovery,
         triggerTTS,
         triggerShake, 
         triggerFlash, 
@@ -44,7 +42,8 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     const { 
         handleDecayAction, handlePlayerInteract 
     } = useDecayController(
-        gameState, setGameState, setEvolutionHistory, recordDiscovery, triggerTTS, 
+        gameState, setGameState, 
+        triggerTTS, 
         triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, 
         () => stopAutoMoveRef.current()
     );
@@ -64,34 +63,45 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         handleStabilize, handleUltimateSynthesis, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay
     } = useSkillController(
-        gameState, setGameState, setEvolutionHistory, triggerTTS, triggerFlash,
+        gameState, setGameState, 
+        () => {}, // History integrated into gameState
+        triggerTTS, triggerFlash,
         stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
     );
 
     const { generateSaveCode, loadSaveCode } = usePersistence(
         gameState,
         setGameState,
-        evolutionHistory,
-        setEvolutionHistory,
+        gameState.evolutionHistory,
+        () => {}, // History integrated into gameState
         resetVisuals
     );
 
     useEffect(() => {
         const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
-        setGameState(prev => ({ ...prev, gridEntities: initialEntities }));
-        setEvolutionHistory({
-            [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
-                turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
-                z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN,
-                pz: null, pa: null
+        // Dispatch atomic initialization
+        dispatch({
+            type: 'RESET_STATE',
+            payload: {
+                ...gameState,
+                gridEntities: initialEntities,
+                evolutionHistory: {
+                    [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
+                        turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
+                        z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN,
+                        pz: null, pa: null
+                    }
+                }
             }
         });
     }, []);
 
-    const setHP = useCallback((val: number) => setGameState(prev => ({ ...prev, hp: val })), []);
+    const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), []);
 
     return {
-        gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        gameState, 
+        evolutionHistory: gameState.evolutionHistory, 
+        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
         handleUltimateSynthesis, handleForceUnknownDecay, setHP, generateSaveCode, loadSaveCode

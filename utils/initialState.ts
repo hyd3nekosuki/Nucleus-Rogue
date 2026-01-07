@@ -13,6 +13,8 @@ export const getInitialState = (): GameState => ({
     playerPos: { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) },
     gridEntities: [],
     currentNuclide: INITIAL_NUCLIDE,
+    // Add missing evolutionHistory property to fix GameState type compatibility error
+    evolutionHistory: {},
     hp: INITIAL_HP,
     maxHp: INITIAL_HP,
     messages: ["Welcome to the Nucleus!", "Master radioactive decays to increase your Mastery Level."],
