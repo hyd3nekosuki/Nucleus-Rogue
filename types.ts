@@ -133,6 +133,11 @@ export interface AtomicReactionResult {
 }
 
 /**
+ * Strict internal identification of a nuclide in map repositories
+ */
+export type NuclideId = `${number}-${number}`;
+
+/**
  * Strict internal representation of physical nuclide data.
  */
 export interface NuclideRecord {

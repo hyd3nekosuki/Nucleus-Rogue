@@ -1,13 +1,14 @@
+import { DecayMode, NuclideCategory, NuclideRecord, NuclideId } from "../types";
+import { NUCLIDE_REPOSITORY } from "./nuclideRepository";
 
-
-import { DecayMode, NuclideCategory } from "../types";
-
-// Database of known nuclides (Z=0 to Z=118)
-// Format: "A:Mode:HalfLifeSeconds"
-// Mode Codes: S=Stable, A=Alpha, B-=Beta Minus, B+=Beta Plus, EC=Electron Capture, N=Neutron Emission, P=Proton Emission, SF=Fission, IT=Gamma, ?=Unknown
-// HalfLife: 'S' for stable, '?' for unknown/missing, or scientific string (e.g. 1.2e3)
-
-const DATABASE_RAW: Record<number, string> = {
+/**
+ * IAEA RAW DATABASE (Z=0 to Z=118)
+ * Format: "A:Mode:HalfLifeSeconds"
+ * Mode Codes: S=Stable, A=Alpha, B-=Beta Minus, B+=Beta Plus, EC=Electron Capture, 
+ *             N=Neutron Emission, P=Proton Emission, SF=Fission, IT=Gamma, ?=Unknown
+ * HalfLife: 'S' for stable, '?' for unknown/missing, 'V' for nanosecond limits, or scientific notation.
+ */
+export const DATABASE_RAW: Record<number, string> = {
   0: "1:B-:6.139e2,4:?:V,6:?:?",
   1: "1:S:S,2:S:S,3:B-:3.888e8,4:N:?,5:N:V,6:?:V,7:?:V",
   2: "3:S:S,4:S:S,5:N:V,6:B-:8.067e-1,7:N:V,8:B-:1.191e-1,9:N:?,10:N:V",
@@ -131,62 +132,25 @@ const DATABASE_RAW: Record<number, string> = {
 
 export const KNOWN_Z_LIMIT = 118;
 
-export interface RawNuclide {
-  a: number;
-  mode: DecayMode;
-  hl: number; // 0 if unknown/missing, 1e-9 if 'V', Infinity if stable
-  cat: NuclideCategory;
-}
-
-export const getKnownNuclide = (z: number, a: number): RawNuclide | null => {
-  const zData = DATABASE_RAW[z];
-  if (!zData) return null;
-
-  const parts = zData.split(',');
-  for (const part of parts) {
-      const [aStr, modeStr, hlStr] = part.split(':');
-      if (parseInt(aStr) === a) {
-          let mode = DecayMode.UNKNOWN;
-          let category = NuclideCategory.STABLE;
-          
-          if (modeStr === 'S') mode = DecayMode.STABLE;
-          else if (modeStr === 'A') { mode = DecayMode.ALPHA; category = NuclideCategory.ALPHA; }
-          else if (modeStr === 'B-') { mode = DecayMode.BETA_MINUS; category = NuclideCategory.BETA_MINUS; }
-          else if (modeStr === 'B+') { mode = DecayMode.BETA_PLUS; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'EC') { mode = DecayMode.ELECTRON_CAPTURE; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'N') { mode = DecayMode.NEUTRON_EMISSION; category = NuclideCategory.BETA_MINUS; }
-          else if (modeStr === 'P') { mode = DecayMode.PROTON_EMISSION; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'SF') { mode = DecayMode.SPONTANEOUS_FISSION; category = NuclideCategory.ALPHA; }
-          else if (modeStr === 'IT') { mode = DecayMode.GAMMA; category = NuclideCategory.BETA_PLUS; } // Treat Gamma generally as high energy
-          
-          if (mode === DecayMode.UNKNOWN && modeStr !== 'S') {
-             category = NuclideCategory.NON_EXISTENT; 
-          }
-
-          let hl = 0;
-          if (hlStr === 'S') hl = Infinity;
-          else if (hlStr === 'V') hl = 1e-9;
-          else if (hlStr === '?') hl = 0; 
-          else hl = parseFloat(hlStr);
-
-          return { a, mode, hl, cat: category };
-      }
-  }
-  return null;
+/**
+ * Accesses pre-parsed and validated data from the repository.
+ * If data is missing or physically contradictory, returns null.
+ */
+export const getKnownNuclide = (z: number, a: number): NuclideRecord | null => {
+  const id: NuclideId = `${z}-${a}`;
+  return NUCLIDE_REPOSITORY.get(id) || null;
 };
 
-// Returns a random known nuclide coordinate for random starts
+/**
+ * Returns a random valid nuclide coordinate from the verified repository.
+ */
 export const getRandomKnownNuclideCoordinates = (): { z: number, a: number } | null => {
-    const zKeys = Object.keys(DATABASE_RAW).map(Number);
-    if (zKeys.length === 0) return null;
-    const z = zKeys[Math.floor(Math.random() * zKeys.length)];
+    const ids = Array.from(NUCLIDE_REPOSITORY.keys());
+    if (ids.length === 0) return null;
     
-    const zData = DATABASE_RAW[z];
-    const parts = zData.split(',');
-    const part = parts[Math.floor(Math.random() * parts.length)];
-    const a = parseInt(part.split(':')[0]);
-    
-    return { z, a };
+    const randomId = ids[Math.floor(Math.random() * ids.length)];
+    const parts = randomId.split('-');
+    return { z: parseInt(parts[0]), a: parseInt(parts[1]) };
 };
 
 export const getCategoryName = (cat: NuclideCategory): string => {
@@ -200,45 +164,22 @@ export const getCategoryName = (cat: NuclideCategory): string => {
     }
 }
 
-// Extract all nuclides for visualization (Chart of Nuclides)
+/**
+ * Retrieves all nuclide records for visualization.
+ * Uses the pre-parsed repository as the Single Source of Truth.
+ */
 export const getAllNuclides = (): { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] => {
   const nuclides: { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] = [];
   
-  for (const zStr in DATABASE_RAW) {
-      const z = parseInt(zStr);
-      const zData = DATABASE_RAW[z];
-      const parts = zData.split(',');
-      
-      for (const part of parts) {
-          const [aStr, modeStr, hlStr] = part.split(':');
-          const a = parseInt(aStr);
-          const n = a - z;
-          
-          let mode = DecayMode.UNKNOWN;
-          let category = NuclideCategory.STABLE;
-          
-          if (modeStr === 'S') mode = DecayMode.STABLE;
-          else if (modeStr === 'A') { mode = DecayMode.ALPHA; category = NuclideCategory.ALPHA; }
-          else if (modeStr === 'B-') { mode = DecayMode.BETA_MINUS; category = NuclideCategory.BETA_MINUS; }
-          else if (modeStr === 'B+') { mode = DecayMode.BETA_PLUS; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'EC') { mode = DecayMode.ELECTRON_CAPTURE; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'N') { mode = DecayMode.NEUTRON_EMISSION; category = NuclideCategory.BETA_MINUS; }
-          else if (modeStr === 'P') { mode = DecayMode.PROTON_EMISSION; category = NuclideCategory.BETA_PLUS; }
-          else if (modeStr === 'SF') { mode = DecayMode.SPONTANEOUS_FISSION; category = NuclideCategory.ALPHA; }
-          else if (modeStr === 'IT') { mode = DecayMode.GAMMA; category = NuclideCategory.BETA_PLUS; }
-          
-          if (mode === DecayMode.UNKNOWN && modeStr !== 'S') {
-             category = NuclideCategory.NON_EXISTENT; 
-          }
-
-          let hl = 0;
-          if (hlStr === 'S') hl = Infinity;
-          else if (hlStr === 'V') hl = 1e-9;
-          else if (hlStr === '?') hl = 0; 
-          else hl = parseFloat(hlStr);
-
-          nuclides.push({ z, n, a, mode, halflife: hl, cat: category });
-      }
+  for (const record of NUCLIDE_REPOSITORY.values()) {
+      nuclides.push({
+          z: record.z,
+          n: record.a - record.z,
+          a: record.a,
+          mode: record.mode,
+          halflife: record.halflife,
+          cat: record.category
+      });
   }
   return nuclides;
 };

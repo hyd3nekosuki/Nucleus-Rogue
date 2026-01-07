@@ -1,33 +1,57 @@
-
-import { getAllNuclides } from './staticNuclides';
-import { NuclideRecord } from '../types';
+import { DATABASE_RAW } from './staticNuclides';
+import { NuclideRecord, NuclideId } from '../types';
+import { parseNuclideRecord } from '../utils/nuclideParser';
 
 /**
  * An immutable, pre-calculated Map for O(1) nuclide physical data lookups.
- * Built once during application initialization.
+ * Built once during application initialization with full validation.
+ * 
+ * Single Source of Truth for all known atomic data.
  */
-export const NUCLIDE_REPOSITORY: Map<string, NuclideRecord> = new Map(
-  getAllNuclides().map(n => [`${n.z}-${n.a}`, {
-    z: n.z,
-    a: n.a,
-    mode: n.mode,
-    halflife: n.halflife,
-    category: n.cat
-  }])
-);
+const buildRepository = (): Map<NuclideId, NuclideRecord> => {
+    const repo = new Map<NuclideId, NuclideRecord>();
+    let corruptCount = 0;
+
+    for (const zStr in DATABASE_RAW) {
+        const z = parseInt(zStr);
+        const zData = DATABASE_RAW[z];
+        if (!zData) continue;
+
+        const segments = zData.split(',');
+        for (const segment of segments) {
+            const record = parseNuclideRecord(z, segment);
+            if (record) {
+                const id: NuclideId = `${record.z}-${record.a}`;
+                repo.set(id, record);
+            } else {
+                corruptCount++;
+            }
+        }
+    }
+
+    if (corruptCount > 0) {
+        console.error(`Nuclide Repository: Build complete. Skipped ${corruptCount} corrupt records.`);
+    }
+
+    return repo;
+};
+
+export const NUCLIDE_REPOSITORY: Map<NuclideId, NuclideRecord> = buildRepository();
 
 /**
  * Get all available mass numbers (A) for a given atomic number (Z).
+ * Performance optimized to avoid repetitive string conversions.
  */
 export const getRepositoryValidAsForZ = (z: number): number[] => {
     const validAs: number[] = [];
-    // Efficiently search keys in a single pass
-    for (const key of NUCLIDE_REPOSITORY.keys()) {
-        const hyphenIndex = key.indexOf('-');
-        if (hyphenIndex !== -1) {
-            const keyZ = parseInt(key.substring(0, hyphenIndex));
-            if (keyZ === z) {
-                validAs.push(parseInt(key.substring(hyphenIndex + 1)));
+    const prefix = `${z}-`;
+    
+    // We iterate through entries to find matching Z
+    for (const id of NUCLIDE_REPOSITORY.keys()) {
+        if (id.startsWith(prefix)) {
+            const a = parseInt(id.substring(prefix.length));
+            if (!isNaN(a)) {
+                validAs.push(a);
             }
         }
     }
