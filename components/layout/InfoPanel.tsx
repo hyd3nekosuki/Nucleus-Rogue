@@ -1,7 +1,7 @@
 import React from 'react';
-import { NuclideData, DecayMode } from '../types';
-import { formatDecayModes } from '../services/nuclideService';
-import TrefoilIndicator from './TrefoilIndicator';
+import { NuclideData, DecayMode } from '../../types';
+import { formatDecayModes } from '../../services/nuclideService';
+import TrefoilIndicator from '../game/TrefoilIndicator';
 
 interface InfoPanelProps {
   nuclide: NuclideData;

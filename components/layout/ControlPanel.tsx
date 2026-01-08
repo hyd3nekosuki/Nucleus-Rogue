@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 // Fix: Import COMBO_WINDOW_MS from constants instead of the engine hook
-import { COMBO_WINDOW_MS } from '../constants';
+import { COMBO_WINDOW_MS } from '../../constants';
 
 interface ControlPanelProps {
   combo: number;

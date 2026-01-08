@@ -1,6 +1,6 @@
 // Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
-import { GameState, EntityType, DecayMode } from '../types';
+import { GameState, EntityType, DecayMode } from '../../types';
 
 interface GridProps {
   width: number;

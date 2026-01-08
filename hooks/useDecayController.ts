@@ -1,12 +1,11 @@
-
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
 import { 
     COMBO_WINDOW_MS, MAX_ENERGY, SCORE_FACTORS
 } from '../constants';
 import { getNuclideDataSync } from '../services/nuclideService';
-import { calculateDecayEffects, getDecayDeltas } from '../utils/decaySystem';
-import { processUnlocks } from '../utils/unlockSystem';
+import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
+import { processUnlocks } from '../engine/unlockSystem';
 
 export const useDecayController = (
     gameState: GameState,
@@ -42,13 +41,15 @@ export const useDecayController = (
             if (!found) return;
         }
 
+        const isAnnihilationSkillActive = gameState.unlockedGroups.includes("Pair annihilation") && !gameState.disabledSkills.includes("Pair annihilation");
+
         const decayResult = calculateDecayEffects(
             actualMode, 
             gameState.currentNuclide,
             gameState.playerPos,
             gameState.gridEntities,
             currentTime, 
-            !gameState.disabledSkills.includes("Pair annihilation"), 
+            isAnnihilationSkillActive, 
             !gameState.disabledSkills.includes("Fission"), 
             gameState.unlockedGroups.includes("Neutronization") && !gameState.disabledSkills.includes("Neutronization")
         );

@@ -4,7 +4,7 @@ import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
 import { 
     ENERGY_EVOLUTION_TURNS, COULOMB_BARRIER_THRESHOLD, MAX_ENERGY 
 } from '../constants';
-import { calculateMoveResult } from '../utils/gameLogic';
+import { calculateMoveResult } from '../engine/gameLogic';
 import { getHistoryMethod } from '../utils/historyLogic';
 
 interface MovementExecutorDeps {

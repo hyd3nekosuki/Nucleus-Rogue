@@ -7,9 +7,9 @@ import {
 } from '../constants';
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
-import { generateEntities } from '../utils/gameLogic';
-import { processUnlocks } from '../utils/unlockSystem';
-import { getInitialState } from '../utils/initialState';
+import { generateEntities } from '../engine/gameLogic';
+import { processUnlocks } from '../engine/unlockSystem';
+import { getInitialState } from '../engine/initialState';
 
 export const useSkillController = (
     gameState: GameState,

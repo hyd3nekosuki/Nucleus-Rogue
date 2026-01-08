@@ -1,6 +1,6 @@
 import React from 'react';
-import { NuclideData, DecayMode } from '../types';
-import { formatDecayModes } from '../services/nuclideService';
+import { NuclideData, DecayMode } from '../../types';
+import { formatDecayModes } from '../../services/nuclideService';
 
 interface GameOverOverlayProps {
     isVisible: boolean;

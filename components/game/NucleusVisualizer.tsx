@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { EntityType, DecayMode } from '../types';
-import { MAGIC_NUMBERS } from '../constants';
+import { EntityType, DecayMode } from '../../types';
+import { MAGIC_NUMBERS } from '../../constants';
 
 interface NucleusVisualizerProps {
   z: number; // Protons

@@ -3,8 +3,8 @@ import { GameState, HistoryEntry } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
 import { packBinary, unpackBinary } from '../services/serializationService';
 import { getNuclideDataSync } from '../services/nuclideService';
-import { generateEntities } from '../utils/gameLogic';
-import { getInitialState } from '../utils/initialState';
+import { generateEntities } from '../engine/gameLogic';
+import { getInitialState } from '../engine/initialState';
 
 /**
  * Custom hook to handle game persistence (saving and loading data).

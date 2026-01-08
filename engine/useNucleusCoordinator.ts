@@ -2,17 +2,17 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { DecayMode } from '../types';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
-import { generateEntities } from '../utils/gameLogic';
+import { generateEntities } from './gameLogic';
 import { useNucleusState } from './useNucleusState';
 import { useStabilityTimer } from './useStabilityTimer';
 import { useComboTimer } from './useComboTimer';
-import { useVisualCleanup } from './useVisualCleanup';
-import { useMoveController } from './useMoveController';
-import { usePersistence } from './usePersistence';
-import { useVisualEffects } from './useVisualEffects';
-import { useSkillController } from './useSkillController';
-import { useDecayController } from './useDecayController';
-import { useMovementExecutor } from './useMovementExecutor';
+import { useVisualCleanup } from '../hooks/useVisualCleanup';
+import { useMoveController } from '../hooks/useMoveController';
+import { usePersistence } from '../hooks/usePersistence';
+import { useVisualEffects } from '../hooks/useVisualEffects';
+import { useSkillController } from '../hooks/useSkillController';
+import { useDecayController } from '../hooks/useDecayController';
+import { useMovementExecutor } from '../hooks/useMovementExecutor';
 
 export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     const { gameState, setGameState, dispatch } = useNucleusState();

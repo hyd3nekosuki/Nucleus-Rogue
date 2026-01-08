@@ -1,7 +1,7 @@
 import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS, DECAY_PHYSICS, BONUS_SCORES } from '../constants';
 import { getFissionFragmentOutcome } from './fissionModel';
-import { calculateAnnihilationSymmetry, calculateFissionShockwave } from './decayInteractionHandler';
+import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
 
 export interface DecayResult {
     dZ: number;
@@ -91,12 +91,13 @@ const handleBetaPlus = (
     let speech = null;
     let isAnnihilation = false;
 
+    // Perform annihilation logic only if skill is unlocked and active
     if (annihilationEnabled) {
         const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_ELECTRON, currentTime);
         if (annihilationResult) {
             currentEntities = annihilationResult.remainingEntities;
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: annihilationResult.effectMode, position: { ...playerPos }, timestamp: currentTime });
-            effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime });
+            effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
             score += BONUS_SCORES.PAIR_ANNIHILATION;
             messages.push(...annihilationResult.extraMessages);
             speech = "Pair Annihilation";

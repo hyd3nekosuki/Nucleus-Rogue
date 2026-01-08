@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
-import { NuclideData, DecayMode, HistoryEntry } from '../types';
-import { getNuclideDataSync } from '../services/nuclideService';
+import { NuclideData, DecayMode, HistoryEntry } from '../../types';
+import { getNuclideDataSync } from '../../services/nuclideService';
 
 interface EvolutionMapProps {
     history: HistoryEntry[];

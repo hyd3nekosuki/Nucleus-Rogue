@@ -1,5 +1,5 @@
 import { DecayMode, NuclideCategory, NuclideRecord } from '../types';
-import { isValidNucleus } from './physicsValidators';
+import { isValidNucleus } from '../physics/validators';
 
 /**
  * Pure function to parse a raw mode string into its physical DecayMode and Category.

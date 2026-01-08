@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import { NuclideData, DecayMode } from '../types';
-import { MAGIC_NUMBERS } from '../constants';
-import { formatDecayModes } from '../services/nuclideService';
+import { NuclideData, DecayMode } from '../../types';
+import { MAGIC_NUMBERS } from '../../constants';
+import { formatDecayModes } from '../../services/nuclideService';
 
 interface HealthBarProps {
     hp: number;

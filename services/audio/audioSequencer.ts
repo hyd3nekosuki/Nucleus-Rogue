@@ -1,4 +1,4 @@
-import { DecayMode } from '../types';
+import { DecayMode } from '../../types';
 import { 
     createKick, createSnare, createHat, createSynth 
 } from './audioInstruments';

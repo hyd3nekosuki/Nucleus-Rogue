@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { GameState, DecayMode } from '../types';
 import { COMBO_WINDOW_MS } from '../constants';
 import { isTemporalInversionEligible } from '../utils/scoreLogic';
-import { processUnlocks } from '../utils/unlockSystem';
+import { processUnlocks } from './unlockSystem';
 
 /**
  * Custom hook to manage the combo (chain) window and settlement.

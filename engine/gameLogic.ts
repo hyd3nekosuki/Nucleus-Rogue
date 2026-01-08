@@ -3,8 +3,8 @@ import { GRID_WIDTH, GRID_HEIGHT, BONUS_SCORES, HISTORY_METHODS, SCORE_FACTORS }
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
 import { processRandomBackgroundEvents } from './randomEvents';
-import { isWithinBounds, findEntityAt } from './gridUtils';
-import { calculateInteraction, calculateNeutronReaction } from './atomicCalculator';
+import { isWithinBounds, findEntityAt } from '../utils/gridUtils';
+import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
 
 export interface MoveResult {
     moved: boolean;
@@ -106,6 +106,8 @@ export const calculateMoveResult = (
             if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
         }
 
+        const isAnnihilationSkillActive = prev.unlockedGroups.includes("Pair annihilation") && !prev.disabledSkills.includes("Pair annihilation");
+
         // Check for high energy neutron reaction first
         const neutronReaction = calculateNeutronReaction(
             prev.currentNuclide, 
@@ -113,7 +115,7 @@ export const calculateMoveResult = (
             newPos, 
             nextEntities, 
             Date.now(), 
-            !prev.disabledSkills.includes("Pair annihilation"), 
+            isAnnihilationSkillActive, 
             !prev.disabledSkills.includes("Fission"),
             prev.unlockedGroups.includes("Neutronization") && !prev.disabledSkills.includes("Neutronization"),
             isZeroBarnActive

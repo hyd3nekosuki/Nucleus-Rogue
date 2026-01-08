@@ -1,7 +1,7 @@
 import React from 'react';
-import { GameState, EntityType } from '../types';
-import { getNuclideDataSync } from '../services/nuclideService';
-import { getSymbol } from '../constants';
+import { GameState, EntityType } from '../../types';
+import { getNuclideDataSync } from '../../services/nuclideService';
+import { getSymbol } from '../../constants';
 
 interface Props {
   gameState: GameState;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { DecayMode } from '../types';
-import { playRhythm } from '../utils/audioSequencer';
-import { createMasterRack } from '../utils/audioGraph';
+import { DecayMode } from '../../types';
+import { playRhythm } from './audioSequencer';
+import { createMasterRack } from './audioGraph';
 
 // --- Internal Audio Configuration ---
 const AUDIO_CONFIG = {
