@@ -1,6 +1,8 @@
+
 // Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
 import { GameState, EntityType, DecayMode } from '../../types';
+import { CheatValidationResult } from '../../hooks/useCheatEngine';
 
 interface GridProps {
   width: number;
@@ -8,9 +10,10 @@ interface GridProps {
   gameState: GameState;
   onCellClick: (x: number, y: number) => void;
   finalCombo?: { count: number, id: number } | null;
+  cheatResult?: CheatValidationResult | null;
 }
 
-const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, finalCombo }) => {
+const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, finalCombo, cheatResult }) => {
   const cells = [];
 
   for (let y = 0; y < height; y++) {
@@ -39,6 +42,9 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       let content = null;
       let bgClass = "bg-gray-900/50";
       let borderClass = "border-gray-800";
+
+      // Cheat Highlighting (Step 4)
+      const isConsumedByCheat = entity && cheatResult?.idsToConsume?.includes(entity.id);
 
       if (isPlayer) {
           // Player visual depends on Z (Color shift)
@@ -105,39 +111,39 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
           switch(entity.type) {
               case EntityType.PROTON:
                   content = (
-                    <div className={auraClass}>
+                    <div className={`${auraClass} ${isConsumedByCheat ? 'animate-pulse' : ''}`}>
                       {entity.isHighEnergy && (
                         <div className={`absolute inset-[-6px] border-2 ${protonRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-pulse'} opacity-60 shadow-[0_0_10px_currentColor]`}></div>
                       )}
-                      <div className="w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
+                      <div className={`w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055] ${isConsumedByCheat ? 'ring-2 ring-yellow-400 shadow-[0_0_15px_gold]' : ''}`}></div>
                     </div>
                   );
                   break;
               case EntityType.NEUTRON:
                   content = (
-                    <div className={auraClass}>
+                    <div className={`${auraClass} ${isConsumedByCheat ? 'animate-pulse' : ''}`}>
                       {entity.isHighEnergy && (
                         <div className={`absolute inset-[-6px] border-2 ${neutronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-pulse'} opacity-60 shadow-[0_0_10px_currentColor]`}></div>
                       )}
-                      <div className="w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
+                      <div className={`w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff] ${isConsumedByCheat ? 'ring-2 ring-yellow-400 shadow-[0_0_15px_gold]' : ''}`}></div>
                     </div>
                   );
                   break;
               case EntityType.ENEMY_ELECTRON:
                   content = (
-                    <div className={auraClass}>
+                    <div className={`${auraClass} ${isConsumedByCheat ? 'animate-pulse' : ''}`}>
                       {entity.isHighEnergy && (
                         <div className={`absolute inset-[-5px] border ${electronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]'} opacity-75`}></div>
                       )}
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                      <div className={`w-2 h-2 bg-yellow-400 rounded-full ${isConsumedByCheat ? 'ring-2 ring-yellow-400 shadow-[0_0_15px_gold]' : ''}`}></div>
                     </div>
                   );
                   break;
               case EntityType.ENEMY_POSITRON:
                   content = (
-                    <div className="relative flex items-center justify-center">
+                    <div className={`relative flex items-center justify-center ${isConsumedByCheat ? 'animate-pulse' : ''}`}>
                         <div className={`absolute inset-[-6px] border ${positronRingColor} rounded-full ${gameState.isTimeStopped ? '' : 'animate-pulse'} opacity-50`}></div>
-                        <div className="w-2 h-2 bg-neon-purple rounded-full shadow-[0_0_10px_#bc13fe]"></div>
+                        <div className={`w-2 h-2 bg-neon-purple rounded-full shadow-[0_0_10px_#bc13fe] ${isConsumedByCheat ? 'ring-2 ring-yellow-400 shadow-[0_0_15px_gold]' : ''}`}></div>
                     </div>
                   );
                   break;
@@ -148,6 +154,12 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       const isInteractable = (isPlayer || isAdjacent) && !gameState.isTimeStopped;
       if (isAdjacent && !gameState.isTimeStopped) {
           bgClass = "bg-gray-800/30 hover:bg-gray-700/50";
+      }
+
+      // Highlight cell if consumed by cheat
+      if (isConsumedByCheat) {
+          bgClass = "bg-yellow-400/10";
+          borderClass = "border-yellow-400/50";
       }
 
       cells.push(
@@ -252,6 +264,69 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
         >
         {cells}
         </div>
+
+        {/* Quantum Resonance Lines for Transmutation Cheat (Step 4 UI Enhancement) */}
+        {cheatResult?.isReachable && cheatResult.idsToConsume && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-40 overflow-visible" style={{ mixBlendMode: 'screen' }}>
+                <defs>
+                    <linearGradient id="resonanceGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="rgba(250, 204, 21, 0)" />
+                        <stop offset="50%" stopColor="rgba(250, 204, 21, 0.5)" />
+                        <stop offset="100%" stopColor="rgba(250, 204, 21, 0)" />
+                    </linearGradient>
+                </defs>
+                {cheatResult.idsToConsume.map(id => {
+                    const ent = gameState.gridEntities.find(e => e.id === id);
+                    if (!ent) return null;
+                    
+                    // Calculate relative centers (percentages for simplicity in CSS grid)
+                    const x1 = ((ent.position.x + 0.5) / width) * 100;
+                    const y1 = ((ent.position.y + 0.5) / height) * 100;
+                    const x2 = ((gameState.playerPos.x + 0.5) / width) * 100;
+                    const y2 = ((gameState.playerPos.y + 0.5) / height) * 100;
+
+                    return (
+                        <g key={`resonance-${id}`}>
+                            {/* Static Background Connection Line */}
+                            <line 
+                                x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} 
+                                stroke="rgba(250, 204, 21, 0.1)" 
+                                strokeWidth="1" 
+                            />
+                            {/* Flowing Dash Line towards Player */}
+                            <line 
+                                x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} 
+                                stroke="rgba(250, 204, 21, 0.4)" 
+                                strokeWidth="2" 
+                                strokeDasharray="4 6"
+                                className="animate-resonance-flow"
+                            />
+                            {/* Staggered Suction Particles (3 dots per line) */}
+                            {[0, 1, 2].map(i => (
+                                <circle key={`${id}-p-${i}`} r="2" fill="#facc15" style={{ filter: 'blur(0.5px)' }}>
+                                    <animate 
+                                        attributeName="cx" from={`${x1}%`} to={`${x2}%`} 
+                                        dur="1s" begin={`${i * 0.33}s`} repeatCount="indefinite" 
+                                    />
+                                    <animate 
+                                        attributeName="cy" from={`${y1}%`} to={`${y2}%`} 
+                                        dur="1s" begin={`${i * 0.33}s`} repeatCount="indefinite" 
+                                    />
+                                    <animate 
+                                        attributeName="opacity" values="0;1;0.5;0" 
+                                        dur="1s" begin={`${i * 0.33}s`} repeatCount="indefinite" 
+                                    />
+                                    <animate 
+                                        attributeName="r" values="1;3;1" 
+                                        dur="1s" begin={`${i * 0.33}s`} repeatCount="indefinite" 
+                                    />
+                                </circle>
+                            ))}
+                        </g>
+                    );
+                })}
+            </svg>
+        )}
         
         {/* FINAL COMBO POPUP OVERLAY */}
         {finalCombo && !gameState.isTimeStopped && (

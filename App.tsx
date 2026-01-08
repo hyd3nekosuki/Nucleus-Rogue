@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DecayMode, HistoryEntry } from './types';
 
@@ -18,6 +19,7 @@ import EvolutionMap from './components/overlays/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusCoordinator } from './engine/useNucleusCoordinator';
 import { useAudioEngine } from './services/audio/useAudioEngine';
+import { useCheatEngine } from './hooks/useCheatEngine';
 
 //const STABILIZE_COST = 5;
 //const NUCLEOSYNTHESIS_COST = 200;
@@ -39,6 +41,9 @@ function App() {
   const ttsTriggerRef = useRef<(text: string) => void>(() => {});
   const engine = useNucleusCoordinator((text) => ttsTriggerRef.current(text));
   const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
+  
+  // --- Cheat Engine Real-time Feedback (Step 4) ---
+  const cheatResult = useCheatEngine(loadInputValue, gameState);
   
   // --- Audio Logic with Dynamic Resonance ---
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
@@ -130,6 +135,17 @@ function App() {
   const energyPointsAvailable = gameState.energyPoints >= energyCost;
   const currentDescription = gameState.currentNuclide.description;
 
+  // Determine input field styling based on validation (Cheat Engine Feedback)
+  let inputBorderClass = isLoadError ? 'border-red-500' : 'border-gray-700';
+  let inputShadowClass = '';
+  if (cheatResult?.isReachable) {
+      inputBorderClass = 'border-yellow-400';
+      inputShadowClass = 'shadow-[0_0_15px_rgba(250,204,21,0.5)]';
+  } else if (cheatResult) {
+      // Command recognized but unreachable
+      inputBorderClass = 'border-red-400';
+  }
+
   return (
     <div ref={containerRef} tabIndex={0} 
       className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${isScreenShaking ? 'animate-shake' : ''}`}>
@@ -184,11 +200,14 @@ function App() {
           </div>
 
           <div className="p-4 border-t border-gray-800 shrink-0 bg-black/20">
-              <div className="text-[9px] text-gray-500 uppercase tracking-widest mb-1 font-bold">Cite Research</div>
+              <div className="text-[9px] text-gray-500 uppercase tracking-widest mb-1 font-bold flex justify-between">
+                <span>Cite Research</span>
+                {cheatResult?.isReachable && <span className="text-yellow-400 animate-pulse">RESONANCE ESTABLISHED</span>}
+              </div>
               <div className="flex gap-1">
                   <input 
                       type="text" value={loadInputValue} onChange={(e) => setLoadInputValue(e.target.value)} placeholder="Paste Password..."
-                      className={`flex-1 bg-black/40 border ${isLoadError ? 'border-red-500' : 'border-gray-700'} rounded px-2 py-1 text-[10px] font-mono outline-none transition-colors focus:border-neon-blue`}
+                      className={`flex-1 bg-black/40 border ${inputBorderClass} ${inputShadowClass} rounded px-2 py-1 text-[10px] font-mono outline-none transition-all focus:border-neon-blue`}
                   />
                   <button onClick={handleLoadData} className="px-2 py-1 bg-neon-blue/20 border border-neon-blue/50 text-neon-blue rounded text-[9px] font-bold uppercase hover:bg-neon-blue hover:text-black transition-all">Load</button>
               </div>
@@ -210,7 +229,7 @@ function App() {
          <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={isSoundTestActive} onHPChange={engine.setHP} />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
-            <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={finalCombo} />
+            <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={finalCombo} cheatResult={cheatResult} />
             <GridStatusFooter gameState={gameState} />
             <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { setIsSoundTestActive(false); engine.restartGame(rnd); }} isSoundTestActive={isSoundTestActive} onToggleSoundTest={() => setIsSoundTestActive(!isSoundTestActive)} />
          </div>

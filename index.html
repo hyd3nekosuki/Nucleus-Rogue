@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -334,6 +335,14 @@
       @keyframes bpm-border-pulse {
         0%, 100% { transform: scale(1.0); opacity: 0.4; box-shadow: inset 0 0 5px currentColor, 0 0 2px currentColor; }
         50% { transform: scale(1.015); opacity: 0.9; box-shadow: inset 0 0 15px currentColor, 0 0 10px currentColor; }
+      }
+
+      /* Quantum Resonance Flow (Step 4 UI Enhancement) */
+      @keyframes resonance-dash-flow {
+          to { stroke-dashoffset: -20; }
+      }
+      .animate-resonance-flow {
+          animation: resonance-dash-flow 1s linear infinite;
       }
 
     </style>
