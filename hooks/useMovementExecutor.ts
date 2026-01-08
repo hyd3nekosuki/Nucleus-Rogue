@@ -1,9 +1,11 @@
 
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
-import { 
-    ENERGY_EVOLUTION_TURNS, COULOMB_BARRIER_THRESHOLD, MAX_ENERGY 
-} from '../constants';
+
+import { ENERGY_EVOLUTION_TURNS } from '../constants/gameConfig';
+import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
+import { MAX_ENERGY } from '../constants/economy';
+
 import { calculateMoveResult } from '../engine/gameLogic';
 import { getHistoryMethod } from '../utils/historyLogic';
 

@@ -1,6 +1,11 @@
 
 import { EntityType, NuclideData, GridEntity, AtomicReactionResult, DecayMode, Position } from '../types';
-import { BONUS_SCORES, COULOMB_BARRIER_THRESHOLD, HISTORY_METHODS } from '../constants';
+
+import { BONUS_SCORES } from '../constants/economy';
+import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
+import { HISTORY_METHODS } from '../constants/strings';
+
+
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
 

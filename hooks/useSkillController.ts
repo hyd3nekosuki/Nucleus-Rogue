@@ -1,10 +1,12 @@
 
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, EntityType, VisualEffect } from '../types';
-import { 
-    INITIAL_NUCLIDE, MAGIC_NUMBERS, BONUS_SCORES, HISTORY_METHODS,
-    STABILIZE_COST, NUCLEOSYNTHESIS_COST, FORCE_DECAY_COST, MAX_ENERGY 
-} from '../constants';
+
+import { INITIAL_NUCLIDE } from '../constants/gameConfig';
+import { MAGIC_NUMBERS } from '../constants/physics';
+import { BONUS_SCORES, STABILIZE_COST, NUCLEOSYNTHESIS_COST, FORCE_DECAY_COST, MAX_ENERGY } from '../constants/economy';
+import { HISTORY_METHODS } from '../constants/strings';
+
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
 import { generateEntities } from '../engine/gameLogic';

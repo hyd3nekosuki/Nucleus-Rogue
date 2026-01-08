@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DecayMode, HistoryEntry } from './types';
-import { GRID_WIDTH, GRID_HEIGHT, MAGIC_NUMBERS, APP_VERSION } from './constants';
+
+import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION } from './constants/gameConfig';
+import { MAGIC_NUMBERS } from './constants/physics';
+
 import Grid from './components/game/Grid';
 import HealthBar from './components/game/HealthBar';
 import NucleusVisualizer from './components/game/NucleusVisualizer';
@@ -16,8 +19,9 @@ import { useTTS } from './hooks/useTTS';
 import { useNucleusCoordinator } from './engine/useNucleusCoordinator';
 import { useAudioEngine } from './services/audio/useAudioEngine';
 
-const STABILIZE_COST = 5;
-const NUCLEOSYNTHESIS_COST = 200;
+//const STABILIZE_COST = 5;
+//const NUCLEOSYNTHESIS_COST = 200;
+import { STABILIZE_COST, NUCLEOSYNTHESIS_COST } from './constants/economy';
 
 function App() {
   const [showTable, setShowTable] = useState(false);

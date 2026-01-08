@@ -1,6 +1,6 @@
 
 import { NuclideData, DecayMode, NuclideCategory } from "../types";
-import { getSymbol, getName } from "../constants";
+import { getSymbol, getName } from "../constants/atomicData";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
 

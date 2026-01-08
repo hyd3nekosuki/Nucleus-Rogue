@@ -1,5 +1,9 @@
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, BONUS_SCORES, HISTORY_METHODS, SCORE_FACTORS } from '../constants';
+
+import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
+import { BONUS_SCORES, SCORE_FACTORS } from '../constants/economy';
+import { HISTORY_METHODS } from '../constants/strings';
+
 import { getNuclideDataSync } from '../services/nuclideService';
 import { processUnlocks } from './unlockSystem';
 import { processRandomBackgroundEvents } from './randomEvents';

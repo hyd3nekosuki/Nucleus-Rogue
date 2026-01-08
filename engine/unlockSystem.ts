@@ -1,4 +1,7 @@
-import { ELEMENT_GROUPS, MAGIC_NUMBERS, BONUS_SCORES } from '../constants';
+import { ELEMENT_GROUPS } from '../constants/atomicData';
+import { MAGIC_NUMBERS } from '../constants/physics';
+import { BONUS_SCORES } from '../constants/economy';
+
 import { DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
 

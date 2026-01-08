@@ -1,5 +1,10 @@
 import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS, DECAY_PHYSICS, BONUS_SCORES } from '../constants';
+
+import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
+import { DECAY_PHYSICS } from '../constants/physics';
+import { BONUS_SCORES } from '../constants/economy';
+import { HISTORY_METHODS } from '../constants/strings';
+
 import { getFissionFragmentOutcome } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
 

@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
-import { 
-    COMBO_WINDOW_MS, MAX_ENERGY, SCORE_FACTORS
-} from '../constants';
+
+import { COMBO_WINDOW_MS } from '../constants/gameConfig';
+import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
+
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { processUnlocks } from '../engine/unlockSystem';

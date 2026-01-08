@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { getSymbol, SKILL_METADATA } from '../../constants';
+
+import { getSymbol  } from '../../constants/atomicData';
+import { SKILL_METADATA } from '../../constants/periodicTableData';
+
 import { DecayMode } from '../../types';
 import { getElementGridPosition, getElementCategoryInfo } from '../../utils/periodicTableUtils';
 

@@ -1,6 +1,6 @@
 
 import { Position, GridEntity } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 
 /**
  * Checks if a position is within the defined game grid.
