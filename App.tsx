@@ -60,9 +60,9 @@ function App() {
   }, [activeTTSTrigger]);
 
   // Convert the discovery record into a sorted list for the map visualization
-  // Fix: Explicitly cast to HistoryEntry[] to avoid "unknown" type inference errors in Object.values
+  // Updated to sort by lastTurn instead of firstTurn to ensure the current position is always the last element
   const sortedHistory = useMemo(() => {
-    return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.firstTurn - b.firstTurn);
+    return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.lastTurn - b.lastTurn);
   }, [evolutionHistory]);
 
   // Scroll Lock for Periodic Table
