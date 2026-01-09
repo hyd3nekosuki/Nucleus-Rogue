@@ -79,8 +79,6 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
         const step = 100 / GRID_SIZE;
         const halfStep = step / 2;
         
-        const currentEntryIdx = history.findIndex(h => h.z === curZ && h.a === curA);
-
         history.forEach((entry, i) => {
             if (entry.pz === null || entry.pa === null) return;
 
@@ -108,8 +106,8 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
 
             const ageFactor = history.length > 1 ? i / (history.length - 1) : 1;
             
-            // Only the path leading to the current nucleus should glow
-            const isLatest = (i === currentEntryIdx);
+            // Highlight only the absolute last movement made in the history
+            const isLatest = (i === history.length - 1);
 
             linePaths.push(
                 <g key={`path-entry-${i}`} style={{ filter: isLatest ? 'drop-shadow(0 0 4px #00f3ff)' : 'none' }}>
@@ -132,7 +130,7 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
             );
         });
         return linePaths;
-    }, [history, curZ, curN, curA]);
+    }, [history, curZ, curN]);
 
     const getTooltipText = (name: string, method: string) => {
         const formattedName = formatNuclideName(name);

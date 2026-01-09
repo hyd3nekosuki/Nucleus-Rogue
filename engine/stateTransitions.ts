@@ -74,9 +74,12 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             let nextComboStartNuclide = state.comboStartNuclide;
             let nextComboStartedUnstable = state.comboStartedUnstable;
 
-            // If we are currently in a combo, add the score from this discovery
-            if (nextCombo > 0) {
-                nextComboScore += addedScore;
+            // Initiating start detection at the transformation boundary
+            if (nextCombo === 0) {
+                // Record the PARENT nuclide as the start of the potential combo
+                nextComboStartNuclide = { z: state.currentNuclide.z, a: state.currentNuclide.a };
+                nextComboStartedUnstable = !state.currentNuclide.isStable;
+                // Note: comboScore will be updated by UPDATE_BASIC_STATE via score delta
             }
 
             // Stability check: Forced reset of CHAIN metadata
@@ -112,11 +115,14 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             // ENSURE COMBO METADATA IS UPDATED ATOMICALLY
             // A. Start Detection: combo goes from 0 -> 1 (or more)
             if (state.combo === 0 && nextState.combo > 0) {
-                // Record the nucleus WE WERE AT before this change started the combo
-                nextState.comboStartNuclide = { z: state.currentNuclide.z, a: state.currentNuclide.a };
-                nextState.comboStartedUnstable = !state.currentNuclide.isStable;
+                // Record the parent nuclide if it wasn't already set by DISCOVER_NUCLIDE
+                if (!nextState.comboStartNuclide) {
+                    nextState.comboStartNuclide = { z: state.currentNuclide.z, a: state.currentNuclide.a };
+                    nextState.comboStartedUnstable = !state.currentNuclide.isStable;
+                }
                 // Initial score gain is part of the combo tracking
-                nextState.comboScore = Math.max(0, nextState.score - state.score);
+                const scoreGain = nextState.score - state.score;
+                nextState.comboScore = Math.max(0, scoreGain);
             } 
             // B. Score Accumulation: already in a combo, track additional points gained
             else if (nextState.combo > 0) {
