@@ -68,7 +68,13 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 [nuclideKey]: updatedHistoryEntry
             };
 
-            // 4. Handle Combo Logic for discoveries
+            // 4. Handle Level Up message notification in log
+            let nextMessages = state.messages;
+            if (nextLevel > state.playerLevel) {
+                nextMessages = [...state.messages, `✨ Mastery LV. ${nextLevel}`].slice(-10);
+            }
+
+            // 5. Handle Combo Logic for discoveries
             let nextCombo = state.combo;
             let nextComboScore = state.comboScore;
             let nextComboStartNuclide = state.comboStartNuclide;
@@ -101,7 +107,8 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 combo: nextCombo,
                 comboScore: nextComboScore,
                 comboStartNuclide: nextComboStartNuclide,
-                comboStartedUnstable: nextComboStartedUnstable
+                comboStartedUnstable: nextComboStartedUnstable,
+                messages: nextMessages
             };
         }
 

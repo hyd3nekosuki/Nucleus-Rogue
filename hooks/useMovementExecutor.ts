@@ -50,11 +50,13 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 return prev;
             }
             
-            // --- BEGIN GAME PROGRESSION LOGIC (Cleanup in Step 5) ---
+            // --- BEGIN GAME PROGRESSION LOGIC ---
+            // BUG FIX: magicBarrierChargesの減算をここで手動で行うのをやめました。
+            // DISCOVER_NUCLIDEアクション側のリデューサーで一元管理することで、
+            // 二重消費を防ぎ、魔法数到達時の回復ロジックとの整合性を確保します。
             let nextPeripheralUpdate: Partial<GameState> = { 
                 playerPos: result.newPos,
-                gridEntities: result.evolvedEntities,
-                magicBarrierCharges: Math.max(0, prev.magicBarrierCharges - result.chargesUsed)
+                gridEntities: result.evolvedEntities
             };
 
             const potentialZ = prev.currentNuclide.z + result.dZ;
