@@ -140,6 +140,12 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     nextPeripheralUpdate.hp = Math.max(0, prev.hp - result.hpPenalty);
                     nextPeripheralUpdate.magicBarrierCharges = Math.max(0, prev.magicBarrierCharges - (result.chargesUsed || 0));
                     nextPeripheralUpdate.turn = prev.turn + 1; 
+                    
+                    // Update streak status even on failed transformation
+                    nextPeripheralUpdate.consecutiveProtons = result.consecutiveProtons;
+                    nextPeripheralUpdate.consecutiveNeutrons = result.consecutiveNeutrons;
+                    nextPeripheralUpdate.consecutiveElectrons = result.consecutiveElectrons;
+                    nextPeripheralUpdate.lastConsumedType = result.lastConsumedType;
                 }
             } else {
                 // Moving without identity change (e.g. hitting wall or scattering without absorption)

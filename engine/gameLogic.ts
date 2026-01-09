@@ -115,6 +115,8 @@ export const calculateMoveResult = (
     let lT = prev.lastConsumedType;
 
     const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
+    const scatteringActive = prev.unlockedGroups.includes("Electron scattering") && !prev.disabledSkills.includes("Electron scattering");
+    const isFusionDisabled = prev.disabledSkills.includes("Fusion");
 
     if (entityMatch) {
         targetEntity = entityMatch.entity;
@@ -134,11 +136,17 @@ export const calculateMoveResult = (
 
         // Streak maintenance
         if (targetEntity.type === EntityType.PROTON) {
-            if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+            // Only increment streak if Fusion is not explicitly disabled
+            if (!isFusionDisabled) {
+                if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+            }
         } else if (targetEntity.type === EntityType.NEUTRON) {
             if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
         } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
-            if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
+            // Only increment streak if scattering is not preventing the capture
+            if (!scatteringActive) {
+                if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
+            }
         }
 
         const isAnnihilationSkillActive = prev.unlockedGroups.includes("Pair annihilation") && !prev.disabledSkills.includes("Pair annihilation");
