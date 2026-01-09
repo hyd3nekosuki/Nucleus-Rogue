@@ -1,4 +1,3 @@
-
 import { ELEMENT_SYMBOLS, ELEMENT_NAMES } from '../constants/atomicData';
 import { EntityType, GridEntity } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -30,10 +29,15 @@ export const parseNuclideCommand = (input: string): { z: number, a: number } | n
 
     const a = parseInt(aStr);
     
-    // Find Z by Symbol
-    let z = ELEMENT_SYMBOLS.findIndex(s => s.toLowerCase() === symbolOrName.toLowerCase());
+    // Find Z: Prioritize exact case-sensitive symbol match (e.g., distinguish "N" for Nitrogen vs "n" for Neutron)
+    let z = ELEMENT_SYMBOLS.indexOf(symbolOrName);
     
-    // Find Z by Full Name if symbol lookup failed
+    // Fallback 1: Case-insensitive symbol match
+    if (z === -1) {
+        z = ELEMENT_SYMBOLS.findIndex(s => s.toLowerCase() === symbolOrName.toLowerCase());
+    }
+    
+    // Fallback 2: Find Z by Full Name case-insensitively if symbol lookups failed
     if (z === -1) {
         z = ELEMENT_NAMES.findIndex(n => n.toLowerCase() === symbolOrName.toLowerCase());
     }

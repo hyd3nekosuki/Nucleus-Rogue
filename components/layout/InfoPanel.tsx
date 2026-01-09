@@ -1,4 +1,5 @@
-import React, { onClick } from 'react';
+// Fix: Removed invalid 'onClick' import from 'react' module.
+import React from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import TrefoilIndicator from '../game/TrefoilIndicator';
