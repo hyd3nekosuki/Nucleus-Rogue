@@ -10,6 +10,9 @@ const AUDIO_CONFIG = {
     SCHEDULER_INTERVAL_MS: 25,
     LOOKAHEAD_SECONDS: 0.1, // How far ahead to schedule sounds (100ms)
     
+    // BPM Control
+    BPM_SMOOTHING_FACTOR: 0.08, // Higher = faster BPM adjustment (0.0 to 1.0)
+    
     // Transition Speed Settings (Number of 16th steps for full fade)
     FADE_STEPS_FOUNDATION: 4,     // Very fast
     FADE_STEPS_ORNAMENTAL_IN: 8,  // Fast
@@ -32,6 +35,10 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const nextNoteTimeRef = useRef(0);
     const currentStepRef = useRef(0);
     const timerIDRef = useRef<number | null>(null);
+
+    // --- BPM Smoothing & Quantization State ---
+    const currentActualBpmRef = useRef<number>(AUDIO_CONFIG.BASE_BPM);
+    const activeSecondsPerStepRef = useRef<number>(60 / AUDIO_CONFIG.BASE_BPM / 4);
 
     // --- Transition Management ---
     const lastModeRef = useRef<DecayMode | null>(null);
@@ -58,6 +65,13 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         hpRef.current = hp;
     }, [hp]);
 
+    // Initialize BPM ref once when hook first runs
+    useEffect(() => {
+        const initialBpm = AUDIO_CONFIG.BASE_BPM + ((1.0 - (hp / 100)) * AUDIO_CONFIG.BPM_RANGE);
+        currentActualBpmRef.current = initialBpm;
+        activeSecondsPerStepRef.current = 60 / initialBpm / 4;
+    }, []);
+
     // Synchronize decayModes and manage "Settling Time" (Debounce) for BGM pattern switching
     useEffect(() => {
         decayModesRef.current = decayModes;
@@ -81,7 +95,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const triggerKickUI = useCallback((time: number) => {
         if (onKick && audioCtxRef.current) {
             const delay = (time - audioCtxRef.current.currentTime) * 1000;
-            // 通知は実際の音が発生するタイミングに合わせて遅延実行する
             setTimeout(onKick, Math.max(0, delay));
         }
     }, [onKick]);
@@ -89,15 +102,26 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     const scheduler = useCallback(() => {
         if (!audioCtxRef.current || !masterEntryRef.current) return;
         
+        // --- BPM Smoothing Logic (Lerp) ---
         const hpFactor = 1.0 - (hpRef.current / 100);
-        const currentBpm = AUDIO_CONFIG.BASE_BPM + (hpFactor * AUDIO_CONFIG.BPM_RANGE); 
-        const secondsPerStep = 60 / currentBpm / 4;
+        const targetBpm = AUDIO_CONFIG.BASE_BPM + (hpFactor * AUDIO_CONFIG.BPM_RANGE);
+        
+        // Smoothly adjust actual BPM toward target
+        currentActualBpmRef.current += (targetBpm - currentActualBpmRef.current) * AUDIO_CONFIG.BPM_SMOOTHING_FACTOR;
 
         while (nextNoteTimeRef.current < audioCtxRef.current.currentTime + AUDIO_CONFIG.LOOKAHEAD_SECONDS) {
             const time = nextNoteTimeRef.current;
             const step = currentStepRef.current;
             const ctx = audioCtxRef.current;
             const dest = masterEntryRef.current;
+
+            // --- Quantization Logic ---
+            // Only update the active step duration at the start of a bar (Step 0)
+            // This prevents "pitch warbling" or scheduling gaps during rapid tempo shifts.
+            if (step === 0) {
+                activeSecondsPerStepRef.current = 60 / currentActualBpmRef.current / 4;
+            }
+            const secondsPerStep = activeSecondsPerStepRef.current;
 
             const targetMode = stablePrimaryModeRef.current;
 
@@ -145,7 +169,6 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         audioCtxRef.current = ctx;
 
-        // Construct FX chain using external utility
         const rack = createMasterRack(ctx);
         masterEntryRef.current = rack.entry;
         masterGainRef.current = rack.masterGain;
@@ -233,7 +256,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
     return { 
         isMuted, 
         toggleMute, 
-        bpm: Math.round(AUDIO_CONFIG.BASE_BPM + ((1 - hp / 100) * AUDIO_CONFIG.BPM_RANGE)), 
+        // Display the smoothed BPM in the UI for consistent feedback
+        bpm: Math.round(currentActualBpmRef.current), 
         primaryMode: stablePrimaryModeRef.current 
     };
 };
