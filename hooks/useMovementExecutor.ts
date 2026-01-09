@@ -51,12 +51,13 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             }
             
             // --- BEGIN GAME PROGRESSION LOGIC ---
-            // BUG FIX: magicBarrierChargesの減算をここで手動で行うのをやめました。
-            // DISCOVER_NUCLIDEアクション側のリデューサーで一元管理することで、
-            // 二重消費を防ぎ、魔法数到達時の回復ロジックとの整合性を確保します。
             let nextPeripheralUpdate: Partial<GameState> = { 
                 playerPos: result.newPos,
-                gridEntities: result.evolvedEntities
+                gridEntities: result.evolvedEntities,
+                consecutiveProtons: result.consecutiveProtons,
+                consecutiveNeutrons: result.consecutiveNeutrons,
+                consecutiveElectrons: result.consecutiveElectrons,
+                lastConsumedType: result.lastConsumedType
             };
 
             const potentialZ = prev.currentNuclide.z + result.dZ;
@@ -81,7 +82,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const totalBaseActionScore = basePoints + stabilityReward + result.actionBonusScore + (result.magicProtectionBonus || 0) + (result.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
 
                     // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
-                    // Reducer now handles level-up, barrier replenishment, turn increment, and evolution history.
                     dispatchDiscovery(newData, {
                         method: getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel),
                         pz: prev.currentNuclide.z,
@@ -96,7 +96,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const fusionMsg = result.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
                     let coreMsg = result.scatteredMessage && !result.isPositronAbsorption ? `⚠️ ${result.scatteredMessage}` : result.isPpFusion ? `Fusion: Deuterium Synthesized.` : result.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
 
-                    // Drip line warning - suppressed for stable nuclides
+                    // Drip line warning
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
                     nextPeripheralUpdate = {
@@ -109,7 +109,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty))
                     };
 
-                    // Tutorial handling
                     if (prev.tutorialMessage === "Capture particle to transform") {
                         nextPeripheralUpdate.tutorialMessage = null;
                         nextPeripheralUpdate.hasSeenCaptureTutorial = true;
@@ -117,32 +116,42 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         nextPeripheralUpdate.tutorialMessage = "Decay to be stable";
                     }
 
-                    // Effects & Sounds
                     if (result.shouldShake) triggerShake();
                     if (result.shouldFlash) triggerFlash('bg-neon-blue');
                     if (result.isPpFusion) triggerTTS("Nuclear Fusion");
                     
                 } else {
                     // Target does not exist (Drip line violation)
-                    if (result.isBremsAchieved) {
-                        const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
-                        nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups; 
-                        nextPeripheralUpdate.score = prev.score + unlockResult.scoreBonus; 
-                        nextPeripheralUpdate.messages = [...prev.messages, ...unlockResult.messages].slice(-10);
-                    }
+                    // Check for achievements even during failure (Bremsstrahlung or Zero Barn)
+                    const unlockResult = processUnlocks(
+                        prev.unlockedElements, 
+                        prev.unlockedGroups, 
+                        prev.currentNuclide.z, 
+                        prev.currentNuclide.a, 
+                        false, false, false, false, 0, 
+                        false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved
+                    );
+                    
+                    const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ MAGIC BARRIER USED: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];
+                    
+                    nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups; 
+                    nextPeripheralUpdate.score = prev.score + (result.actionBonusScore || 0) + (result.magicProtectionBonus || 0) + unlockResult.scoreBonus; 
+                    nextPeripheralUpdate.messages = [...prev.messages, ...protectionMsg, ...unlockResult.messages].slice(-10);
                     nextPeripheralUpdate.hp = Math.max(0, prev.hp - result.hpPenalty);
-                    nextPeripheralUpdate.turn = prev.turn + 1; // Increment for non-discovery move
+                    nextPeripheralUpdate.magicBarrierCharges = Math.max(0, prev.magicBarrierCharges - (result.chargesUsed || 0));
+                    nextPeripheralUpdate.turn = prev.turn + 1; 
                 }
             } else {
-                // Moving without discovery
+                // Moving without identity change (e.g. hitting wall or scattering without absorption)
                 nextPeripheralUpdate.turn = prev.turn + 1;
                 if (prev.currentNuclide.isStable) nextPeripheralUpdate.hp = Math.min(prev.maxHp, prev.hp + 1);
                 
+                // Still check for achievements like Zero Barn if the move was successful but identity didn't change (rare but for safety)
                 if (result.isZeroBarnAchieved) {
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
                     nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups;
                     nextPeripheralUpdate.messages = [...prev.messages, ...unlockResult.messages].slice(-10);
-                    nextPeripheralUpdate.score = prev.score + unlockResult.scoreBonus;
+                    nextPeripheralUpdate.score = (nextPeripheralUpdate.score || prev.score) + unlockResult.scoreBonus;
                 }
                 
                 if (result.scatteredMessage) {
@@ -150,6 +159,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 }
             }
 
+            // Create intermediate state for background events processing
             let finalNextState = { ...prev, ...nextPeripheralUpdate };
 
             // Cleanup & Stats

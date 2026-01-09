@@ -33,6 +33,10 @@ export interface MoveResult {
     scatteredMessage?: string;
     magicProtectionBonus?: number;
     chargesUsed: number;
+    consecutiveProtons: number;
+    consecutiveNeutrons: number;
+    consecutiveElectrons: number;
+    lastConsumedType: EntityType | null;
 }
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
@@ -84,7 +88,13 @@ export const calculateMoveResult = (
 
     // 1. Validation
     if (!isWithinBounds(newPos)) {
-        return { moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0 };
+        return { 
+            moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0,
+            consecutiveProtons: prev.consecutiveProtons,
+            consecutiveNeutrons: prev.consecutiveNeutrons,
+            consecutiveElectrons: prev.consecutiveElectrons,
+            lastConsumedType: prev.lastConsumedType
+        };
     }
 
     // 2. Interaction Setup
@@ -110,7 +120,13 @@ export const calculateMoveResult = (
         targetEntity = entityMatch.entity;
         // Collision prevention for positrons unless we are a neutron state
         if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) {
-            return { moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0 };
+            return { 
+                moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0,
+                consecutiveProtons: prev.consecutiveProtons,
+                consecutiveNeutrons: prev.consecutiveNeutrons,
+                consecutiveElectrons: prev.consecutiveElectrons,
+                lastConsumedType: prev.lastConsumedType
+            };
         }
 
         nextEntities.splice(entityMatch.index, 1);
@@ -207,6 +223,10 @@ export const calculateMoveResult = (
         evolvedEntities,
         scatteredMessage: interactionResult?.scatteredMessage,
         magicProtectionBonus: interactionResult?.magicProtectionBonus,
-        chargesUsed
+        chargesUsed,
+        consecutiveProtons: cP,
+        consecutiveNeutrons: cN,
+        consecutiveElectrons: cE,
+        lastConsumedType: lT
     };
 };
