@@ -23,7 +23,7 @@ export const useSkillController = (
     stopAutoMove: () => void,
     handleDecayAction: (mode: DecayMode) => void,
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void,
-    setFinalCombo: (val: { count: number; id: number } | null) => void,
+    setLastFinalCombo: (val: { count: number; id: number } | null) => void,
     resetVisuals: () => void
 ) => {
 
@@ -53,11 +53,12 @@ export const useSkillController = (
                         method: HISTORY_METHODS.NUCLEOSYNTHESIS,
                         pz: prev.currentNuclide.z,
                         pa: prev.currentNuclide.a,
-                        addedScore: nextZ * 10000
+                        addedScore: nextZ * 10000,
+                        chargesUsed: 0
                     });
 
-                    // Drip line warning
-                    const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
+                    // Drip line warning - suppressed for stable nuclides
+                    const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
                     return { 
                         ...prev, 
@@ -102,11 +103,12 @@ export const useSkillController = (
                 method: HISTORY_METHODS.R_PROCESS,
                 pz: prev.currentNuclide.z,
                 pa: prev.currentNuclide.a,
-                addedScore: synthBonus
+                addedScore: synthBonus,
+                chargesUsed: 0
             });
 
-            // Drip line warning
-            const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
+            // Drip line warning - suppressed for stable nuclides
+            const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
             triggerTTS("r-process nucleosynthesis");
             return { 
@@ -137,11 +139,11 @@ export const useSkillController = (
             setGameState(prev => {
                 const nextState = !prev.isTimeStopped;
                 if (nextState) stopAutoMove();
-                setFinalCombo(null);
+                setLastFinalCombo(null);
                 return { ...prev, isTimeStopped: nextState, effects: [], messages: [...prev.messages, nextState ? "✨ FROZEN TIME: Locked by neutron shell." : "✨ TIME RESTORED."].slice(-10) };
             });
         }
-    }, [gameState.playerLevel, gameState.currentNuclide.a, gameState.currentNuclide.z, stopAutoMove, setFinalCombo, setGameState]);
+    }, [gameState.playerLevel, gameState.currentNuclide.a, gameState.currentNuclide.z, stopAutoMove, setLastFinalCombo, setGameState]);
 
     const handleTransmute = useCallback((selectedZ: number) => {
         if (gameState.playerLevel < 4 || gameState.disabledSkills.includes("Exp. Replicate")) return; 
@@ -158,11 +160,12 @@ export const useSkillController = (
                     method: HISTORY_METHODS.EXP_REPLICATE,
                     pz: prev.currentNuclide.z,
                     pa: prev.currentNuclide.a,
-                    addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION
+                    addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION,
+                    chargesUsed: 0
                 });
 
-                // Drip line warning
-                const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
+                // Drip line warning - suppressed for stable nuclides
+                const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
                 triggerTTS("Experimental Replicate"); triggerFlash('bg-neon-blue', 800);
                 return { 

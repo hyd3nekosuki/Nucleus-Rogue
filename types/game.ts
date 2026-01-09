@@ -75,7 +75,7 @@ export interface GameState {
 }
 
 export type GameAction =
-  | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; method: string; pz: number | null; pa: number | null; addedScore: number; inducedDecayMode?: DecayMode } }
+  | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; method: string; pz: number | null; pa: number | null; addedScore: number; chargesUsed: number; inducedDecayMode?: DecayMode } }
   | { type: 'UPDATE_BASIC_STATE'; payload: Partial<GameState> | ((prev: GameState) => Partial<GameState>) }
   | { type: 'RESET_STATE'; payload: GameState }
   | { type: 'APPLY_STABILITY_DECAY'; payload: { hp: number; energyPoints?: number; messages?: string[]; effects?: VisualEffect[]; gameOver?: boolean; gameOverReason?: string } }

@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+// Fix: Added React import to resolve missing namespace error
+import React, { useCallback } from 'react';
 import { NuclideData } from '../types';
 import { DiscoveryContext } from '../engine/stateTransitions';
 
@@ -31,6 +32,7 @@ export const useAtomicDispatcher = (dispatch: React.Dispatch<any>) => {
                 pz: context.pz,
                 pa: context.pa,
                 addedScore: context.addedScore,
+                chargesUsed: context.chargesUsed,
                 inducedDecayMode: context.inducedDecayMode
             }
         });

@@ -187,11 +187,11 @@ function App() {
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
-             <button onClick={() => setActiveTab('structure')} className={`flex-1 py-2 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${activeTab === 'structure' ? 'border-neon-blue text-neon-blue bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Structure</button>
-             <button onClick={() => setActiveTab('history')} className={`flex-1 py-2 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${activeTab === 'history' ? 'border-neon-green text-neon-green bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>History</button>
+             <button onClick={() => setActiveTab('structure')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${activeTab === 'structure' ? 'border-neon-blue text-neon-blue bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Structure</button>
+             <button onClick={() => setActiveTab('history')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${activeTab === 'history' ? 'border-neon-green text-neon-green bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>History</button>
           </div>
 
-          <div className="p-4 border-b border-gray-800 shrink-0 h-64 flex flex-col items-center justify-center overflow-hidden">
+          <div className="p-4 border-b border-gray-800 shrink-0 h-80 flex flex-col items-center justify-center overflow-hidden">
              {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} turn={gameState.turn} />}
           </div>
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 // Fix: Import COMBO_WINDOW_MS from constants instead of the engine hook
 import { COMBO_WINDOW_MS } from '../../constants';
@@ -117,7 +116,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   };
 
   return (
-    <div className="bg-black/60 mx-2 min-h-[80px] md:min-h-[90px] flex flex-col relative overflow-hidden p-3 font-mono select-none touch-none rounded-lg border border-gray-800">
+    <div className="bg-black/60 mx-2 min-h-[75px] md:min-h-[85px] flex flex-col relative overflow-hidden p-2 font-mono select-none touch-none rounded-lg border border-gray-800">
       
       {/* BACKGROUND PULSING BORDER LAYER - Synchronized to 4-beat cycle and event colors */}
       <div 

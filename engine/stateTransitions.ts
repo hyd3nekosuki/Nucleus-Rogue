@@ -6,6 +6,7 @@ export interface DiscoveryContext {
     pz: number | null;
     pa: number | null;
     addedScore: number;
+    chargesUsed: number;
     inducedDecayMode?: DecayMode;
 }
 
@@ -16,7 +17,7 @@ export interface DiscoveryContext {
 export const nucleusReducer = (state: GameState, action: GameAction): GameState => {
     switch (action.type) {
         case 'DISCOVER_NUCLIDE': {
-            const { nextNuclide, method, pz, pa, addedScore, inducedDecayMode } = action.payload;
+            const { nextNuclide, method, pz, pa, addedScore, chargesUsed, inducedDecayMode } = action.payload;
             
             // ATOMIC TURN INCREMENT: Every discovery/transformation advances the cosmic clock
             const nextGlobalTurn = state.turn + 1;
@@ -28,11 +29,12 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 inducedDecayMode || DecayMode.STABLE
             );
 
-            // 2. Handle Magic Barrier Replenishment (Fixes sequence bug by using nextLevel)
+            // 2. Handle Magic Barrier Consumption and Replenishment
+            const currentChargesAfterConsumption = Math.max(0, state.magicBarrierCharges - chargesUsed);
             const nextCharges = checkBarrierReplenish(
                 nextLevel,
                 nextNuclide.z,
-                state.magicBarrierCharges
+                currentChargesAfterConsumption
             );
 
             // 3. Evolution History Logic (Updated for firstTurn/lastTurn)

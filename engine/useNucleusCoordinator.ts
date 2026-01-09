@@ -37,7 +37,8 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         triggerShake, 
         triggerFlash, 
         setLastDecayEvent, 
-        setFinalCombo,
+        // Fix: Corrected property name setFinalCombo to setLastFinalCombo to match MovementExecutorDeps interface
+        setLastFinalCombo: setFinalCombo,
         onStopRequest: () => stopAutoMoveRef.current()
     });
 

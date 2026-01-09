@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { onClick } from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import TrefoilIndicator from '../game/TrefoilIndicator';
@@ -73,7 +73,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   const isForceDecayAvailable = playerLevel >= 6 && nuclide.isStable && energyPoints >= 5 && !disabled;
   
   return (
-    <div className="px-6 pb-4 pt-0.5 border-b border-gray-800">
+    <div className="px-6 pb-2 pt-0.5 border-b border-gray-800">
       
       <div className="flex justify-between items-end mb-4 gap-2">
           {/* Score Area - Subtle hidden interaction for Level 6 */}

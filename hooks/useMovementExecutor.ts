@@ -19,7 +19,7 @@ interface MovementExecutorDeps {
     triggerShake: () => void;
     triggerFlash: (color: string) => void;
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void;
-    setFinalCombo: (val: { count: number; id: number } | null) => void;
+    setLastFinalCombo: (val: { count: number; id: number } | null) => void;
     onStopRequest: () => void;
 }
 
@@ -54,8 +54,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             let nextPeripheralUpdate: Partial<GameState> = { 
                 playerPos: result.newPos,
                 gridEntities: result.evolvedEntities,
-                // Removed manual turn increment: DISCOVER_NUCLIDE handles it, 
-                // or we add it below for non-discovery moves.
+                magicBarrierCharges: Math.max(0, prev.magicBarrierCharges - result.chargesUsed)
             };
 
             const potentialZ = prev.currentNuclide.z + result.dZ;
@@ -86,6 +85,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         pz: prev.currentNuclide.z,
                         pa: prev.currentNuclide.a,
                         addedScore: totalBaseActionScore,
+                        chargesUsed: result.chargesUsed,
                         inducedDecayMode: result.inducedDecayMode
                     });
 
@@ -94,8 +94,8 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const fusionMsg = result.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
                     let coreMsg = result.scatteredMessage && !result.isPositronAbsorption ? `⚠️ ${result.scatteredMessage}` : result.isPpFusion ? `Fusion: Deuterium Synthesized.` : result.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
 
-                    // Drip line warning
-                    const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
+                    // Drip line warning - suppressed for stable nuclides
+                    const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
                     nextPeripheralUpdate = {
                         ...nextPeripheralUpdate,

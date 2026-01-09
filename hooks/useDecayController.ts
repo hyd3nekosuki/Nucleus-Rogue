@@ -17,7 +17,7 @@ export const useDecayController = (
     triggerShake: () => void,
     triggerFlash: (color: string) => void,
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void,
-    setFinalCombo: (val: { count: number; id: number } | null) => void,
+    setLastFinalCombo: (val: { count: number; id: number } | null) => void,
     stopAutoMove: () => void
 ) => {
 
@@ -89,6 +89,7 @@ export const useDecayController = (
             pz: gameState.currentNuclide.z,
             pa: gameState.currentNuclide.a,
             addedScore: totalBasePoints,
+            chargesUsed: 0,
             inducedDecayMode: actualMode
         });
 
@@ -102,15 +103,15 @@ export const useDecayController = (
                 prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0)
             );
             
-            if (newData.isStable && rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); 
+            if (newData.isStable && rawCombo >= 2) setLastFinalCombo({ count: rawCombo, id: Date.now() }); 
 
             // Trigger mastery notification if a new decay mode is performed
             if (!prev.masteredDecays.includes(actualMode) && prev.playerLevel < 6) {
                 triggerTTS("Mastery Level Up!");
             }
 
-            // Drip line warning
-            const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
+            // Drip line warning - suppressed for stable nuclides
+            const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
             return { 
                 ...prev, 
@@ -135,7 +136,7 @@ export const useDecayController = (
                 lastConsumedType: null
             };
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.lastComboTime, gameState.combo, gameState.playerPos, gameState.gridEntities, stopAutoMove, setGameState, dispatchDiscovery, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.lastComboTime, gameState.combo, gameState.playerPos, gameState.gridEntities, stopAutoMove, setGameState, dispatchDiscovery, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setLastFinalCombo]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

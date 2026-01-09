@@ -108,9 +108,8 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
 
             const ageFactor = history.length > 1 ? i / (history.length - 1) : 1;
             
-            const isIncomingPath = (i === currentEntryIdx);
-            const isAbsoluteLast = (i === history.length - 1);
-            const isLatest = isIncomingPath || isAbsoluteLast;
+            // Only the path leading to the current nucleus should glow
+            const isLatest = (i === currentEntryIdx);
 
             linePaths.push(
                 <g key={`path-entry-${i}`} style={{ filter: isLatest ? 'drop-shadow(0 0 4px #00f3ff)' : 'none' }}>
