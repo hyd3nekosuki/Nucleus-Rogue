@@ -134,13 +134,8 @@ export const calculateMoveResult = (
         nextEntities.splice(entityMatch.index, 1);
         if (nextEntities.length === 0) gluttonyTrigger = true;
 
-        // Streak maintenance
-        if (targetEntity.type === EntityType.PROTON) {
-            // Only increment streak if Fusion is not explicitly disabled
-            if (!isFusionDisabled) {
-                if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-            }
-        } else if (targetEntity.type === EntityType.NEUTRON) {
+        // Streak maintenance for Neutrons and Electrons
+        if (targetEntity.type === EntityType.NEUTRON) {
             // Only increment streak if Zero Barn is NOT preventing the capture
             if (!isZeroBarnActive) {
                 if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
@@ -185,6 +180,13 @@ export const calculateMoveResult = (
         inducedDecayMode = interactionResult.inducedDecayMode;
         reactionLabel = interactionResult.inducedReactionLabel || "";
         chargesUsed = interactionResult.chargesUsed || 0;
+
+        // Streak maintenance for Protons - Only increment if NOT scattered by Coulomb barrier
+        if (targetEntity.type === EntityType.PROTON) {
+            if (!isFusionDisabled && !interactionResult.isCoulombScattered) {
+                if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+            }
+        }
 
         if (interactionResult.isPpFusion) {
             nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
