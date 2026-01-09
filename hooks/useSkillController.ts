@@ -1,6 +1,5 @@
-
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry, EntityType, VisualEffect } from '../types';
+import { GameState, DecayMode, HistoryEntry, EntityType, VisualEffect, NuclideData } from '../types';
 
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { MAGIC_NUMBERS } from '../constants/physics';
@@ -12,10 +11,12 @@ import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
 import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { getInitialState } from '../engine/initialState';
+import { DiscoveryContext } from '../engine/stateTransitions';
 
 export const useSkillController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+    dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void,
     setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>, // Legacy unused
     triggerTTS: (text: string) => void,
     triggerFlash: (color: string, duration?: number) => void,
@@ -35,6 +36,7 @@ export const useSkillController = (
             const now = Date.now();
             const effectType = isSynth ? DecayMode.NUCLEOSYNTHESIS_ZAP : DecayMode.STABILIZE_ZAP;
             const zapEffect: VisualEffect = { id: Math.random().toString(36).substr(2, 9), type: effectType, position: { ...prev.playerPos }, timestamp: now };
+            
             if (isSynth) {
                 const nextZ = prev.currentNuclide.z + 1;
                 if (nextZ > 118) return { ...prev, messages: [...prev.messages, "⚠️ Oganesson limit reached!"].slice(-10) };
@@ -43,45 +45,41 @@ export const useSkillController = (
                 const randomA = validAs[Math.floor(Math.random() * validAs.length)];
                 const newData = getNuclideDataSync(nextZ, randomA);
                 if (newData.exists) {
-                    const nextTurn = prev.turn + 1;
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
                     triggerTTS("Nucleosynthesis"); triggerFlash('bg-white', 800);
                     
-                    const newEntry: HistoryEntry = { 
-                        turn: nextTurn, 
-                        name: newData.name, 
-                        symbol: newData.symbol, 
-                        z: newData.z, 
-                        a: newData.a, 
+                    // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
+                    dispatchDiscovery(newData, {
                         method: HISTORY_METHODS.NUCLEOSYNTHESIS,
                         pz: prev.currentNuclide.z,
-                        pa: prev.currentNuclide.a
-                    };
+                        pa: prev.currentNuclide.a,
+                        addedScore: nextZ * 10000
+                    });
+
+                    // Drip line warning
+                    const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
 
                     return { 
                         ...prev, 
-                        currentNuclide: newData, 
-                        evolutionHistory: { ...prev.evolutionHistory, [`${newData.z}-${newData.a}`]: newEntry },
                         hp: prev.maxHp, 
                         energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - NUCLEOSYNTHESIS_COST)), 
-                        turn: nextTurn, 
                         tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
                         hasSeenCaptureTutorial: true, 
                         score: prev.score + nextZ * 10000 + unlockResult.scoreBonus, 
                         effects: [...prev.effects, zapEffect], 
                         unlockedElements: unlockResult.updatedElements, 
                         unlockedGroups: unlockResult.updatedGroups, 
-                        messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${(nextZ * 10000).toLocaleString()} PTS)`, ...unlockResult.messages].slice(-10), 
+                        messages: [...prev.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}! (+${(nextZ * 10000).toLocaleString()} PTS)`, ...unlockResult.messages, ...dripMsg].slice(-10), 
                         isTimeStopped: false, 
                         consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null 
                     };
                 }
                 return prev;
             } else {
-                return { ...prev, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - STABILIZE_COST)), effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
+                return { ...prev, turn: prev.turn + 1, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - STABILIZE_COST)), effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
             }
         });
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState]);
+    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, dispatchDiscovery]);
 
     const handleUltimateSynthesis = useCallback(() => {
         if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
@@ -96,28 +94,24 @@ export const useSkillController = (
             triggerFlash('bg-white', 800);
             const newData = getNuclideDataSync(nextZ, nextA);
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
-            const nextTurn = prev.turn + 1;
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
             
-            const newEntry: HistoryEntry = { 
-                turn: nextTurn, 
-                name: newData.name, 
-                symbol: newData.symbol, 
-                z: newData.z, 
-                a: newData.a, 
+            // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
+            dispatchDiscovery(newData, {
                 method: HISTORY_METHODS.R_PROCESS,
                 pz: prev.currentNuclide.z,
-                pa: prev.currentNuclide.a
-            };
+                pa: prev.currentNuclide.a,
+                addedScore: synthBonus
+            });
+
+            // Drip line warning
+            const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
 
             triggerTTS("r-process nucleosynthesis");
             return { 
                 ...prev, 
-                currentNuclide: newData, 
-                evolutionHistory: { ...prev.evolutionHistory, [`${newData.z}-${newData.a}`]: newEntry },
                 hp: prev.maxHp, 
-                turn: nextTurn, 
                 gridEntities: [], 
                 tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
                 hasSeenCaptureTutorial: true, 
@@ -126,7 +120,7 @@ export const useSkillController = (
                 unlockedGroups: unlockResult.updatedGroups, 
                 playerLevel: 0, 
                 masteredDecays: [], 
-                messages: [...prev.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."].slice(-10), 
+                messages: [...prev.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles into ${newData.name}! (+${synthBonus.toLocaleString()} PTS)`, ...dripMsg, "⚠️ MASTERY CONSUMED: Level reset to 0. Cosmic knowledge lost."].slice(-10), 
                 combo: 0,
                 consecutiveProtons: 0, 
                 consecutiveNeutrons: 0, 
@@ -134,7 +128,7 @@ export const useSkillController = (
                 lastConsumedType: null 
             };
         });
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState]);
+    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, dispatchDiscovery]);
 
     const handleToggleTimeStop = useCallback(() => {
         if (gameState.playerLevel < 3) return; 
@@ -156,44 +150,39 @@ export const useSkillController = (
         const newData = getNuclideDataSync(selectedZ, randomA);
         if (newData.exists) {
             setGameState(prev => {
-                const nextTurn = prev.turn + 1;
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
                 setLastDecayEvent(null);
                 
-                const newEntry: HistoryEntry = { 
-                    turn: nextTurn, 
-                    name: newData.name, 
-                    symbol: newData.symbol, 
-                    z: newData.z, 
-                    a: newData.a, 
+                // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
+                dispatchDiscovery(newData, {
                     method: HISTORY_METHODS.EXP_REPLICATE,
                     pz: prev.currentNuclide.z,
-                    pa: prev.currentNuclide.a
-                };
+                    pa: prev.currentNuclide.a,
+                    addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION
+                });
+
+                // Drip line warning
+                const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
 
                 triggerTTS("Experimental Replicate"); triggerFlash('bg-neon-blue', 800);
                 return { 
                     ...prev, 
-                    currentNuclide: newData, 
-                    evolutionHistory: { ...prev.evolutionHistory, [`${newData.z}-${newData.a}`]: newEntry },
-                    turn: nextTurn, 
                     tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
                     hasSeenCaptureTutorial: true, 
                     unlockedElements: unlockResult.updatedElements, 
                     unlockedGroups: unlockResult.updatedGroups, 
                     score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, 
-                    messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10), 
+                    messages: [...prev.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages, ...dripMsg].slice(-10), 
                     isTimeStopped: false, 
                     combo: 0, 
                     consecutiveProtons: 0, 
                     consecutiveNeutrons: 0, 
                     consecutiveElectrons: 0, 
-                    lastConsumedType: null, 
-                    magicBarrierCharges: (prev.playerLevel >= 1 && MAGIC_NUMBERS.includes(newData.z) && prev.magicBarrierCharges === 0) ? 3 : prev.magicBarrierCharges 
+                    lastConsumedType: null
                 };
             });
         }
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, setLastDecayEvent]);
+    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, setLastDecayEvent, dispatchDiscovery]);
 
     const handleToggleHiddenSkill = useCallback((skillName: string) => {
         setGameState(prev => {
@@ -226,7 +215,8 @@ export const useSkillController = (
             resetVisuals();
             
             const originEntry: HistoryEntry = { 
-                turn: 0, 
+                firstTurn: 0, 
+                lastTurn: 0,
                 name: startNuclide.name, 
                 symbol: startNuclide.symbol, 
                 z: startNuclide.z, 

@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback, useRef } from 'react';
 import { DecayMode } from '../types';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
@@ -13,9 +12,11 @@ import { useVisualEffects } from '../hooks/useVisualEffects';
 import { useSkillController } from '../hooks/useSkillController';
 import { useDecayController } from '../hooks/useDecayController';
 import { useMovementExecutor } from '../hooks/useMovementExecutor';
+import { useAtomicDispatcher } from '../hooks/useAtomicDispatcher';
 
 export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     const { gameState, setGameState, dispatch } = useNucleusState();
+    const { dispatchDiscovery } = useAtomicDispatcher(dispatch);
 
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
@@ -31,6 +32,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     const { moveStep } = useMovementExecutor({
         gameState,
         setGameState, 
+        dispatchDiscovery,
         triggerTTS,
         triggerShake, 
         triggerFlash, 
@@ -43,6 +45,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         handleDecayAction, handlePlayerInteract 
     } = useDecayController(
         gameState, setGameState, 
+        dispatchDiscovery,
         triggerTTS, 
         triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, 
         () => stopAutoMoveRef.current()
@@ -64,6 +67,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay
     } = useSkillController(
         gameState, setGameState, 
+        dispatchDiscovery,
         () => {}, // History integrated into gameState
         triggerTTS, triggerFlash,
         stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
@@ -87,9 +91,15 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
                 gridEntities: initialEntities,
                 evolutionHistory: {
                     [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
-                        turn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol,
-                        z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN,
-                        pz: null, pa: null
+                        firstTurn: 0, 
+                        lastTurn: 0,
+                        name: INITIAL_NUCLIDE.name, 
+                        symbol: INITIAL_NUCLIDE.symbol,
+                        z: INITIAL_NUCLIDE.z, 
+                        a: INITIAL_NUCLIDE.a, 
+                        method: HISTORY_METHODS.ORIGIN,
+                        pz: null, 
+                        pa: null
                     }
                 }
             }

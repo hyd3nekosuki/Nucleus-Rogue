@@ -1,27 +1,38 @@
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
-import { BONUS_SCORES, SCORE_FACTORS } from '../constants/economy';
-import { HISTORY_METHODS } from '../constants/strings';
-
-import { getNuclideDataSync } from '../services/nuclideService';
-import { processUnlocks } from './unlockSystem';
-import { processRandomBackgroundEvents } from './randomEvents';
 import { isWithinBounds, findEntityAt } from '../utils/gridUtils';
 import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
 
+/**
+ * Result structure for the physics simulation of a move.
+ * Contains only raw physical changes and interaction metadata.
+ */
 export interface MoveResult {
     moved: boolean;
-    state: GameState;
+    newPos?: Position;
+    dZ: number;
+    dA: number;
+    hpPenalty: number;
+    energyBonus: number;
+    actionBonusScore: number;
     inducedDecayMode?: DecayMode;
     inducedReactionLabel?: string;
     shouldShake?: boolean;
     shouldFlash?: boolean;
-    flashColor?: string;
     additionalEffects?: VisualEffect[];
     isPpFusion?: boolean;
     isPositronAbsorption?: boolean;
+    isCoulombScattered?: boolean;
+    isBremsAchieved?: boolean;
+    isZeroBarnAchieved?: boolean;
+    isFissionAchieved?: boolean;
+    gluttonyTrigger?: boolean;
     targetEntity?: GridEntity;
+    evolvedEntities: GridEntity[];
+    scatteredMessage?: string;
+    magicProtectionBonus?: number;
+    chargesUsed: number;
 }
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
@@ -59,44 +70,48 @@ export const generateEntities = (count: number, currentEntities: GridEntity[], p
     return newEntities;
 };
 
+/**
+ * Physics Simulator: Calculates the outcome of a single move attempt.
+ * Does NOT update GameState. Does NOT build messages.
+ */
 export const calculateMoveResult = (
     prev: GameState,
     dx: number,
     dy: number,
-    COULOMB_BAR_THRESHOLD: number,
-    ENERGY_EVOLUTION_TURNS: number,
-    playerLevel: number = 0
+    ENERGY_EVOLUTION_TURNS: number
 ): MoveResult => {
     const newPos: Position = { x: prev.playerPos.x + dx, y: prev.playerPos.y + dy };
 
     // 1. Validation
-    if (!isWithinBounds(newPos)) return { moved: false, state: prev };
+    if (!isWithinBounds(newPos)) {
+        return { moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0 };
+    }
 
-    // 2. Interaction
+    // 2. Interaction Setup
     const entityMatch = findEntityAt(prev.gridEntities, newPos);
     
     let dZ = 0, dA = 0, hpPenalty = 0, energyBonus = 0, actionBonusScore = 0;
     let inducedDecayMode: DecayMode | undefined = undefined;
     let reactionLabel = "";
-    let additionalMessages: string[] = [];
     let interactionResult: any = null;
     let nextEntities = [...prev.gridEntities];
-    let shouldShake = false;
-    let shouldFlash = false;
     let targetEntity: GridEntity | undefined;
     let gluttonyTrigger = false;
+    let chargesUsed = 0;
 
     let cP = prev.consecutiveProtons;
     let cN = prev.consecutiveNeutrons;
     let cE = prev.consecutiveElectrons;
     let lT = prev.lastConsumedType;
-    let currentCharges = prev.magicBarrierCharges;
 
     const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
 
     if (entityMatch) {
         targetEntity = entityMatch.entity;
-        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) return { moved: false, state: prev };
+        // Collision prevention for positrons unless we are a neutron state
+        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) {
+            return { moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0 };
+        }
 
         nextEntities.splice(entityMatch.index, 1);
         if (nextEntities.length === 0) gluttonyTrigger = true;
@@ -112,7 +127,7 @@ export const calculateMoveResult = (
 
         const isAnnihilationSkillActive = prev.unlockedGroups.includes("Pair annihilation") && !prev.disabledSkills.includes("Pair annihilation");
 
-        // Check for high energy neutron reaction first
+        // High energy neutron special reactions
         const neutronReaction = calculateNeutronReaction(
             prev.currentNuclide, 
             targetEntity, 
@@ -130,7 +145,7 @@ export const calculateMoveResult = (
             nextEntities = neutronReaction.newGridEntities || nextEntities;
         } else {
             interactionResult = calculateInteraction(
-                prev.currentNuclide, targetEntity, cE, prev.hp, currentCharges, 
+                prev.currentNuclide, targetEntity, cE, prev.hp, prev.magicBarrierCharges, 
                 prev.unlockedGroups, prev.disabledSkills
             );
         }
@@ -142,9 +157,7 @@ export const calculateMoveResult = (
         actionBonusScore = interactionResult.actionBonusScore || 0;
         inducedDecayMode = interactionResult.inducedDecayMode;
         reactionLabel = interactionResult.inducedReactionLabel || "";
-        shouldShake = !!interactionResult.shouldShake;
-        shouldFlash = !!interactionResult.shouldFlash;
-        currentCharges -= interactionResult.chargesUsed;
+        chargesUsed = interactionResult.chargesUsed || 0;
 
         if (interactionResult.isPpFusion) {
             nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
@@ -170,84 +183,30 @@ export const calculateMoveResult = (
         return e;
     });
 
-    // 4. Create Next State
-    let nextState: GameState = { 
-        ...prev, 
-        playerPos: newPos, 
-        gridEntities: evolvedEntities, 
-        turn: prev.turn + 1, 
-        consecutiveProtons: cP, 
-        consecutiveNeutrons: cN, 
-        consecutiveElectrons: cE, 
-        lastConsumedType: lT, 
-        magicBarrierCharges: currentCharges 
-    };
-
-    if (dZ !== 0 || dA !== 0 || reactionLabel || interactionResult?.isCoulombScattered || interactionResult?.isPpFusion || interactionResult?.isPositronAbsorption) {
-        const potentialZ = prev.currentNuclide.z + dZ;
-        const potentialA = prev.currentNuclide.a + dA;
-        const newData = (dZ === 0 && dA === 0 && !interactionResult?.isPpFusion && !interactionResult?.isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
-        
-        if (newData.exists) {
-            const isFissionAchieved = inducedDecayMode === DecayMode.SPONTANEOUS_FISSION;
-            const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, !!interactionResult?.isCoulombScattered, !!interactionResult?.isPpFusion, isFissionAchieved, isZeroBarnAchieved, !!interactionResult?.isBremsAchieved, 0, 0, gluttonyTrigger);
-            
-            const protectionMsg = (interactionResult?.magicProtectionBonus || 0) > 0 ? [`✨ ${interactionResult.isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${interactionResult.magicProtectionBonus.toLocaleString()} PTS`] : [];
-            const fusionMsg = interactionResult?.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
-            let coreMsg = interactionResult?.scatteredMessage && !interactionResult.isPositronAbsorption ? `⚠️ ${interactionResult.scatteredMessage}` : interactionResult?.isPpFusion ? `Fusion: Deuterium Synthesized.` : interactionResult?.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${reactionLabel ? reactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
-            
-            // Centralized Score Logic for Movement Interactions
-            const basePoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
-            const stabilityReward = newData.isStable ? SCORE_FACTORS.MOVEMENT_STABLE_REWARD : SCORE_FACTORS.MOVEMENT_UNSTABLE_REWARD;
-            const totalActionScore = basePoints + stabilityReward + actionBonusScore + unlockResult.scoreBonus + (interactionResult?.magicProtectionBonus || 0) + (interactionResult?.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
-
-            nextState = { 
-                ...nextState, 
-                currentNuclide: newData, 
-                unlockedElements: unlockResult.updatedElements, 
-                unlockedGroups: unlockResult.updatedGroups, 
-                messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...unlockResult.messages].slice(-10), 
-                energyPoints: prev.energyPoints + energyBonus, 
-                score: nextState.score + totalActionScore, 
-                hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - hpPenalty)) 
-            };
-            if (newData.isStable && (dZ !== 0 || dA !== 0 || interactionResult?.isPpFusion || interactionResult?.isPositronAbsorption)) nextState.combo = 0;
-        } else {
-            if (interactionResult?.isBremsAchieved) {
-                const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, false, false, false, false, 0, false, false, false, false, true);
-                nextState.unlockedGroups = unlockResult.updatedGroups; nextState.score += unlockResult.scoreBonus; nextState.messages = [...nextState.messages, ...unlockResult.messages].slice(-10);
-            }
-            nextState.hp = Math.max(0, prev.hp - hpPenalty);
-        }
-    } else {
-        if (nextState.currentNuclide.isStable) nextState.hp = Math.min(prev.maxHp, prev.hp + 1);
-        const isZeroBarnAchieved = cN >= 20 && !prev.unlockedGroups.includes("zero barn");
-        if (isZeroBarnAchieved) {
-            const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
-            nextState = { ...nextState, unlockedGroups: unlockResult.updatedGroups, messages: [...prev.messages, ...unlockResult.messages].slice(-10), score: nextState.score + unlockResult.scoreBonus };
-        }
-        if (interactionResult?.scatteredMessage) nextState.messages = [...nextState.messages, `ℹ ${interactionResult.scatteredMessage}`].slice(-10);
-    }
-
-    // 5. Background Events
-    const backgroundResult = processRandomBackgroundEvents(nextState);
-    
     return { 
         moved: true, 
-        state: {
-            ...nextState,
-            gridEntities: backgroundResult.gridEntities,
-            messages: backgroundResult.messages,
-            activeEvent: backgroundResult.activeEvent
-        }, 
+        newPos,
+        dZ,
+        dA,
+        hpPenalty,
+        energyBonus,
+        actionBonusScore,
         inducedDecayMode, 
         inducedReactionLabel: reactionLabel, 
-        shouldShake: shouldShake || !!interactionResult?.isCoulombScattered || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
-        shouldFlash: shouldFlash || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        shouldShake: !!interactionResult?.shouldShake || !!interactionResult?.isCoulombScattered || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        shouldFlash: !!interactionResult?.shouldFlash || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
         additionalEffects: interactionResult?.chainDecayResult?.additionalEffects, 
         isPpFusion: !!interactionResult?.isPpFusion, 
         isPositronAbsorption: !!interactionResult?.isPositronAbsorption, 
-        targetEntity 
+        isCoulombScattered: !!interactionResult?.isCoulombScattered,
+        isBremsAchieved: !!interactionResult?.isBremsAchieved,
+        isZeroBarnAchieved: cN >= 20 && !prev.unlockedGroups.includes("zero barn"),
+        isFissionAchieved: inducedDecayMode === DecayMode.SPONTANEOUS_FISSION,
+        gluttonyTrigger,
+        targetEntity,
+        evolvedEntities,
+        scatteredMessage: interactionResult?.scatteredMessage,
+        magicProtectionBonus: interactionResult?.magicProtectionBonus,
+        chargesUsed
     };
 };

@@ -1,41 +1,72 @@
-
-import { GameState, GameAction, NuclideData, HistoryEntry } from '../types';
-import { getNuclideDataSync } from '../services/nuclideService';
+import { GameState, GameAction, NuclideData, DecayMode, HistoryEntry } from '../types';
+import { calculateNextLevel, checkBarrierReplenish, createHistoryEntry } from './atomicTransitions';
 
 export interface DiscoveryContext {
     method: string;
     pz: number | null;
     pa: number | null;
     addedScore: number;
+    inducedDecayMode?: DecayMode;
 }
 
 /**
  * The single source of truth for all game state transitions.
- * Ensures atomicity between Z/A changes and evolution history logging.
+ * Ensures atomicity between Z/A changes, level advancement, barrier replenishment, and evolution history logging.
  */
 export const nucleusReducer = (state: GameState, action: GameAction): GameState => {
     switch (action.type) {
         case 'DISCOVER_NUCLIDE': {
-            const { nextNuclide, method, pz, pa, addedScore } = action.payload;
+            const { nextNuclide, method, pz, pa, addedScore, inducedDecayMode } = action.payload;
             
-            // 1. Create history entry
-            const newHistoryEntry: HistoryEntry = {
-                turn: state.turn,
-                name: nextNuclide.name,
-                symbol: nextNuclide.symbol,
-                z: nextNuclide.z,
-                a: nextNuclide.a,
-                method: method,
-                pz: pz,
-                pa: pa
-            };
+            // ATOMIC TURN INCREMENT: Every discovery/transformation advances the cosmic clock
+            const nextGlobalTurn = state.turn + 1;
+
+            // 1. Calculate Level Up (Pure logic from Step 1)
+            const { nextLevel, nextMastered } = calculateNextLevel(
+                state.playerLevel,
+                state.masteredDecays,
+                inducedDecayMode || DecayMode.STABLE
+            );
+
+            // 2. Handle Magic Barrier Replenishment (Fixes sequence bug by using nextLevel)
+            const nextCharges = checkBarrierReplenish(
+                nextLevel,
+                nextNuclide.z,
+                state.magicBarrierCharges
+            );
+
+            // 3. Evolution History Logic (Updated for firstTurn/lastTurn)
+            const nuclideKey = `${nextNuclide.z}-${nextNuclide.a}`;
+            const existingEntry = state.evolutionHistory[nuclideKey];
+            
+            let updatedHistoryEntry: HistoryEntry;
+            
+            if (existingEntry) {
+                // Nuclide already discovered: keep firstTurn, update lastTurn and path info
+                updatedHistoryEntry = {
+                    ...existingEntry,
+                    lastTurn: nextGlobalTurn,
+                    method,
+                    pz,
+                    pa
+                };
+            } else {
+                // New discovery: set both firstTurn and lastTurn to current turn
+                updatedHistoryEntry = createHistoryEntry(
+                    nextNuclide,
+                    method,
+                    pz,
+                    pa,
+                    nextGlobalTurn
+                );
+            }
 
             const nextEvolutionHistory = {
                 ...state.evolutionHistory,
-                [`${nextNuclide.z}-${nextNuclide.a}`]: newHistoryEntry
+                [nuclideKey]: updatedHistoryEntry
             };
 
-            // 2. Handle Combo Logic for discoveries
+            // 4. Handle Combo Logic for discoveries
             let nextCombo = state.combo;
             let nextComboScore = state.comboScore;
             let nextComboStartNuclide = state.comboStartNuclide;
@@ -56,8 +87,12 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
 
             return {
                 ...state,
+                turn: nextGlobalTurn, // Apply the incremented turn globally
                 currentNuclide: nextNuclide,
                 evolutionHistory: nextEvolutionHistory,
+                playerLevel: nextLevel,
+                masteredDecays: nextMastered,
+                magicBarrierCharges: nextCharges,
                 combo: nextCombo,
                 comboScore: nextComboScore,
                 comboStartNuclide: nextComboStartNuclide,
@@ -135,26 +170,4 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
         default:
             return state;
     }
-};
-
-/**
- * Compatibility helper for discovery transitions.
- * Wraps the reducer logic for callers that haven't moved to dispatch yet.
- */
-export const handleDiscoveryTransition = (
-    prev: GameState,
-    nextNuclide: NuclideData,
-    context: DiscoveryContext
-): { 
-    nextState: GameState, 
-    newHistoryEntry: HistoryEntry 
-} => {
-    const result = nucleusReducer(prev, { 
-        type: 'DISCOVER_NUCLIDE', 
-        payload: { nextNuclide, ...context } 
-    });
-    return { 
-        nextState: result, 
-        newHistoryEntry: result.evolutionHistory[`${nextNuclide.z}-${nextNuclide.a}`] 
-    };
 };

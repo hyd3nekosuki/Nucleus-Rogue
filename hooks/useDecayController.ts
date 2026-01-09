@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry, NuclideData } from '../types';
+import { GameState, DecayMode, NuclideData } from '../types';
 
 import { COMBO_WINDOW_MS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
@@ -7,10 +7,12 @@ import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { processUnlocks } from '../engine/unlockSystem';
+import { DiscoveryContext } from '../engine/stateTransitions';
 
 export const useDecayController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+    dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void,
     triggerTTS: (text: string) => void,
     triggerShake: () => void,
     triggerFlash: (color: string) => void,
@@ -67,16 +69,31 @@ export const useDecayController = (
         
         if (decayResult.speechOverride) triggerTTS(decayResult.speechOverride);
 
-        setGameState(prev => {
-            const newData = getNuclideDataSync(prev.currentNuclide.z + decayResult.dZ, prev.currentNuclide.a + decayResult.dA);
-            if (!newData.exists) return { ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0 }; 
+        const newData = getNuclideDataSync(gameState.currentNuclide.z + decayResult.dZ, gameState.currentNuclide.a + decayResult.dA);
+        if (!newData.exists) {
+            setGameState(prev => ({ ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0 }));
+            return;
+        }
 
-            const rawCombo = (currentTime - prev.lastComboTime <= COMBO_WINDOW_MS) ? prev.combo + 1 : 1;
-            
-            const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
-            const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
-            const scoreIncrease = (baseActionPoints + stabilityReward + decayResult.actionBonusScore) * rawCombo;
-            
+        const rawCombo = (currentTime - gameState.lastComboTime <= COMBO_WINDOW_MS) ? gameState.combo + 1 : 1;
+        const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
+        const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
+        const totalBasePoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
+        const totalActionDelta = totalBasePoints * rawCombo;
+
+        // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
+        // Handles level-up, history logging, and magic barrier replenishment in the reducer.
+        // Also now increments the global turn atomically.
+        dispatchDiscovery(newData, {
+            method: decayResult.trigger,
+            pz: gameState.currentNuclide.z,
+            pa: gameState.currentNuclide.a,
+            addedScore: totalBasePoints,
+            inducedDecayMode: actualMode
+        });
+
+        // Update peripheral state
+        setGameState(prev => {
             const unlockResult = processUnlocks(
                 prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, 
                 false, !!decayResult.isAnnihilation, false, false, 0, 
@@ -86,63 +103,39 @@ export const useDecayController = (
             );
             
             if (newData.isStable && rawCombo >= 2) setFinalCombo({ count: rawCombo, id: Date.now() }); 
-            
-            let nextLevel = prev.playerLevel, nextMastered = prev.masteredDecays;
-            if (!prev.masteredDecays.includes(actualMode) && nextLevel < 6) { 
-                nextLevel += 1; 
-                nextMastered = [...prev.masteredDecays, actualMode]; 
-                triggerTTS("Mastery Level Up !"); 
+
+            // Trigger mastery notification if a new decay mode is performed
+            if (!prev.masteredDecays.includes(actualMode) && prev.playerLevel < 6) {
+                triggerTTS("Mastery Level Up!");
             }
-            
-            const nextTurn = prev.turn + 1;
-            const totalActionDelta = scoreIncrease + unlockResult.scoreBonus;
 
-            // Create synchronous history entry for atomic update
-            const newEntry: HistoryEntry = {
-                turn: nextTurn,
-                name: newData.name,
-                symbol: newData.symbol,
-                z: newData.z,
-                a: newData.a,
-                method: decayResult.trigger,
-                pz: prev.currentNuclide.z,
-                pa: prev.currentNuclide.a
-            };
+            // Drip line warning
+            const dripMsg = (newData.isProtonDripLine || newData.isNeutronDripLine) ? ["⚠️ Danger: Drip line limit"] : [];
 
-            const nextState = { 
+            return { 
                 ...prev, 
-                currentNuclide: newData, 
-                evolutionHistory: {
-                    ...prev.evolutionHistory,
-                    [`${newData.z}-${newData.a}`]: newEntry
-                },
                 playerPos: decayResult.newPosition || prev.playerPos, 
                 energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + (decayResult.energyBonus || 0)), 
-                turn: nextTurn, 
                 tutorialMessage: prev.tutorialMessage === "Decay to be stable" ? null : prev.tutorialMessage, 
                 hasSeenDecayTutorial: prev.tutorialMessage === "Decay to be stable" ? true : prev.hasSeenDecayTutorial, 
                 unlockedElements: unlockResult.updatedElements, 
                 unlockedGroups: unlockResult.updatedGroups, 
                 gridEntities: decayResult.newGridEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects], 
-                score: prev.score + totalActionDelta, 
+                score: prev.score + totalActionDelta + unlockResult.scoreBonus, 
                 hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
-                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...unlockResult.messages, ...decayResult.extraMessages].slice(-10), 
-                combo: rawCombo, 
-                maxCombo: Math.max(prev.maxCombo, rawCombo), 
-                lastComboTime: currentTime, 
-                playerLevel: nextLevel, 
-                masteredDecays: nextMastered, 
+                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...unlockResult.messages, ...dripMsg, ...decayResult.extraMessages].slice(-10), 
+                combo: rawCombo,
+                maxCombo: Math.max(prev.maxCombo, rawCombo),
+                lastComboTime: currentTime,
                 decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
                 consecutiveProtons: 0, 
                 consecutiveNeutrons: 0, 
                 consecutiveElectrons: 0, 
                 lastConsumedType: null
             };
-
-            return nextState;
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, stopAutoMove, setGameState, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, gameState.playerPos, gameState.gridEntities]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.lastComboTime, gameState.combo, gameState.playerPos, gameState.gridEntities, stopAutoMove, setGameState, dispatchDiscovery, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

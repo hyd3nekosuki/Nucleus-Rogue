@@ -1,8 +1,8 @@
-
 import { NuclideData, DecayMode, NuclideCategory } from "../types";
 import { getSymbol, getName } from "../constants/atomicData";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
+import { DripLineService } from "../engine/dripLineService";
 
 const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
     if (isStable) return 'Stable nuclide';
@@ -87,12 +87,18 @@ const createNuclide = (
     let description = NUCLIDE_FACTS[`${z}-${a}`] || getDecayDescription(mainMode, isStable);
     if (z === 0 && a === 4) description = '⚠ ANOMALY DETECTED: Tetraneutron.';
 
+    // Drip Line logic application
+    const isProtonDripLine = DripLineService.isAtProtonDripLine(z, a);
+    const isNeutronDripLine = DripLineService.isAtNeutronDripLine(z, a);
+
     return {
         z, a, symbol, name: baseName, halfLifeText: hlText,
         halfLifeSeconds: halfLife === 0 ? 0.00000001 : halfLife,
         decayModes: isStable ? [DecayMode.STABLE] : [mainMode],
         category, isStable, exists: isDatabaseEntry || category !== NuclideCategory.NON_EXISTENT,
-        description
+        description,
+        isProtonDripLine,
+        isNeutronDripLine
     };
 };
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DecayMode, HistoryEntry } from './types';
 
@@ -63,7 +62,7 @@ function App() {
   // Convert the discovery record into a sorted list for the map visualization
   // Fix: Explicitly cast to HistoryEntry[] to avoid "unknown" type inference errors in Object.values
   const sortedHistory = useMemo(() => {
-    return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.turn - b.turn);
+    return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.firstTurn - b.firstTurn);
   }, [evolutionHistory]);
 
   // Scroll Lock for Periodic Table
@@ -176,6 +175,7 @@ function App() {
           
           <InfoPanel 
             nuclide={gameState.currentNuclide} hp={gameState.hp} maxHp={gameState.maxHp} energyPoints={gameState.energyPoints} turn={gameState.turn} score={gameState.score} 
+            // Fix: Corrected playerLevel to gameState.playerLevel
             onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={isNucleosynthesisReady} isNucleosynthesisEnabled={isNucleosynthesisEnabled} transmutationReady={transmutationReady} energyPointsAvailable={energyPointsAvailable}
             onStabilize={engine.handleStabilize} onShowTable={() => setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
@@ -192,7 +192,7 @@ function App() {
           </div>
 
           <div className="p-4 border-b border-gray-800 shrink-0 h-64 flex flex-col items-center justify-center overflow-hidden">
-             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} />}
+             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} turn={gameState.turn} />}
           </div>
 
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth select-none">

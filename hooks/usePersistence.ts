@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
@@ -44,8 +43,10 @@ export const usePersistence = (
                     const targetData = getNuclideDataSync(commandCoords.z, commandCoords.a);
                     const nextTurn = gameState.turn + 1;
                     
+                    const existing = gameState.evolutionHistory[`${targetData.z}-${targetData.a}`];
                     const newEntry: HistoryEntry = {
-                        turn: nextTurn,
+                        firstTurn: existing ? existing.firstTurn : nextTurn,
+                        lastTurn: nextTurn,
                         name: targetData.name,
                         symbol: targetData.symbol,
                         z: targetData.z,
@@ -93,20 +94,22 @@ export const usePersistence = (
                     a = parseInt(parts[1]);
                 }
                 
-                let pz: number | null = null, pa: number | null = null, method = val, turn = 0;
+                let pz: number | null = null, pa: number | null = null, method = val, firstTurn = 0, lastTurn = 0;
                 if (val.includes(':')) {
                     const valParts = val.split(':');
-                    pz = isNaN(parseInt(valParts[0])) ? null : parseInt(valParts[0]);
-                    pa = isNaN(parseInt(valParts[1])) ? null : parseInt(valParts[1]);
+                    pz = valParts[0] === 'null' ? null : parseInt(valParts[0]);
+                    pa = isNaN(parseInt(valParts[1])) ? 0 : parseInt(valParts[1]);
                     method = valParts[2];
                     if (valParts.length >= 4) {
-                        turn = parseInt(valParts[3]);
+                        firstTurn = parseInt(valParts[3]);
+                        lastTurn = valParts.length >= 5 ? parseInt(valParts[4]) : firstTurn;
                     }
                 }
 
                 const data = getNuclideDataSync(z, a);
                 restoredHistory[`${z}-${a}`] = { 
-                    turn: turn, 
+                    firstTurn, 
+                    lastTurn,
                     name: data.name, 
                     symbol: data.symbol, 
                     z, a, method,

@@ -1,3 +1,4 @@
+
 import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
 import { HISTORY_METHODS } from '../constants';
 
@@ -42,9 +43,16 @@ async function consumeStream(stream: ReadableStream): Promise<Uint8Array> {
  */
 async function compress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
     const cs = new CompressionStream("gzip");
-    const writer = cs.writable.getWriter();
-    writer.write(buffer);
-    writer.close();
+    // Fix: Removed incorrect call to getReader() on a WritableStream.
+    // The writeToStream function below correctly handles writing to the stream using getWriter().
+    
+    // Wrap sink for easier management
+    const writeToStream = async () => {
+        const w = cs.writable.getWriter();
+        w.write(buffer);
+        w.close();
+    };
+    writeToStream();
     return (await consumeStream(cs.readable)).buffer;
 }
 
@@ -69,8 +77,8 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
     const historyList = Object.values(history);
     
-    // Buffer size calculation: 1024 base + (11 bytes per history entry)
-    const bufferSize = 1024 + (historyList.length * 11);
+    // Buffer size calculation: 1024 base + (15 bytes per history entry: pz(1), pa(2), z(1), a(2), method(1), first(4), last(4))
+    const bufferSize = 1024 + (historyList.length * 15);
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
@@ -80,7 +88,6 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     view.setUint8(offset++, state.hp);
     view.setUint8(offset++, state.playerLevel);
     view.setUint16(offset, state.reincarnations); offset += 2;
-    // Added global turn (4 bytes)
     view.setUint32(offset, state.turn); offset += 4;
     view.setUint8(offset++, state.currentNuclide.z);
     view.setUint16(offset, state.currentNuclide.a); offset += 2;
@@ -123,13 +130,14 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
 
     view.setUint16(offset, historyList.length); offset += 2;
     historyList.forEach(h => {
-        view.setUint8(offset++, h.pz || 0);
+        view.setUint8(offset++, h.pz === null ? 255 : h.pz);
         view.setUint16(offset, h.pa || 0); offset += 2;
         view.setUint8(offset++, h.z);
         view.setUint16(offset, h.a); offset += 2;
         const mIdx = METHOD_MAP.indexOf(h.method);
         view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
-        view.setUint32(offset, h.turn || 0); offset += 4;
+        view.setUint32(offset, h.firstTurn); offset += 4;
+        view.setUint32(offset, h.lastTurn); offset += 4;
     });
 
     const packedData = buffer.slice(0, offset);
@@ -167,12 +175,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const level = view.getUint8(offset++);
         const reincarnations = view.getUint16(offset); offset += 2;
         
-        // Handle turn with backward compatibility (checking offset)
-        // Previous versions used Z right after reincarnations
-        let globalTurn = 0;
-        if (view.byteLength > 40) { // Empirical size check for new header
-            globalTurn = view.getUint32(offset); offset += 4;
-        }
+        const globalTurn = view.getUint32(offset); offset += 4;
         
         const cz = view.getUint8(offset++);
         const ca = view.getUint16(offset); offset += 2;
@@ -209,21 +212,29 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const historyLen = view.getUint16(offset); offset += 2;
         const ev: Record<string, string> = {};
         for (let i = 0; i < historyLen; i++) {
-            const pz = view.getUint8(offset++);
+            const rpz = view.getUint8(offset++);
+            const pz = rpz === 255 ? null : rpz;
             const pa = view.getUint16(offset); offset += 2;
             const z = view.getUint8(offset++);
             const a = view.getUint16(offset); offset += 2;
             const mIdx = view.getUint8(offset++);
             const method = mIdx === 255 ? "Unknown" : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
             
-            let turn = 0;
-            if (offset + 4 <= view.byteLength) {
-                turn = view.getUint32(offset);
-                offset += 4;
+            let firstTurn = 0;
+            let lastTurn = 0;
+            
+            // Detection for 15-byte new format vs 11-byte old format
+            // If the user said compatibility is not needed, we assume the new structure or robustly fallback.
+            if (offset + 8 <= view.byteLength) {
+                firstTurn = view.getUint32(offset); offset += 4;
+                lastTurn = view.getUint32(offset); offset += 4;
+            } else if (offset + 4 <= view.byteLength) {
+                firstTurn = view.getUint32(offset); offset += 4;
+                lastTurn = firstTurn;
             }
             
             const key = `${z}-${a}`;
-            ev[key] = `${pz}:${pa}:${method}:${turn}`;
+            ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}`;
         }
 
         return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb };

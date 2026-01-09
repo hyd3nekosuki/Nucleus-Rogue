@@ -78,6 +78,8 @@ export interface NuclideData {
   isStable: boolean;
   exists: boolean;
   description?: string;
+  isProtonDripLine: boolean;
+  isNeutronDripLine: boolean;
 }
 
 export interface AtomicReactionResult {

@@ -19,6 +19,8 @@ export const fetchNuclideData = async (z: number, a: number): Promise<NuclideDat
     return {
         z, a, symbol: getSymbol(z), name: '', halfLifeText: '', halfLifeSeconds: 0, 
         decayModes: [], category: NuclideCategory.STABLE, isStable: true, exists: true,
-        description: "Accessing IAEA Chart..."
+        description: "Accessing IAEA Chart...",
+        isProtonDripLine: false,
+        isNeutronDripLine: false
     };
 };

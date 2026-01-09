@@ -1,15 +1,18 @@
-
 import React, { useMemo, useState } from 'react';
 import { NuclideData, DecayMode, HistoryEntry } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
+import { DripLineService } from '../../engine/dripLineService';
 
 interface EvolutionMapProps {
     history: HistoryEntry[];
     currentNuclide: NuclideData;
+    turn: number; // Current game turn
 }
 
-const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) => {
+const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn }) => {
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
+    const [mountTurn] = useState(turn); // Store the turn value when the component was first mounted
+    
     const GRID_SIZE = 7;
     const CENTER_X = 3; 
     const CENTER_Y = 3;
@@ -170,16 +173,77 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
                             const node = [...visibleNodes].reverse().find(n => n.x === col && n.y === row);
                             const isCenter = row === CENTER_Y && col === CENTER_X;
 
+                            const relZ = CENTER_Y - row;
+                            const relN = col - CENTER_X;
+                            const absZ = curZ + relZ;
+                            const absN = curN + relN;
+                            const absA = absZ + absN;
+
+                            const nuclideData = node ? getNuclideDataSync(absZ, absA) : null;
+                            const isStable = nuclideData?.isStable || false;
+                            const showBorders = node && !isStable;
+
+                            // Edge detection
+                            const hasLeftLimit = showBorders && DripLineService.isBeyondDripLine(absZ, absA - 1);
+                            const hasRightLimit = showBorders && DripLineService.isBeyondDripLine(absZ, absA + 1);
+                            const hasTopLimit = showBorders && DripLineService.isBeyondDripLine(absZ + 1, absA + 1);
+                            const hasBottomLimit = showBorders && DripLineService.isBeyondDripLine(absZ - 1, absA - 1);
+                            
+                            // Cliff styles (Gradient and Shadow Glow)
+                            let borderStyles = "border-white/5";
+                            let cliffGradient = "";
+                            let cliffShadow = "";
+
+                            if (hasLeftLimit) {
+                                borderStyles += " border-l-2 border-l-neon-red/80";
+                                cliffGradient += " bg-gradient-to-r from-neon-red/20 via-transparent to-transparent";
+                                cliffShadow += " inset 10px 0 15px -10px rgba(255, 0, 85, 0.6)";
+                            }
+                            if (hasRightLimit) {
+                                borderStyles += " border-r-2 border-r-neon-blue/80";
+                                cliffGradient += " bg-gradient-to-l from-neon-blue/20 via-transparent to-transparent";
+                                cliffShadow += (cliffShadow ? "," : "") + " inset -10px 0 15px -10px rgba(0, 243, 255, 0.6)";
+                            }
+                            if (hasTopLimit) {
+                                borderStyles += " border-t-2 border-t-neon-red/80";
+                                cliffGradient += " bg-gradient-to-b from-neon-red/20 via-transparent to-transparent";
+                                cliffShadow += (cliffShadow ? "," : "") + " inset 0 10px 15px -10px rgba(255, 0, 85, 0.6)";
+                            }
+                            if (hasBottomLimit) {
+                                borderStyles += " border-b-2 border-b-neon-blue/80";
+                                cliffGradient += " bg-gradient-to-t from-neon-blue/20 via-transparent to-transparent";
+                                cliffShadow += (cliffShadow ? "," : "") + " inset 0 -10px 15px -10px rgba(0, 243, 255, 0.6)";
+                            }
+
+                            let showBeyondHatching = false;
+                            if (!node) {
+                                const isBeyond = DripLineService.isBeyondDripLine(absZ, absA);
+                                if (isBeyond) {
+                                    const isNearDiscovered = history.some(h => {
+                                        const hN = h.a - h.z;
+                                        return Math.abs(h.z - absZ) <= 1 && Math.abs(hN - absN) <= 1;
+                                    });
+                                    if (isNearDiscovered) showBeyondHatching = true;
+                                }
+                            }
+
+                            // Animation only if it happened THIS turn AND this component was already mounted before that turn
+                            const isNewDiscovery = node?.entry.firstTurn === turn && turn > mountTurn && turn > 0;
+
                             return (
-                                <div key={i} className="relative flex items-center justify-center">
+                                <div key={i} 
+                                    className={`relative flex items-center justify-center ${borderStyles} ${cliffGradient} ${showBeyondHatching ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.8)_2px,rgba(0,0,0,0.8)_4px)] opacity-50' : ''}`}
+                                    style={{ boxShadow: cliffShadow }}
+                                >
                                     {node ? (
                                         <div 
-                                            className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:brightness-125 active:scale-90
+                                            className={`relative w-7 h-7 md:w-8 md:h-8 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:brightness-125 active:scale-90 transition-all
                                                 ${node.styles.color} 
                                                 ${node.isCurrent 
-                                                    ? `${node.styles.glow} shadow-[0_0_20px_currentColor] scale-110 z-30 animate-pulse ring-2 ring-white ring-offset-2 ring-offset-black` 
+                                                    ? `${node.styles.glow} shadow-[0_0_15px_currentColor] scale-110 z-30 ring-2 ring-white ring-offset-1 ring-offset-black` 
                                                     : 'z-20 border border-black/40 shadow-md opacity-90'
                                                 }
+                                                ${isNewDiscovery ? 'z-40 animate-discovery-pop' : ''}
                                             `}
                                             onClick={() => setSelectedInfo(getTooltipText(node.entry.name, node.entry.method))}
                                             title={getTooltipText(node.entry.name, node.entry.method)}
@@ -192,8 +256,12 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide }) 
                                             </span>
                                         </div>
                                     ) : (
-                                        isCenter && (
-                                            <div className="w-1.5 h-1.5 bg-white/20 rounded-full"></div>
+                                        isCenter ? (
+                                            <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-pulse"></div>
+                                        ) : (
+                                            !showBeyondHatching && absZ >= 0 && absZ <= 118 && (
+                                                <div className="w-0.5 h-0.5 bg-white/10 rounded-full"></div>
+                                            )
                                         )
                                     )}
                                 </div>
