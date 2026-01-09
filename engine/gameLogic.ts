@@ -141,7 +141,10 @@ export const calculateMoveResult = (
                 if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
             }
         } else if (targetEntity.type === EntityType.NEUTRON) {
-            if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
+            // Only increment streak if Zero Barn is NOT preventing the capture
+            if (!isZeroBarnActive) {
+                if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
+            }
         } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
             // Only increment streak if scattering is not preventing the capture
             if (!scatteringActive) {
