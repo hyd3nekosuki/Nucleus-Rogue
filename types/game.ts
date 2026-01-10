@@ -72,6 +72,7 @@ export interface GameState {
   tutorialMessage: string | null;
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
+  reincarnationPool: { p: number; n: number; e: number };
 }
 
 export type GameAction =

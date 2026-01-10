@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameState, EntityType } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { getSymbol } from '../../constants';
@@ -8,6 +8,8 @@ interface Props {
 }
 
 const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
+  const [showStats, setShowStats] = useState(false);
+
   // 1. Calculate Grid Totals
   const gridTotals = gameState.gridEntities.reduce((acc, entity) => {
     if (entity.type === EntityType.PROTON) acc.p++;
@@ -27,24 +29,33 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
   const activeStreakType = gameState.consecutiveProtons > 0 ? 'p' : gameState.consecutiveNeutrons > 0 ? 'n' : gameState.consecutiveElectrons > 0 ? 'e-' : null;
   const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons : activeStreakType === 'n' ? gameState.consecutiveNeutrons : activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
 
+  const pool = gameState.reincarnationPool;
+
+  const toggleDisplay = () => setShowStats(!showStats);
+
   return (
-    <div className="mt-1 flex flex-wrap justify-center gap-x-8 gap-y-1 text-[10px] font-mono text-gray-400 group relative cursor-help py-1 select-none">
-        {/* Legend / Hover Help */}
-        <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-            <div className="w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
-            <span className="text-white font-light">p: (Z+1, A+1)</span>
-        </div>
-        <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-            <div className="w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
-            <span className="text-white font-light">n: (Z, A+1)</span>
-        </div>
-        <div className="flex items-center gap-2 group-hover:opacity-10 transition-opacity duration-300">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
-            <span className="text-white font-light">e-: (Z-1, A)</span>
+    <div 
+      onClick={toggleDisplay}
+      className="mt-1 relative h-7 w-full flex items-center justify-center cursor-pointer select-none overflow-hidden"
+    >
+        {/* State A: Legend / Default View */}
+        <div className={`absolute inset-0 flex flex-wrap justify-center items-center gap-x-8 gap-y-1 transition-all duration-300 ${showStats ? 'opacity-0 -translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
+                <span className="text-white font-mono text-[10px] font-light">p: (Z+1, A+1)</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
+                <span className="text-white font-mono text-[10px] font-light">n: (Z, A+1)</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
+                <span className="text-white font-mono text-[10px] font-light">e-: (Z-1, A)</span>
+            </div>
         </div>
 
-        {/* Dynamic Statistics Overlay (Shown on Hover) */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap px-1 text-[11px] md:text-xs">
+        {/* State B: Dynamic Statistics Overlay (Hidden Parameters) */}
+        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 whitespace-nowrap px-1 text-[11px] md:text-xs font-mono ${!showStats ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             {/* Predictive Analysis (Level 6+) */}
             {gameState.playerLevel >= 6 && (
                 <>
@@ -53,13 +64,22 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
                 </>
             )}
             
+            {/* Reincarnation Pool */}
+            <span className="text-gray-500 font-black tracking-normal mr-2 italic">POOL:</span>
+            <div className="flex items-center gap-1.5 mr-4">
+                <span className="text-neon-red font-bold">p={pool.p}</span>
+                <span className="text-neon-blue font-bold">n={pool.n}</span>
+                <span className="text-yellow-400 font-bold">e-={pool.e}</span>
+            </div>
+
+            <span className="mr-4 text-gray-700 font-black">|</span>
+
             {/* Grid Particle Counts */}
             <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
             <div className="flex items-center gap-2">
                 <span className="text-neon-red/80 font-bold">p={gridTotals.p}</span>
                 <span className="text-neon-blue/80 font-bold">n={gridTotals.n}</span>
                 <span className="text-yellow-400/80 font-bold">e-={gridTotals.e}</span>
-                <span className="text-neon-purple/80 font-bold">e+={gridTotals.pos}</span>
             </div>
 
             {/* Streak Counter */}

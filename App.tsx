@@ -226,7 +226,17 @@ function App() {
 
       {/* Main Game Area */}
       <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${showTable ? 'touch-none' : ''}`}>
-         <HealthBar hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={isSoundTestActive} onHPChange={engine.setHP} />
+         <HealthBar 
+            hp={gameState.hp} 
+            maxHp={gameState.maxHp} 
+            nuclide={gameState.currentNuclide} 
+            onToggleTimeStop={engine.handleToggleTimeStop} 
+            isTimeStopped={gameState.isTimeStopped} 
+            level={gameState.playerLevel} 
+            barrierCharges={gameState.magicBarrierCharges} 
+            isSoundTestActive={isSoundTestActive} 
+            onHPChange={engine.setHP} 
+         />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
             <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={finalCombo} cheatResult={cheatResult} />

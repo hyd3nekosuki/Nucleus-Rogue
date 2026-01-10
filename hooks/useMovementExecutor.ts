@@ -51,13 +51,21 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             }
             
             // --- BEGIN GAME PROGRESSION LOGIC ---
+            // Update pool based on physics engine result
+            const nextPool = {
+                p: prev.reincarnationPool.p + result.reincarnationPoolIncrement.p,
+                n: prev.reincarnationPool.n + result.reincarnationPoolIncrement.n,
+                e: prev.reincarnationPool.e + result.reincarnationPoolIncrement.e
+            };
+
             let nextPeripheralUpdate: Partial<GameState> = { 
                 playerPos: result.newPos,
                 gridEntities: result.evolvedEntities,
                 consecutiveProtons: result.consecutiveProtons,
                 consecutiveNeutrons: result.consecutiveNeutrons,
                 consecutiveElectrons: result.consecutiveElectrons,
-                lastConsumedType: result.lastConsumedType
+                lastConsumedType: result.lastConsumedType,
+                reincarnationPool: nextPool
             };
 
             const potentialZ = prev.currentNuclide.z + result.dZ;

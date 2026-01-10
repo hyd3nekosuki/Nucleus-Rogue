@@ -37,6 +37,7 @@ export interface MoveResult {
     consecutiveNeutrons: number;
     consecutiveElectrons: number;
     lastConsumedType: EntityType | null;
+    reincarnationPoolIncrement: { p: number; n: number; e: number };
 }
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
@@ -93,7 +94,8 @@ export const calculateMoveResult = (
             consecutiveProtons: prev.consecutiveProtons,
             consecutiveNeutrons: prev.consecutiveNeutrons,
             consecutiveElectrons: prev.consecutiveElectrons,
-            lastConsumedType: prev.lastConsumedType
+            lastConsumedType: prev.lastConsumedType,
+            reincarnationPoolIncrement: { p: 0, n: 0, e: 0 }
         };
     }
 
@@ -108,6 +110,7 @@ export const calculateMoveResult = (
     let targetEntity: GridEntity | undefined;
     let gluttonyTrigger = false;
     let chargesUsed = 0;
+    let poolInc = { p: 0, n: 0, e: 0 };
 
     let cP = prev.consecutiveProtons;
     let cN = prev.consecutiveNeutrons;
@@ -127,7 +130,8 @@ export const calculateMoveResult = (
                 consecutiveProtons: prev.consecutiveProtons,
                 consecutiveNeutrons: prev.consecutiveNeutrons,
                 consecutiveElectrons: prev.consecutiveElectrons,
-                lastConsumedType: prev.lastConsumedType
+                lastConsumedType: prev.lastConsumedType,
+                reincarnationPoolIncrement: { p: 0, n: 0, e: 0 }
             };
         }
 
@@ -139,11 +143,15 @@ export const calculateMoveResult = (
             // Only increment streak if Zero Barn is NOT preventing the capture
             if (!isZeroBarnActive) {
                 if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
+            } else {
+                poolInc.n = 1;
             }
         } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
             // Only increment streak if scattering is not preventing the capture
             if (!scatteringActive) {
                 if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
+            } else {
+                poolInc.e = 1;
             }
         }
 
@@ -185,6 +193,8 @@ export const calculateMoveResult = (
         if (targetEntity.type === EntityType.PROTON) {
             if (!isFusionDisabled && !interactionResult.isCoulombScattered) {
                 if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
+            } else {
+                poolInc.p = 1;
             }
         }
 
@@ -240,6 +250,7 @@ export const calculateMoveResult = (
         consecutiveProtons: cP,
         consecutiveNeutrons: cN,
         consecutiveElectrons: cE,
-        lastConsumedType: lT
+        lastConsumedType: lT,
+        reincarnationPoolIncrement: poolInc
     };
 };
