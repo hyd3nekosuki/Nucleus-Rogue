@@ -8,6 +8,7 @@ import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { processUnlocks } from '../engine/unlockSystem';
 import { DiscoveryContext } from '../engine/stateTransitions';
+import { calculateReincarnationTargets } from '../engine/particleEngine';
 
 export const useDecayController = (
     gameState: GameState,
@@ -81,6 +82,39 @@ export const useDecayController = (
         if (!newData.exists) {
             const isDaredevilAttempt = gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine;
             setGameState(prev => {
+                // Reincarnation check on failed transformation
+                const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
+                const reinc = calculateReincarnationTargets(prev.currentNuclide, prev.reincarnationPool, prev.evolutionHistory, isDaredevilActive);
+                
+                if (reinc) {
+                    const { nuclide, usage } = reinc;
+                    const nextEnergy = Math.floor((prev.energyPoints / 2) / 5) * 5;
+
+                    return {
+                        ...prev,
+                        currentNuclide: nuclide,
+                        hp: prev.maxHp,
+                        playerLevel: 0,
+                        masteredDecays: [],
+                        energyPoints: nextEnergy,
+                        reincarnationPool: {
+                            p: prev.reincarnationPool.p - usage.p,
+                            n: prev.reincarnationPool.n - usage.n,
+                            e: prev.reincarnationPool.e - usage.e
+                        },
+                        reincarnations: prev.reincarnations + 1,
+                        messages: [...prev.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}! (Knowledge dissipated)`].slice(-10),
+                        combo: 0,
+                        comboScore: 0,
+                        comboStartNuclide: undefined,
+                        comboStartedUnstable: false,
+                        consecutiveProtons: 0,
+                        consecutiveNeutrons: 0,
+                        consecutiveElectrons: 0,
+                        lastConsumedType: null
+                    };
+                }
+
                 const unlockResult = processUnlocks(
                     prev.unlockedElements, prev.unlockedGroups, null, null, 
                     false, false, false, false, 0, 

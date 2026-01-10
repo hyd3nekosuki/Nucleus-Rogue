@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -11,6 +10,7 @@ import { processRandomBackgroundEvents } from '../engine/randomEvents';
 import { getHistoryMethod } from '../utils/historyLogic';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { DiscoveryContext } from '../engine/stateTransitions';
+import { calculateReincarnationTargets } from '../engine/particleEngine';
 
 interface MovementExecutorDeps {
     gameState: GameState;
@@ -114,7 +114,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         unlockedGroups: unlockResult.updatedGroups,
                         messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...dripMsg, ...unlockResult.messages].slice(-10),
                         energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + result.energyBonus),
-                        score: prev.score + totalBaseActionScore + unlockResult.scoreBonus,
                         hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty))
                     };
 
@@ -131,8 +130,40 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     
                 } else {
                     // Target does not exist (Drip line violation)
-                    // Check for Daredevil attempt
+                    // Reincarnation Check
                     const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
+                    const reinc = calculateReincarnationTargets(prev.currentNuclide, nextPool, prev.evolutionHistory, isDaredevilActive);
+
+                    if (reinc) {
+                        const { nuclide, usage } = reinc;
+                        const nextEnergy = Math.floor((prev.energyPoints / 2) / 5) * 5;
+
+                        return {
+                            ...prev,
+                            currentNuclide: nuclide,
+                            hp: prev.maxHp,
+                            playerLevel: 0,
+                            masteredDecays: [],
+                            energyPoints: nextEnergy,
+                            reincarnationPool: {
+                                p: nextPool.p - usage.p,
+                                n: nextPool.n - usage.n,
+                                e: nextPool.e - usage.e
+                            },
+                            reincarnations: prev.reincarnations + 1,
+                            messages: [...prev.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}! (Knowledge lost)`].slice(-10),
+                            combo: 0,
+                            comboScore: 0,
+                            comboStartNuclide: undefined,
+                            comboStartedUnstable: false,
+                            consecutiveProtons: 0,
+                            consecutiveNeutrons: 0,
+                            consecutiveElectrons: 0,
+                            lastConsumedType: null
+                        };
+                    }
+
+                    // Check for Daredevil attempt
                     const isDaredevilAttempt = prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine;
 
                     // Check for achievements even during failure (Bremsstrahlung or Zero Barn)
@@ -215,9 +246,39 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...finalNextState.playerPos }, timestamp: Date.now() }
                     ];
                 } else {
-                    finalNextState.gameOver = true;
-                    finalNextState.gameOverReason = "PARTICLE_COLLISION";
-                    shouldStop = true;
+                    // Final Reincarnation attempt before Game Over
+                    const isDaredevilActive = finalNextState.unlockedGroups.includes("Daredevil") && !finalNextState.disabledSkills.includes("Daredevil");
+                    const reinc = calculateReincarnationTargets(finalNextState.currentNuclide, finalNextState.reincarnationPool, finalNextState.evolutionHistory, isDaredevilActive);
+                    
+                    if (reinc) {
+                        const { nuclide, usage } = reinc;
+                        const nextEnergy = Math.floor((finalNextState.energyPoints / 2) / 5) * 5;
+
+                        finalNextState.currentNuclide = nuclide;
+                        finalNextState.hp = finalNextState.maxHp;
+                        finalNextState.playerLevel = 0;
+                        finalNextState.masteredDecays = [];
+                        finalNextState.energyPoints = nextEnergy;
+                        finalNextState.reincarnationPool = {
+                            p: finalNextState.reincarnationPool.p - usage.p,
+                            n: finalNextState.reincarnationPool.n - usage.n,
+                            e: finalNextState.reincarnationPool.e - usage.e
+                        };
+                        finalNextState.reincarnations += 1;
+                        finalNextState.messages = [...finalNextState.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}! (Energy dissipated)`].slice(-10);
+                        finalNextState.combo = 0;
+                        finalNextState.comboScore = 0;
+                        finalNextState.comboStartNuclide = undefined;
+                        finalNextState.comboStartedUnstable = false;
+                        finalNextState.consecutiveProtons = 0;
+                        finalNextState.consecutiveNeutrons = 0;
+                        finalNextState.consecutiveElectrons = 0;
+                        finalNextState.lastConsumedType = null;
+                    } else {
+                        finalNextState.gameOver = true;
+                        finalNextState.gameOverReason = "PARTICLE_COLLISION";
+                        shouldStop = true;
+                    }
                 }
             }
 

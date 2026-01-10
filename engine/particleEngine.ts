@@ -1,5 +1,5 @@
 import { ELEMENT_SYMBOLS, ELEMENT_NAMES } from '../constants/atomicData';
-import { EntityType, GridEntity } from '../types';
+import { EntityType, GridEntity, NuclideData, HistoryEntry } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
 
 /**
@@ -118,4 +118,84 @@ export const solveParticleRequirements = (
     }
 
     return bestSolution ? { idsToConsume: bestSolution } : null;
+};
+
+/**
+ * Calculates the best available nuclide for reincarnation based on the particle pool and discovery history.
+ */
+export const calculateReincarnationTargets = (
+    currentNuclide: NuclideData,
+    pool: { p: number, n: number, e: number },
+    history: Record<string, HistoryEntry>,
+    isDaredevilActive: boolean
+): { nuclide: NuclideData, usage: { p: number, n: number, e: number } } | null => {
+    // 1. Failure check: Must have at least one nucleon (p or n) to form a nucleus
+    if (pool.p + pool.n <= 0) return null;
+
+    const reachableCandidates: { nuclide: NuclideData; p: number }[] = [];
+
+    // 2 & 3. Scan history for reachable nuclides with Z <= current Z
+    Object.values(history).forEach(entry => {
+        if (entry.z > currentNuclide.z) return;
+
+        /**
+         * Reachability check using the pool (building from scratch Z=0, A=0):
+         * A_t = p + n  => n = A_t - p
+         * Z_t = p - e  => e = p - Z_t
+         * Constraints: 0 <= p <= pool.p, 0 <= n <= pool.n, 0 <= e <= pool.e
+         * Derived p bounds:
+         * max(0, A_t - pool.n, Z_t) <= p <= min(pool.p, A_t, Z_t + pool.e)
+         */
+        const L = Math.max(0, entry.a - pool.n, entry.z);
+        const R = Math.min(pool.p, entry.a, entry.z + pool.e);
+
+        if (L <= R) {
+            const data = getNuclideDataSync(entry.z, entry.a);
+            if (data.exists) {
+                // p = L to minimize pool usage
+                reachableCandidates.push({ nuclide: data, p: L });
+            }
+        }
+    });
+
+    if (reachableCandidates.length === 0) return null;
+
+    // 4. Selection Algorithm
+    reachableCandidates.sort((ca, cb) => {
+        const a = ca.nuclide;
+        const b = cb.nuclide;
+        
+        // Priority 1: Atom number Z closest to current (Descending order as we filter by Z_t <= Z_c)
+        if (b.z !== a.z) return b.z - a.z;
+
+        if (isDaredevilActive) {
+            // Daredevil Mode (Risk Seek): High Z > Drip-line > Unstable (Shortest HL)
+            const aDrip = a.isProtonDripLine || a.isNeutronDripLine;
+            const bDrip = b.isProtonDripLine || b.isNeutronDripLine;
+            if (aDrip !== bDrip) return bDrip ? 1 : -1;
+            
+            return a.halfLifeSeconds - b.halfLifeSeconds;
+        } else {
+            // Normal Mode (Stability Seek):
+            
+            // Priority 2: isStable (Stable first)
+            if (a.isStable !== b.isStable) return b.isStable ? 1 : -1;
+            
+            // Priority 3: Highest A (Maximize mass preservation)
+            if (b.a !== a.a) return b.a - a.a;
+
+            // Priority 4: Half-life descending (Longest life first)
+            // Note: Stable nuclides have halfLifeSeconds = Infinity
+            return b.halfLifeSeconds - a.halfLifeSeconds;
+        }
+    });
+
+    const best = reachableCandidates[0];
+    const nUsed = best.nuclide.a - best.p;
+    const eUsed = best.p - best.nuclide.z;
+
+    return { 
+        nuclide: best.nuclide, 
+        usage: { p: best.p, n: nUsed, e: eUsed } 
+    };
 };

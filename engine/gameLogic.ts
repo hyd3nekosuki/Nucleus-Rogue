@@ -151,32 +151,16 @@ export const calculateMoveResult = (
 
         // Streak maintenance for Neutrons and Electrons
         if (targetEntity.type === EntityType.NEUTRON) {
+            if (lT != EntityType.NEUTRON) { cP = 0; cN = 0; cE = 0; lT = EntityType.NEUTRON; }
             // Only increment streak if Zero Barn is NOT preventing the capture
-            /*if (!isZeroBarnActive) {
-                if (lT === EntityType.NEUTRON) cN++; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
-            } else {
-                poolInc.n = 1;
-                if (lT === EntityType.NEUTRON) cN=cN; else { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; } // <- ad-hoc
-            }*/
-            if (lT != EntityType.NEUTRON) { cP = 0; cN = 1; cE = 0; lT = EntityType.NEUTRON; }
-            else {
-                if (!isZeroBarnActive) { cN++; } 
-                else { poolInc.n = 1; }
-            }
+            if (!isZeroBarnActive) { cN++; } 
+            else { poolInc.n = 1; }
 
         } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
+            if (lT != EntityType.ENEMY_ELECTRON) { cP = 0; cN = 0; cE = 0; lT = EntityType.ENEMY_ELECTRON; }
             // Only increment streak if scattering is not preventing the capture
-            /*if (!scatteringActive) {
-                if (lT === EntityType.ENEMY_ELECTRON) cE++; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
-            } else {
-                poolInc.e = 1;
-                if (lT === EntityType.ENEMY_ELECTRON) cE=cE; else { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; } // <- ad-hoc
-            }*/
-            if (lT != EntityType.ENEMY_ELECTRON) { cP = 0; cN = 0; cE = 1; lT = EntityType.ENEMY_ELECTRON; }
-            else {
-                if (!scatteringActive) { cE++; }
-                else { poolInc.e = 1; }
-            }
+            if (!scatteringActive) { cE++; }
+            else { poolInc.e = 1; }
         }
 
         const isAnnihilationSkillActive = prev.unlockedGroups.includes("Pair annihilation") && !prev.disabledSkills.includes("Pair annihilation");
@@ -215,29 +199,12 @@ export const calculateMoveResult = (
 
         // Streak and Pool maintenance for Protons
         if (targetEntity.type === EntityType.PROTON) {
-            /*
-            // 1. Success case: Capture occurred (No barrier block AND Fusion enabled)
-            if (!isFusionDisabled && !interactionResult.isCoulombScattered) {
-                if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-            } 
-            // 2. Skill case: Fusion is explicitly disabled by player (Absorption into pool)
-            else if (isFusionDisabled) {
-                poolInc.p = 1;
-                if (lT === EntityType.PROTON) cP=cP; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; } // <- ad-hoc
-            }
-            // 3. Physical case: Coulomb scattered due to low HP (No increment to pool, particle is lost to grid)
-            else {
-                // interactionResult.isCoulombScattered is true. Pool stays 0.
-            }*/
-
             if (!interactionResult.isCoulombScattered) {
-                if (lT != EntityType.PROTON) { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-                else {
-                    // 1 Success case: Capture occurred (No barrier block AND Fusion enabled)
-                    if (!isFusionDisabled) { cP++; }
-                    // 2. Skill case: Fusion is explicitly disabled by player (Absorption into pool)
-                    else { poolInc.p = 1; }
-                }
+                if (lT != EntityType.PROTON) { cP = 0; cN = 0; cE = 0; lT = EntityType.PROTON; }
+                // 1 Success case: Capture occurred (No barrier block AND Fusion enabled)
+                if (!isFusionDisabled) { cP++; }
+                // 2. Skill case: Fusion is explicitly disabled by player (Absorption into pool)
+                else { poolInc.p = 1; }
             }
             else {
                 // 3. Physical case: Coulomb scattered due to low HP (No increment to pool, particle is lost to grid)

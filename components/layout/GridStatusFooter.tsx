@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GameState, EntityType } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { getSymbol } from '../../constants';
+import { calculateReincarnationTargets } from '../../engine/particleEngine';
 
 interface Props {
   gameState: GameState;
@@ -30,6 +31,15 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
   const activeStreakCount = activeStreakType === 'p' ? gameState.consecutiveProtons : activeStreakType === 'n' ? gameState.consecutiveNeutrons : activeStreakType === 'e-' ? gameState.consecutiveElectrons : 0;
 
   const pool = gameState.reincarnationPool;
+
+  // 4. Calculate Reincarnation Target for Display
+  const isDaredevilActive = gameState.unlockedGroups.includes("Daredevil") && !gameState.disabledSkills.includes("Daredevil");
+  const reincResult = calculateReincarnationTargets(
+    gameState.currentNuclide,
+    gameState.reincarnationPool,
+    gameState.evolutionHistory,
+    isDaredevilActive
+  );
 
   const toggleDisplay = () => setShowStats(!showStats);
 
@@ -81,6 +91,14 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
                 <span className="text-neon-red font-bold">{pool.p}</span>
                 <span className="text-neon-blue font-bold">{pool.n}</span>
                 <span className="text-yellow-400 font-bold">{pool.e}</span>
+                {reincResult && (
+                  <span 
+                    className={`ml-2 text-[10px] font-bold animate-pulse ${isDaredevilActive ? 'text-neon-red drop-shadow-[0_0_5px_#ff0055]' : 'text-neon-green drop-shadow-[0_0_5px_#00ff9d]'}`}
+                    title={`Reincarnation Target: ${reincResult.nuclide.name}`}
+                  >
+                    ♻️ {reincResult.nuclide.symbol}{reincResult.nuclide.a}
+                  </span>
+                )}
             </div>
 
             {/* Streak Counter */}
