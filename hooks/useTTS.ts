@@ -6,25 +6,38 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
     const prevNuclideNameRef = useRef<string>(nuclide.name);
     const fixedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
     const debounceTimerRef = useRef<number | null>(null);
-    // Track if a priority event (e.g. Fusion) is currently speaking
+    
+    // Prevent garbage collection of the utterance objects by keeping them in a ref
+    const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    
+    // Track if a priority event (e.g. Fusion, Mastery Level Up) is currently speaking
     const isPriorityActiveRef = useRef<boolean>(false);
+    // Provisional registration for the nuclide name to be spoken after priority event ends
+    const pendingNuclideNameRef = useRef<string | null>(null);
 
     const getTargetVoice = useCallback(() => {
         if (fixedVoiceRef.current) return fixedVoiceRef.current;
         const voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) return null;
+
         const target = voices.find(v => v.name === 'Google US English') || 
                      voices.find(v => v.name.includes('David')) || 
                      voices.find(v => v.lang === 'en-US' && !v.name.includes('Zira') && !v.name.includes('Female')) ||
                      voices.find(v => v.lang === 'en-US');
+        
         if (target) fixedVoiceRef.current = target;
         return target || null;
     }, []);
 
     useEffect(() => {
         const loadVoice = () => getTargetVoice();
-        loadVoice();
-        window.speechSynthesis.onvoiceschanged = loadVoice;
-        return () => { window.speechSynthesis.onvoiceschanged = null; };
+        if ('speechSynthesis' in window) {
+            loadVoice();
+            window.speechSynthesis.onvoiceschanged = loadVoice;
+        }
+        return () => { 
+            if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = null; 
+        };
     }, [getTargetVoice]);
 
     const createUtterance = useCallback((text: string) => {
@@ -60,39 +73,67 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
     };
 
     /**
-     * triggerOverride: IMPORTANT EVENTS
-     * These interrupt everything and must be heard.
+     * speakPending: Announces the provisionally registered nuclide name.
+     */
+    const speakPending = useCallback(() => {
+        if (pendingNuclideNameRef.current) {
+            const textToSpeak = processNameForSpeech(pendingNuclideNameRef.current);
+            const utterance = createUtterance(textToSpeak);
+            currentUtteranceRef.current = utterance;
+            window.speechSynthesis.speak(utterance);
+            pendingNuclideNameRef.current = null;
+        }
+    }, [createUtterance]);
+
+    /**
+     * triggerOverride: IMPORTANT EVENTS (Mastery Level Up, etc.)
+     * These interrupt everything and lock the speech engine until finished.
      */
     const triggerOverride = useCallback((text: string) => {
         if (!('speechSynthesis' in window) || isMuted || gameOver) return;
         
-        // 1. Immediately stop current speech (usually old nuclide names)
+        // 1. Force cancel everything to clear the path for the priority message
         window.speechSynthesis.cancel();
         
-        // 2. Set priority flag
-        isPriorityActiveRef.current = true;
-
+        // 2. Stop any pending nuclide name timers
         if (debounceTimerRef.current) {
             window.clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = null;
         }
 
+        // 3. Mark as priority - this prevents useEffect from interrupting this message
+        isPriorityActiveRef.current = true;
+
         const utterance = createUtterance(text);
+        currentUtteranceRef.current = utterance;
         
-        // 3. Reset flag when this specific important message finishes
-        utterance.onend = () => {
-            isPriorityActiveRef.current = false;
-        };
-        utterance.onerror = () => {
-            isPriorityActiveRef.current = false;
+        const handleEnd = (e?: SpeechSynthesisEvent | SpeechSynthesisErrorEvent) => {
+            if (currentUtteranceRef.current === utterance) {
+                isPriorityActiveRef.current = false;
+                currentUtteranceRef.current = null;
+                // Important: Speak the nuclide name that was "parked" during this message
+                speakPending();
+            }
         };
 
-        window.speechSynthesis.speak(utterance);
-    }, [isMuted, gameOver, createUtterance]);
+        utterance.onend = handleEnd;
+        utterance.onerror = (e) => {
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                console.warn(`TTS Warning: Priority speech "${text}" result:`, e.error);
+            }
+            handleEnd();
+        };
+
+        // Short delay to let the engine settle after cancel()
+        window.setTimeout(() => {
+            window.speechSynthesis.speak(utterance);
+        }, 50);
+        
+    }, [isMuted, gameOver, createUtterance, speakPending]);
 
     /**
      * useEffect: NUCLIDE NAME (DEBOUNCED)
-     * Announced after 200ms of stillness.
+     * Handles nuclide name announcements with override logic.
      */
     useEffect(() => {
         const currentName = nuclide.name;
@@ -109,17 +150,23 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
         }
 
         debounceTimerRef.current = window.setTimeout(() => {
-            // ONLY cancel if a priority message is NOT playing.
-            // This clears "stale" nuclide names from the browser queue if the user moved/stopped multiple times.
-            if (!isPriorityActiveRef.current) {
-                window.speechSynthesis.cancel();
+            // IF a priority message is active, we NEVER interrupt it.
+            // We just update the pending buffer so it speaks the LATEST name when priority ends.
+            if (isPriorityActiveRef.current) {
+                pendingNuclideNameRef.current = currentName;
+                debounceTimerRef.current = null;
+                return;
             }
 
+            // IF no priority is active, we WANT to interrupt any current speech.
+            // (Whatever is currently speaking must be an older nuclide name)
+            window.speechSynthesis.cancel();
+            pendingNuclideNameRef.current = null; // We are speaking it now
+            
             const textToSpeak = processNameForSpeech(currentName);
             const utterance = createUtterance(textToSpeak);
+            currentUtteranceRef.current = utterance;
             
-            // If priority is active, this simply joins the queue and plays AFTER the priority message.
-            // Since it's debounced, only the LAST nuclide name reached this point.
             window.speechSynthesis.speak(utterance);
             debounceTimerRef.current = null;
         }, 200);

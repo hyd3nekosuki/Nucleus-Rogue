@@ -121,16 +121,34 @@ export const calculateNeutronReaction = (
     const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);
     if (!intermediateData.exists) return null;
 
-    const options = [
-        { mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG }, 
-        { mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP }, 
-        { mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N }
-    ];
+    const options = [];
+
+    // (n,γ) is valid if player can exist at currentZ, currentA + 1
+    if (intermediateData.exists) {
+        options.push({ mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG });
+    }
+
+    // (n,p) validation -> Resulting state is (Z-1, A)
+    if (getNuclideDataSync(currentNuclide.z - 1, currentNuclide.a).exists) {
+        options.push({ mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP });
+    }
+
+    // (n,2n) validation -> Resulting state is (Z, A-1)
+    if (getNuclideDataSync(currentNuclide.z, currentNuclide.a - 1).exists) {
+        options.push({ mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N });
+    }
     
     if (intermediateData.z >= 92) {
-        if (!fissionEnabled) options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
+        if (!fissionEnabled) {
+            // (n,α) validation -> Resulting state is (Z-2, A-3)
+            if (getNuclideDataSync(currentNuclide.z - 2, currentNuclide.a - 3).exists) {
+                options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
+            }
+        }
         else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: HISTORY_METHODS.REACTION_NF });
     }
+
+    if (options.length === 0) return null;
     
     const chosen = options[Math.floor(Math.random() * options.length)];
     
