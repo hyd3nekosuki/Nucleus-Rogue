@@ -30,5 +30,6 @@ export const SKILL_METADATA = [
     { name: "Nucleosynthesis", icon: "🌟", class: "bg-blue-600/20 border-neon-blue text-white font-black shadow-[0_0_15px_#00f3ff]" },
     { name: "Temporal Inversion", icon: "⏱", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
     { name: "Unknown", icon: "❔", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
-    { name: "Gluttony", icon: "🕳️", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" }
+    { name: "Gluttony", icon: "🕳️", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" },
+    { name: "Daredevil", icon: "🧨", class: "bg-red-900 border-orange-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.6)] font-black" }
 ];

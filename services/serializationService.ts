@@ -7,7 +7,8 @@ const GROUP_MAP = [
     "Non-metal", "Noble Gas", "Alkali Metal", "Alkaline Earth", "Metalloid", "Halogen", 
     "Transition", "Post-Transition", "Lanthanide", "Actinide", "Pair annihilation", 
     "Neutronization", "Exp. Replicate", "Nucleosynthesis", "Unknown", 
-    "Temporal Inversion", "Fusion", "Fission", "zero barn", "Electron scattering", "Gluttony"
+    "Temporal Inversion", "Fusion", "Fission", "zero barn", "Electron scattering", "Gluttony",
+    "Daredevil"
 ];
 
 const METHOD_MAP = Object.values(HISTORY_METHODS);
@@ -43,9 +44,6 @@ async function consumeStream(stream: ReadableStream): Promise<Uint8Array> {
  */
 async function compress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
     const cs = new CompressionStream("gzip");
-    // Fix: Removed incorrect call to getReader() on a WritableStream.
-    // The writeToStream function below correctly handles writing to the stream using getWriter().
-    
     // Wrap sink for easier management
     const writeToStream = async () => {
         const w = cs.writable.getWriter();
@@ -223,8 +221,6 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             let firstTurn = 0;
             let lastTurn = 0;
             
-            // Detection for 15-byte new format vs 11-byte old format
-            // If the user said compatibility is not needed, we assume the new structure or robustly fallback.
             if (offset + 8 <= view.byteLength) {
                 firstTurn = view.getUint32(offset); offset += 4;
                 lastTurn = view.getUint32(offset); offset += 4;

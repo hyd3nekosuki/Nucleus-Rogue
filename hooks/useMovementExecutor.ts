@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -78,7 +79,8 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 if (newData.exists) {
                     // Unlock Processing
                     const unlockResult = processUnlocks(
-                        prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA,                         false, false, false, false, 0, 
+                        prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, 
+                        false, false, false, false, 0, 
                         result.isCoulombScattered, result.isPpFusion, result.isFissionAchieved, result.isZeroBarnAchieved, result.isBremsAchieved, 
                         0, 0, result.gluttonyTrigger
                     );
@@ -129,14 +131,17 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     
                 } else {
                     // Target does not exist (Drip line violation)
+                    // Check for Daredevil attempt
+                    const isDaredevilAttempt = prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine;
+
                     // Check for achievements even during failure (Bremsstrahlung or Zero Barn)
                     const unlockResult = processUnlocks(
                         prev.unlockedElements, 
                         prev.unlockedGroups, 
-                        //prev.currentNuclide.z, prev.currentNuclide.a,
-                        null, null, // <- ad-hoc
+                        null, null,
                         false, false, false, false, 0, 
-                        false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved
+                        false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved,
+                        0, 0, false, isDaredevilAttempt
                     );
                     
                     const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ MAGIC BARRIER USED: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];

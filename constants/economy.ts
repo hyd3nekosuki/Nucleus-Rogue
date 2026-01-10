@@ -1,3 +1,4 @@
+
 /**
  * Score calculation coefficients
  */
@@ -29,7 +30,8 @@ export const BONUS_SCORES = {
   STELLAR_FUSION: 420000,
   MAGIC_PROTECTION_PER_Z: 10000,
   BETA_CONVERSION: 1000,
-  GAMMA_ACTION: 5000
+  GAMMA_ACTION: 5000,
+  DAREDEVIL: 100000
 };
 
 export const STABILIZE_COST = 5;

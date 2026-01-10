@@ -1,3 +1,4 @@
+
 import { ELEMENT_GROUPS } from '../constants/atomicData';
 import { MAGIC_NUMBERS } from '../constants/physics';
 import { BONUS_SCORES } from '../constants/economy';
@@ -22,7 +23,8 @@ export const processUnlocks = (
     isBremsAchieved: boolean = false,
     betaPlusCount: number = 0,
     betaMinusCount: number = 0,
-    isGluttonyAchieved: boolean = false
+    isGluttonyAchieved: boolean = false,
+    isDaredevilAchieved: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -30,22 +32,6 @@ export const processUnlocks = (
     let messages: string[] = [];
 
     const nuclideData = getNuclideDataSync(newZ, newA);
-
-    // 1. Element Unlock
-    /*if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
-        updatedElements = [...currentUnlockedElements, newZ].sort((a,b) => a-b);
-        
-        let trophyBonus = 0;
-        if (newZ === 0) {
-            trophyBonus = BONUS_SCORES.NEUTRON_0;
-            messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus.toLocaleString()} PTS)`);
-        } else {
-            trophyBonus = newZ * 1000;
-            messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus.toLocaleString()} PTS)`);
-        }
-        scoreBonus += trophyBonus;
-    }*/
-
 
     if (nuclideData.exists) {
         // 1. Element Unlock
@@ -63,7 +49,6 @@ export const processUnlocks = (
         }
 
         // 5. Special Hidden Title: Unknown
-        // Triggered when entering a nuclide with unmeasured/unspecified decay mode ('?') for the first time
         if (nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
             updatedGroups = [...updatedGroups, "Unknown"];
             scoreBonus += BONUS_SCORES.UNKNOWN;
@@ -137,14 +122,6 @@ export const processUnlocks = (
         messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
     }
 
-    // 5. Special Hidden Title: Unknown
-    // Triggered when entering a nuclide with unmeasured/unspecified decay mode ('?') for the first time
-    /*if (nuclideData.exists && nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
-        updatedGroups = [...updatedGroups, "Unknown"];
-        scoreBonus += BONUS_SCORES.UNKNOWN;
-        messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
-    }*/
-
     // 6. Special Hidden Title: Temporal Inversion
     if (isTemporalInversion) {
         const inversionBonus = comboScore * 10;
@@ -192,36 +169,12 @@ export const processUnlocks = (
         messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+${BONUS_SCORES.GLUTTONY.toLocaleString()} PTS)`);
     }
 
-    // 12. Group Unlock Check
-    /*Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
-        if (!updatedGroups.includes(groupName)) {
-            const allFound = groupZs.every(z => updatedElements.includes(z));
-            if (allFound) {
-                updatedGroups = [...updatedGroups, groupName];
-                scoreBonus += BONUS_SCORES.GRANDMASTER_SERIES;
-                messages.push(` 👑 GRANDMASTER: ${groupName} Series Completed! (+${BONUS_SCORES.GRANDMASTER_SERIES.toLocaleString()} PTS)`);
-            }
-        }
-    });
-
-    // 13. Magic Number Checks
-    const newN = newA - newZ;
-    const isMagicZ = MAGIC_NUMBERS.includes(newZ);
-    const isMagicN = MAGIC_NUMBERS.includes(newN);
-
-    if (isMagicZ && isMagicN) {
-        scoreBonus += BONUS_SCORES.DOUBLE_MAGIC;
-        messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+${BONUS_SCORES.DOUBLE_MAGIC.toLocaleString()} PTS)`);
-    } else {
-        if (isMagicZ) {
-            scoreBonus += BONUS_SCORES.MAGIC_SHELL;
-            messages.push(` ✨ MAGIC PROTON SHELL CLOSED (Z=${newZ})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
-        }
-        if (isMagicN) {
-            scoreBonus += BONUS_SCORES.MAGIC_SHELL;
-            messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
-        }
-    }*/
+    // NEW: Special Hidden Title: Daredevil
+    if (isDaredevilAchieved && !updatedGroups.includes("Daredevil")) {
+        updatedGroups = [...updatedGroups, "Daredevil"];
+        scoreBonus += BONUS_SCORES.DAREDEVIL;
+        messages.push(` 🧨 HIDDEN TITLE: Daredevil! Attempting the impossible from the brink. (+${BONUS_SCORES.DAREDEVIL.toLocaleString()} PTS)`);
+    }
 
     return { updatedElements, updatedGroups, scoreBonus, messages };
 };

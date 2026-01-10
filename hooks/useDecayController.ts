@@ -72,7 +72,25 @@ export const useDecayController = (
 
         const newData = getNuclideDataSync(gameState.currentNuclide.z + decayResult.dZ, gameState.currentNuclide.a + decayResult.dA);
         if (!newData.exists) {
-            setGameState(prev => ({ ...prev, gameOver: true, energyPoints: 0, gameOverReason: "TRANSFORMATION_FAILED", combo: 0 }));
+            const isDaredevilAttempt = gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine;
+            setGameState(prev => {
+                const unlockResult = processUnlocks(
+                    prev.unlockedElements, prev.unlockedGroups, null, null, 
+                    false, false, false, false, 0, 
+                    false, false, false, false, false, 
+                    0, 0, false, isDaredevilAttempt
+                );
+                return { 
+                    ...prev, 
+                    unlockedGroups: unlockResult.updatedGroups,
+                    score: prev.score + unlockResult.scoreBonus,
+                    messages: [...prev.messages, ...unlockResult.messages].slice(-10),
+                    gameOver: true, 
+                    energyPoints: 0, 
+                    gameOverReason: "TRANSFORMATION_FAILED", 
+                    combo: 0 
+                };
+            });
             return;
         }
 
