@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -81,9 +82,12 @@ export const useDecayController = (
         const totalBasePoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
         const totalActionDelta = totalBasePoints * rawCombo;
 
+        // --- Mastery Check: Priority Event Announcement ---
+        if (!gameState.masteredDecays.includes(actualMode) && gameState.playerLevel < 6) {
+            triggerTTS("Mastery Level Up");
+        }
+
         // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
-        // Handles level-up, history logging, and magic barrier replenishment in the reducer.
-        // Also now increments the global turn atomically.
         dispatchDiscovery(newData, {
             method: decayResult.trigger,
             pz: gameState.currentNuclide.z,
@@ -104,11 +108,6 @@ export const useDecayController = (
             );
             
             if (newData.isStable && rawCombo >= 2) setLastFinalCombo({ count: rawCombo, id: Date.now() }); 
-
-            // Trigger mastery notification if a new decay mode is performed
-            if (!prev.masteredDecays.includes(actualMode) && prev.playerLevel < 6) {
-                triggerTTS("Mastery Level Up!");
-            }
 
             // Drip line warning - suppressed for stable nuclides
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];

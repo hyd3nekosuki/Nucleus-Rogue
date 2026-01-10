@@ -1,104 +1,133 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { NuclideData } from '../types';
 
 export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean) => {
     const prevNuclideNameRef = useRef<string>(nuclide.name);
-    const speechOverrideRef = useRef<string | null>(null);
     const fixedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+    const debounceTimerRef = useRef<number | null>(null);
+    // Track if a priority event (e.g. Fusion) is currently speaking
+    const isPriorityActiveRef = useRef<boolean>(false);
 
-    // Initialize Voice
+    const getTargetVoice = useCallback(() => {
+        if (fixedVoiceRef.current) return fixedVoiceRef.current;
+        const voices = window.speechSynthesis.getVoices();
+        const target = voices.find(v => v.name === 'Google US English') || 
+                     voices.find(v => v.name.includes('David')) || 
+                     voices.find(v => v.lang === 'en-US' && !v.name.includes('Zira') && !v.name.includes('Female')) ||
+                     voices.find(v => v.lang === 'en-US');
+        if (target) fixedVoiceRef.current = target;
+        return target || null;
+    }, []);
+
     useEffect(() => {
-        const loadVoice = () => {
-            const voices = window.speechSynthesis.getVoices();
-            if (voices.length > 0 && !fixedVoiceRef.current) {
-                 fixedVoiceRef.current = 
-                       voices.find(v => v.name === 'Google US English') || 
-                       voices.find(v => v.name.includes('David')) || 
-                       voices.find(v => v.lang === 'en-US' && !v.name.includes('Zira') && !v.name.includes('Female')) ||
-                       voices.find(v => v.lang === 'en-US') || null;
-            }
-        };
+        const loadVoice = () => getTargetVoice();
         loadVoice();
         window.speechSynthesis.onvoiceschanged = loadVoice;
         return () => { window.speechSynthesis.onvoiceschanged = null; };
-    }, []);
+    }, [getTargetVoice]);
 
-    // Stable trigger function that engine can safely reference
-    const triggerOverride = useCallback((text: string) => {
-        speechOverrideRef.current = text;
-    }, []);
+    const createUtterance = useCallback((text: string) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voice = getTargetVoice();
+        if (voice) utterance.voice = voice;
+        utterance.lang = 'en-US';
+        utterance.rate = 1.2;
+        utterance.pitch = 0.9;
+        return utterance;
+    }, [getTargetVoice]);
 
-    useEffect(() => {
-        const currentName = nuclide.name;
+    const processNameForSpeech = (name: string) => {
+        if (name === 'Hydrogen-1') return 'Hydrogen';
+        if (name === 'Neutron-1') return 'Neutron';
         
-        if (currentName !== prevNuclideNameRef.current) {
-            prevNuclideNameRef.current = currentName;
-    
-            if ('speechSynthesis' in window && !gameOver && !isMuted) {
-                window.speechSynthesis.cancel();
-    
-                let targetVoice = fixedVoiceRef.current;
-                if (!targetVoice) {
-                     const voices = window.speechSynthesis.getVoices();
-                     targetVoice = voices.find(v => v.name === 'Google US English') || 
-                           voices.find(v => v.name.includes('David')) || 
-                           voices.find(v => v.lang === 'en-US' && !v.name.includes('Zira') && !v.name.includes('Female')) ||
-                           voices.find(v => v.lang === 'en-US') || null;
-                     if (targetVoice) fixedVoiceRef.current = targetVoice;
-                }
-    
-                if (speechOverrideRef.current) {
-                    const eventUtterance = new SpeechSynthesisUtterance(speechOverrideRef.current);
-                    if (targetVoice) eventUtterance.voice = targetVoice;
-                    eventUtterance.lang = 'en-US';
-                    eventUtterance.rate = 1.2;
-                    eventUtterance.pitch = 0.7;
-                    window.speechSynthesis.speak(eventUtterance);
-                    speechOverrideRef.current = null;
-                }
-    
-                let textToSpeak = currentName;
-                if (currentName === 'Hydrogen-1') {
-                    textToSpeak = 'Hydrogen';
-                } else if (currentName === 'Neutron-1') {
-                    textToSpeak = 'Neutron';
-                } else {
-                    const parts = currentName.split('-');
-                    if (parts.length === 2) {
-                        const name = parts[0];
-                        let speakName = name;
-                        if (speakName === 'Lead') speakName = 'Led'; 
-    
-                        const massStr = parts[1];
-                        const mass = parseInt(massStr);
-                        
-                        if (!isNaN(mass) && massStr.length === 3) {
-                            const hundreds = massStr[0];
-                            const remainder = parseInt(massStr.slice(1));
-                            if (remainder === 0) textToSpeak = `${speakName} ${mass}`;
-                            else if (remainder < 10) textToSpeak = `${speakName} ${hundreds} oh ${remainder}`;
-                            else textToSpeak = `${speakName} ${hundreds} ${remainder}`;
-                        } else {
-                            textToSpeak = `${speakName} ${massStr}`;
-                        }
-                    } else {
-                         textToSpeak = currentName.replace('-', ' ');
-                         if (textToSpeak.includes('Lead')) textToSpeak = textToSpeak.replace('Lead', 'Led');
-                    }
-                }
-                
-                const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                if (targetVoice) utterance.voice = targetVoice;
-                utterance.lang = 'en-US'; 
-                utterance.rate = 1.2; 
-                utterance.pitch = 0.7; 
-                
-                window.speechSynthesis.speak(utterance);
-            } else if (isMuted) {
-                window.speechSynthesis.cancel();
+        let processed = name.replace('-', ' ');
+        if (processed.includes('Lead')) processed = processed.replace('Lead', 'Led');
+        
+        const parts = name.split('-');
+        if (parts.length === 2) {
+            const massStr = parts[1];
+            const mass = parseInt(massStr);
+            if (!isNaN(mass) && massStr.length === 3) {
+                const hundreds = massStr[0];
+                const remainder = parseInt(massStr.slice(1));
+                if (remainder === 0) return `${parts[0]} ${mass}`;
+                if (remainder < 10) return `${parts[0]} ${hundreds} oh ${remainder}`;
+                return processed;
             }
         }
-    }, [nuclide.name, gameOver, isMuted]);
+        return processed;
+    };
+
+    /**
+     * triggerOverride: IMPORTANT EVENTS
+     * These interrupt everything and must be heard.
+     */
+    const triggerOverride = useCallback((text: string) => {
+        if (!('speechSynthesis' in window) || isMuted || gameOver) return;
+        
+        // 1. Immediately stop current speech (usually old nuclide names)
+        window.speechSynthesis.cancel();
+        
+        // 2. Set priority flag
+        isPriorityActiveRef.current = true;
+
+        if (debounceTimerRef.current) {
+            window.clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
+        const utterance = createUtterance(text);
+        
+        // 3. Reset flag when this specific important message finishes
+        utterance.onend = () => {
+            isPriorityActiveRef.current = false;
+        };
+        utterance.onerror = () => {
+            isPriorityActiveRef.current = false;
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }, [isMuted, gameOver, createUtterance]);
+
+    /**
+     * useEffect: NUCLIDE NAME (DEBOUNCED)
+     * Announced after 200ms of stillness.
+     */
+    useEffect(() => {
+        const currentName = nuclide.name;
+        if (currentName === prevNuclideNameRef.current) return;
+        prevNuclideNameRef.current = currentName;
+
+        if (!('speechSynthesis' in window) || isMuted || gameOver) {
+            if (isMuted) window.speechSynthesis.cancel();
+            return;
+        }
+
+        if (debounceTimerRef.current) {
+            window.clearTimeout(debounceTimerRef.current);
+        }
+
+        debounceTimerRef.current = window.setTimeout(() => {
+            // ONLY cancel if a priority message is NOT playing.
+            // This clears "stale" nuclide names from the browser queue if the user moved/stopped multiple times.
+            if (!isPriorityActiveRef.current) {
+                window.speechSynthesis.cancel();
+            }
+
+            const textToSpeak = processNameForSpeech(currentName);
+            const utterance = createUtterance(textToSpeak);
+            
+            // If priority is active, this simply joins the queue and plays AFTER the priority message.
+            // Since it's debounced, only the LAST nuclide name reached this point.
+            window.speechSynthesis.speak(utterance);
+            debounceTimerRef.current = null;
+        }, 200);
+
+        return () => {
+            if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
+        };
+    }, [nuclide.name, isMuted, gameOver, createUtterance]);
 
     return { triggerOverride };
 };
