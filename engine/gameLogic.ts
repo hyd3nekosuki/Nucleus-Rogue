@@ -42,16 +42,27 @@ export interface MoveResult {
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
     const newEntities = [...currentEntities];
+    
     for (let i = 0; i < count; i++) {
-        let pos: Position;
-        let attempts = 0;
-        do {
-          pos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
-          attempts++;
-        } while (
-            (pos.x === playerPos.x && pos.y === playerPos.y) || 
-            newEntities.some(e => e.position.x === pos.x && e.position.y === pos.y) && attempts < 10
-        );
+        // Step 1: Identify all available empty cells on the grid
+        const freeCells: Position[] = [];
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                const isPlayerPos = (x === playerPos.x && y === playerPos.y);
+                const isOccupied = newEntities.some(e => e.position.x === x && e.position.y === y);
+                
+                if (!isPlayerPos && !isOccupied) {
+                    freeCells.push({ x, y });
+                }
+            }
+        }
+
+        // If no space left, stop generation
+        if (freeCells.length === 0) break;
+
+        // Step 2: Select a cell using exactly one random roll per entity
+        const randomIndex = Math.floor(Math.random() * freeCells.length);
+        const pos = freeCells[randomIndex];
 
         if (forcedType) {
             newEntities.push({
@@ -240,10 +251,20 @@ export const calculateMoveResult = (
         }
 
         if (interactionResult.isCoulombScattered) {
-            let attempts = 0, respawnPos: Position;
-            do { respawnPos = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) }; attempts++; } 
-            while ( (respawnPos.x === newPos.x && respawnPos.y === newPos.y) || nextEntities.some(e => e.position.x === respawnPos.x && e.position.y === respawnPos.y) && attempts < 10 );
-            nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: EntityType.PROTON, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+            // Even during scattering, we use the deterministic empty cell selection for the new proton position
+            const potentialCells: Position[] = [];
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const isNewPos = (x === newPos.x && y === newPos.y);
+                    const isOccupiedByExisting = nextEntities.some(e => e.position.x === x && e.position.y === y);
+                    if (!isNewPos && !isOccupiedByExisting) potentialCells.push({ x, y });
+                }
+            }
+            
+            if (potentialCells.length > 0) {
+                const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
+                nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: EntityType.PROTON, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+            }
             gluttonyTrigger = false;
         }
     }

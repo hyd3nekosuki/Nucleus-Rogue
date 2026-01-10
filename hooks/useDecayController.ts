@@ -29,13 +29,14 @@ export const useDecayController = (
         let actualMode = mode;
 
         if (mode === DecayMode.UNKNOWN) {
-            const candidates = [DecayMode.SPONTANEOUS_FISSION, DecayMode.GAMMA];
+            const candidates = [DecayMode.GAMMA];
             const checkModes = [
                 DecayMode.ALPHA, 
                 DecayMode.BETA_MINUS, 
                 DecayMode.BETA_PLUS, 
                 DecayMode.PROTON_EMISSION, 
-                DecayMode.NEUTRON_EMISSION
+                DecayMode.NEUTRON_EMISSION,
+                DecayMode.SPONTANEOUS_FISSION,
             ];
             
             checkModes.forEach(m => {
