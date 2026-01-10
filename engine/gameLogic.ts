@@ -189,12 +189,19 @@ export const calculateMoveResult = (
         reactionLabel = interactionResult.inducedReactionLabel || "";
         chargesUsed = interactionResult.chargesUsed || 0;
 
-        // Streak maintenance for Protons - Only increment if NOT scattered by Coulomb barrier
+        // Streak and Pool maintenance for Protons
         if (targetEntity.type === EntityType.PROTON) {
+            // 1. Success case: Capture occurred (No barrier block AND Fusion enabled)
             if (!isFusionDisabled && !interactionResult.isCoulombScattered) {
                 if (lT === EntityType.PROTON) cP++; else { cP = 1; cN = 0; cE = 0; lT = EntityType.PROTON; }
-            } else {
+            } 
+            // 2. Skill case: Fusion is explicitly disabled by player (Absorption into pool)
+            else if (isFusionDisabled) {
                 poolInc.p = 1;
+            }
+            // 3. Physical case: Coulomb scattered due to low HP (No increment to pool, particle is lost to grid)
+            else {
+                // interactionResult.isCoulombScattered is true. Pool stays 0.
             }
         }
 
