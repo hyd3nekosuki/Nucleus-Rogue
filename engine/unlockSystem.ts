@@ -8,8 +8,8 @@ import { getNuclideDataSync } from '../services/nuclideService';
 export const processUnlocks = (
     currentUnlockedElements: number[], 
     currentUnlockedGroups: string[], 
-    newZ: number,
-    newA: number,
+    newZ: number | null,
+    newA: number | null,
     isTransmutation: boolean = false,
     isAnnihilation: boolean = false,
     isNucleosynthesis: boolean = false,
@@ -32,7 +32,7 @@ export const processUnlocks = (
     const nuclideData = getNuclideDataSync(newZ, newA);
 
     // 1. Element Unlock
-    if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
+    /*if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
         updatedElements = [...currentUnlockedElements, newZ].sort((a,b) => a-b);
         
         let trophyBonus = 0;
@@ -44,7 +44,64 @@ export const processUnlocks = (
             messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus.toLocaleString()} PTS)`);
         }
         scoreBonus += trophyBonus;
+    }*/
+
+
+    if (nuclideData.exists) {
+        // 1. Element Unlock
+        if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
+            updatedElements = [...currentUnlockedElements, newZ].sort((a,b) => a-b);
+            let trophyBonus = 0;
+            if (newZ === 0) {
+                trophyBonus = BONUS_SCORES.NEUTRON_0;
+                messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus.toLocaleString()} PTS)`);
+            } else {
+                trophyBonus = newZ * 1000;
+                messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus.toLocaleString()} PTS)`);
+            }
+            scoreBonus += trophyBonus;
+        }
+
+        // 5. Special Hidden Title: Unknown
+        // Triggered when entering a nuclide with unmeasured/unspecified decay mode ('?') for the first time
+        if (nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
+            updatedGroups = [...updatedGroups, "Unknown"];
+            scoreBonus += BONUS_SCORES.UNKNOWN;
+            messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
+        }
+
+        // 12. Group Unlock Check
+        Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
+            if (!updatedGroups.includes(groupName)) {
+                const allFound = groupZs.every(z => updatedElements.includes(z));
+                if (allFound) {
+                    updatedGroups = [...updatedGroups, groupName];
+                    scoreBonus += BONUS_SCORES.GRANDMASTER_SERIES;
+                    messages.push(` 👑 GRANDMASTER: ${groupName} Series Completed! (+${BONUS_SCORES.GRANDMASTER_SERIES.toLocaleString()} PTS)`);
+                }
+            }
+        });
+
+        // 13. Magic Number Checks
+        const newN = newA - newZ;
+        const isMagicZ = MAGIC_NUMBERS.includes(newZ);
+        const isMagicN = MAGIC_NUMBERS.includes(newN);
+
+        if (isMagicZ && isMagicN) {
+            scoreBonus += BONUS_SCORES.DOUBLE_MAGIC;
+            messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+${BONUS_SCORES.DOUBLE_MAGIC.toLocaleString()} PTS)`);
+        } else {
+            if (isMagicZ) {
+                scoreBonus += BONUS_SCORES.MAGIC_SHELL;
+                messages.push(` ✨ MAGIC PROTON SHELL CLOSED (Z=${newZ})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
+            }
+            if (isMagicN) {
+                scoreBonus += BONUS_SCORES.MAGIC_SHELL;
+                messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
+            }
+        }
     }
+
 
     // 2. Special Hidden Title: Pair annihilation
     if (!updatedGroups.includes("Pair annihilation")) {
@@ -82,11 +139,11 @@ export const processUnlocks = (
 
     // 5. Special Hidden Title: Unknown
     // Triggered when entering a nuclide with unmeasured/unspecified decay mode ('?') for the first time
-    if (nuclideData.exists && nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
+    /*if (nuclideData.exists && nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
         updatedGroups = [...updatedGroups, "Unknown"];
         scoreBonus += BONUS_SCORES.UNKNOWN;
         messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
-    }
+    }*/
 
     // 6. Special Hidden Title: Temporal Inversion
     if (isTemporalInversion) {
@@ -136,7 +193,7 @@ export const processUnlocks = (
     }
 
     // 12. Group Unlock Check
-    Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
+    /*Object.entries(ELEMENT_GROUPS).forEach(([groupName, groupZs]) => {
         if (!updatedGroups.includes(groupName)) {
             const allFound = groupZs.every(z => updatedElements.includes(z));
             if (allFound) {
@@ -164,7 +221,7 @@ export const processUnlocks = (
             scoreBonus += BONUS_SCORES.MAGIC_SHELL;
             messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
         }
-    }
+    }*/
 
     return { updatedElements, updatedGroups, scoreBonus, messages };
 };

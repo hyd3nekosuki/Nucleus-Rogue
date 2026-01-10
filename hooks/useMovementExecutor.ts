@@ -78,8 +78,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 if (newData.exists) {
                     // Unlock Processing
                     const unlockResult = processUnlocks(
-                        prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, 
-                        false, false, false, false, 0, 
+                        prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA,                         false, false, false, false, 0, 
                         result.isCoulombScattered, result.isPpFusion, result.isFissionAchieved, result.isZeroBarnAchieved, result.isBremsAchieved, 
                         0, 0, result.gluttonyTrigger
                     );
@@ -134,8 +133,8 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const unlockResult = processUnlocks(
                         prev.unlockedElements, 
                         prev.unlockedGroups, 
-                        prev.currentNuclide.z, 
-                        prev.currentNuclide.a, 
+                        //prev.currentNuclide.z, prev.currentNuclide.a,
+                        null, null, // <- ad-hoc
                         false, false, false, false, 0, 
                         false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved
                     );
@@ -162,7 +161,9 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 
                 // Still check for achievements like Zero Barn if the move was successful but identity didn't change (rare but for safety)
                 if (result.isZeroBarnAchieved) {
-                    const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, prev.currentNuclide.z, prev.currentNuclide.a, false, false, false, false, 0, false, false, false, true);
+                    const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, 
+                    prev.currentNuclide.z, prev.currentNuclide.a,
+                    false, false, false, false, 0, false, false, false, true);
                     nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups;
                     nextPeripheralUpdate.messages = [...prev.messages, ...unlockResult.messages].slice(-10);
                     nextPeripheralUpdate.score = (nextPeripheralUpdate.score || prev.score) + unlockResult.scoreBonus;

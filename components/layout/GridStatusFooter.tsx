@@ -63,23 +63,24 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
                     <span className="mr-3 text-gray-700 font-black">|</span>
                 </>
             )}
-            
-            {/* Reincarnation Pool */}
-            <span className="text-gray-500 font-black tracking-normal mr-2 italic">POOL:</span>
-            <div className="flex items-center gap-1.5 mr-4">
-                <span className="text-neon-red font-bold">p={pool.p}</span>
-                <span className="text-neon-blue font-bold">n={pool.n}</span>
-                <span className="text-yellow-400 font-bold">e-={pool.e}</span>
+
+            {/* Grid Particle Counts */}
+            <span className="text-gray-500 font-black tracking-normal mr-0.5 italic">grid:</span>
+            <div className="flex items-center gap-1.5 mr-1">
+                <span className="text-neon-red font-bold">{gridTotals.p}</span>
+                <span className="text-neon-blue font-bold">{gridTotals.n}</span>
+                <span className="text-yellow-400 font-bold">{gridTotals.e}</span>
+                <span className="text-neon-purple font-bold">{gridTotals.pos}</span>
             </div>
 
             <span className="mr-4 text-gray-700 font-black">|</span>
 
-            {/* Grid Particle Counts */}
-            <span className="text-gray-500 font-black tracking-normal mr-2 italic">GRID:</span>
-            <div className="flex items-center gap-2">
-                <span className="text-neon-red/80 font-bold">p={gridTotals.p}</span>
-                <span className="text-neon-blue/80 font-bold">n={gridTotals.n}</span>
-                <span className="text-yellow-400/80 font-bold">e-={gridTotals.e}</span>
+            {/* Reincarnation Pool */}
+            <span className="text-gray-500 font-black tracking-normal mr-0.5 italic">pool:</span>
+            <div className="flex items-center gap-1.5 mr-1">
+                <span className="text-neon-red font-bold">{pool.p}</span>
+                <span className="text-neon-blue font-bold">{pool.n}</span>
+                <span className="text-yellow-400 font-bold">{pool.e}</span>
             </div>
 
             {/* Streak Counter */}
