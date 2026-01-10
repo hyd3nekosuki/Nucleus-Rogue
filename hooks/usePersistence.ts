@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
@@ -117,7 +118,7 @@ export const usePersistence = (
                 };
             });
 
-            // Atomic update of the entire game state including history
+            // Atomic update of the entire game state including history and pool
             setGameState({ 
                 ...getInitialState(), 
                 score: payload.s!, 
@@ -128,6 +129,11 @@ export const usePersistence = (
                 turn: payload.t || 0, 
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
+                reincarnationPool: {
+                    p: payload.pp || 0,
+                    n: payload.pn || 0,
+                    e: payload.pe || 0
+                },
                 currentNuclide: currentData, 
                 evolutionHistory: restoredHistory,
                 unlockedElements: payload.ue || [], 

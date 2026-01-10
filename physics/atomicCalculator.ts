@@ -29,6 +29,7 @@ export const calculateInteraction = (
     const isFusionDisabled = disabledSkills.includes("Fusion");
     const isZeroBarnActive = unlockedGroups.includes("zero barn") && !disabledSkills.includes("zero barn");
     const scatteringActive = unlockedGroups.includes("Electron scattering") && !disabledSkills.includes("Electron scattering");
+    const isDaredevilActive = unlockedGroups.includes("Daredevil") && !disabledSkills.includes("Daredevil");
 
     switch (target.type) {
         case EntityType.PROTON:
@@ -46,8 +47,14 @@ export const calculateInteraction = (
             } else if (hp > COULOMB_BARRIER_THRESHOLD) {
                 res.hpPenalty = 20; res.dZ = 1; res.dA = 1;
             } else {
-                res.isCoulombScattered = true;
-                res.scatteredMessage = "Proton was scattered by Coulomb barrier";
+                // Hard mode safety removal for Daredevil
+                if (isDaredevilActive) {
+                    res.hpPenalty = 999; // Fatal
+                    res.scatteredMessage = "FATAL COULOMB COLLISION";
+                } else {
+                    res.isCoulombScattered = true;
+                    res.scatteredMessage = "Proton was scattered by Coulomb barrier";
+                }
             }
             break;
 

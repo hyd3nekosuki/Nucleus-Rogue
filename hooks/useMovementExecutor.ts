@@ -132,6 +132,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 } else {
                     // Target does not exist (Drip line violation)
                     // Check for Daredevil attempt
+                    const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
                     const isDaredevilAttempt = prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine;
 
                     // Check for achievements even during failure (Bremsstrahlung or Zero Barn)
@@ -152,6 +153,12 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     nextPeripheralUpdate.hp = Math.max(0, prev.hp - result.hpPenalty);
                     nextPeripheralUpdate.magicBarrierCharges = Math.max(0, prev.magicBarrierCharges - (result.chargesUsed || 0));
                     nextPeripheralUpdate.turn = prev.turn + 1; 
+
+                    // Hard Mode immediate game over for Daredevil on drip line violation
+                    if (isDaredevilActive) {
+                        nextPeripheralUpdate.gameOver = true;
+                        nextPeripheralUpdate.gameOverReason = "TRANSFORMATION_FAILED";
+                    }
                     
                     // Update streak status even on failed transformation
                     nextPeripheralUpdate.consecutiveProtons = result.consecutiveProtons;

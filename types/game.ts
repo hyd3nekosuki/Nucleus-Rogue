@@ -1,3 +1,4 @@
+
 import { 
   DecayMode, 
   NuclideData, 
@@ -103,4 +104,7 @@ export interface SavePayload {
   ev: Record<string, string>;
   mc: number;
   mb: number;
+  pp: number; // Pool Protons
+  pn: number; // Pool Neutrons
+  pe: number; // Pool Electrons
 }

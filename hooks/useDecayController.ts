@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -30,19 +29,26 @@ export const useDecayController = (
         let actualMode = mode;
 
         if (mode === DecayMode.UNKNOWN) {
-            const candidates = [DecayMode.ALPHA, DecayMode.BETA_MINUS, DecayMode.BETA_PLUS, DecayMode.PROTON_EMISSION, DecayMode.NEUTRON_EMISSION, DecayMode.SPONTANEOUS_FISSION, DecayMode.GAMMA];
-            let found = false, attempts = 0;
-            while (!found && attempts < 50) {
-                attempts++; 
-                const rnd = candidates[Math.floor(Math.random() * candidates.length)];
-                const deltas = getDecayDeltas(rnd);
-                if (rnd === DecayMode.GAMMA || getNuclideDataSync(gameState.currentNuclide.z + deltas.dZ, gameState.currentNuclide.a + deltas.dA).exists) { 
-                    actualMode = rnd; 
-                    found = true; 
-                    break; 
+            const candidates = [DecayMode.SPONTANEOUS_FISSION, DecayMode.GAMMA];
+            const checkModes = [
+                DecayMode.ALPHA, 
+                DecayMode.BETA_MINUS, 
+                DecayMode.BETA_PLUS, 
+                DecayMode.PROTON_EMISSION, 
+                DecayMode.NEUTRON_EMISSION
+            ];
+            
+            checkModes.forEach(m => {
+                const deltas = getDecayDeltas(m);
+                const targetZ = gameState.currentNuclide.z + deltas.dZ;
+                const targetA = gameState.currentNuclide.a + deltas.dA;
+                if (getNuclideDataSync(targetZ, targetA).exists) {
+                    candidates.push(m);
                 }
-            }
-            if (!found) return;
+            });
+            
+            // Choose one decay mode from the possible candidates with a single random roll
+            actualMode = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
         const isAnnihilationSkillActive = gameState.unlockedGroups.includes("Pair annihilation") && !gameState.disabledSkills.includes("Pair annihilation");

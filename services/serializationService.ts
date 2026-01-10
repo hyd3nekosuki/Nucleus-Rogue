@@ -75,7 +75,7 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
     const historyList = Object.values(history);
     
-    // Buffer size calculation: 1024 base + (15 bytes per history entry: pz(1), pa(2), z(1), a(2), method(1), first(4), last(4))
+    // Buffer size calculation: 1024 base + (15 bytes per history entry)
     const bufferSize = 1024 + (historyList.length * 15);
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
@@ -125,6 +125,11 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
         if (idx !== -1) masteredBits |= (1 << idx);
     });
     view.setUint32(offset, masteredBits); offset += 4;
+
+    // --- NEW: Reincarnation Pool counts (capped at 65535) ---
+    view.setUint16(offset, Math.min(65535, state.reincarnationPool.p)); offset += 2;
+    view.setUint16(offset, Math.min(65535, state.reincarnationPool.n)); offset += 2;
+    view.setUint16(offset, Math.min(65535, state.reincarnationPool.e)); offset += 2;
 
     view.setUint16(offset, historyList.length); offset += 2;
     historyList.forEach(h => {
@@ -207,6 +212,11 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const mdBits = view.getUint32(offset); offset += 4;
         const md = DECAY_MODE_MAP.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
 
+        // --- NEW: Read Reincarnation Pool counts ---
+        const pp = view.getUint16(offset); offset += 2;
+        const pn = view.getUint16(offset); offset += 2;
+        const pe = view.getUint16(offset); offset += 2;
+
         const historyLen = view.getUint16(offset); offset += 2;
         const ev: Record<string, string> = {};
         for (let i = 0; i < historyLen; i++) {
@@ -233,7 +243,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}`;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb };
+        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, pp, pn, pe };
     } catch (e) {
         console.error("Unpack failed:", e instanceof Error ? e.message : String(e));
         return null;
