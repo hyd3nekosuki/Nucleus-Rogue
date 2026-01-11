@@ -4,12 +4,14 @@ import { GameState, DecayMode, NuclideData } from '../types';
 import { COMBO_WINDOW_MS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
 import { REASON } from '../constants/gameOverReason';
+import { TITLES } from '../constants/titles';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { processUnlocks } from '../engine/unlockSystem';
 import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
+import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 
 export const useDecayController = (
     gameState: GameState,
@@ -53,7 +55,7 @@ export const useDecayController = (
             actualMode = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
-        const isAnnihilationSkillActive = gameState.unlockedGroups.includes("Pair annihilation") && !gameState.disabledSkills.includes("Pair annihilation");
+        const isAnnihilationSkillActive = gameState.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !gameState.disabledSkills.includes(TITLES.PAIR_ANNIHILATION);
 
         const decayResult = calculateDecayEffects(
             actualMode, 
@@ -62,14 +64,14 @@ export const useDecayController = (
             gameState.gridEntities,
             currentTime, 
             isAnnihilationSkillActive, 
-            !gameState.disabledSkills.includes("Fission"), 
-            gameState.unlockedGroups.includes("Neutronization") && !gameState.disabledSkills.includes("Neutronization")
+            !gameState.disabledSkills.includes(TITLES.FISSION), 
+            gameState.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !gameState.disabledSkills.includes(TITLES.NEUTRONIZATION)
         );
 
         if (decayResult.dZ === 0 && decayResult.dA === 0 && decayResult.trigger === "") return; 
         
         setLastDecayEvent({ 
-            mode: (actualMode === DecayMode.SPONTANEOUS_FISSION && gameState.disabledSkills.includes("Fission")) ? DecayMode.ALPHA : actualMode, 
+            mode: (actualMode === DecayMode.SPONTANEOUS_FISSION && gameState.disabledSkills.includes(TITLES.FISSION)) ? DecayMode.ALPHA : actualMode, 
             timestamp: currentTime 
         });
         
@@ -82,7 +84,7 @@ export const useDecayController = (
         if (!newData.exists) {
             const isDaredevilAttempt = !gameState.currentNuclide.isStable && (gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine);
             setGameState(prev => {
-                const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
+                const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
                 
                 if (isDaredevilActive) {
                     // ハードモード: 即座に危機(Crisis)判定へ
@@ -141,12 +143,18 @@ export const useDecayController = (
 
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
+            // Atomic turn increment happens in DISCOVER_NUCLIDE reducer, but prev.turn in the hook
+            // refers to the state before the increment. Next turn is prev.turn + 1.
+            const nextTurn = prev.turn + 1;
+            const nextMsg = getNextTutorialMessage(prev, 'DECAY_PERFORMED', { currentTurn: nextTurn });
+            const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+
             return { 
                 ...prev, 
+                ...tutorialUpdates,
                 playerPos: decayResult.newPosition || prev.playerPos, 
                 energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + (decayResult.energyBonus || 0)), 
-                tutorialMessage: prev.tutorialMessage === "Decay to be stable" ? null : prev.tutorialMessage, 
-                hasSeenDecayTutorial: prev.tutorialMessage === "Decay to be stable" ? true : prev.hasSeenDecayTutorial, 
+                tutorialMessage: nextMsg, 
                 unlockedElements: unlockResult.updatedElements, 
                 unlockedGroups: unlockResult.updatedGroups, 
                 gridEntities: decayResult.newGridEntities, 

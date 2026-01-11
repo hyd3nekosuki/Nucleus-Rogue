@@ -1,4 +1,4 @@
-import { ELEMENT_GROUPS, ELEMENT_CATEGORIES } from '../constants';
+import { ELEMENT_GROUPS, ELEMENT_CATEGORIES, TITLES } from '../constants';
 
 /**
  * Calculates the grid row and column for a given atomic number Z.
@@ -30,15 +30,17 @@ export const getElementGridPosition = (z: number): { r: number, c: number } => {
  */
 export const getElementCategoryInfo = (z: number): { name: string, class: string } => {
     if (z === 0) return ELEMENT_CATEGORIES.SPECIAL;
-    if (ELEMENT_GROUPS["Noble Gas"].includes(z)) return ELEMENT_CATEGORIES.NOBLE_GAS;
-    if (ELEMENT_GROUPS["Alkali Metal"].includes(z)) return ELEMENT_CATEGORIES.ALKALI_METAL;
-    if (ELEMENT_GROUPS["Alkaline Earth"].includes(z)) return ELEMENT_CATEGORIES.ALKALINE_EARTH;
-    if (ELEMENT_GROUPS["Lanthanide"].includes(z)) return ELEMENT_CATEGORIES.LANTHANIDE;
-    if (ELEMENT_GROUPS["Actinide"].includes(z)) return ELEMENT_CATEGORIES.ACTINIDE;
-    if (ELEMENT_GROUPS["Halogen"].includes(z)) return ELEMENT_CATEGORIES.HALOGEN;
-    if (ELEMENT_GROUPS["Metalloid"].includes(z)) return ELEMENT_CATEGORIES.METALLOID;
-    if (ELEMENT_GROUPS["Non-metal"].includes(z)) return ELEMENT_CATEGORIES.NON_METAL;
-    if (ELEMENT_GROUPS["Post-Transition"].includes(z)) return ELEMENT_CATEGORIES.POST_TRANSITION;
-    if (ELEMENT_GROUPS["Transition"].includes(z)) return ELEMENT_CATEGORIES.TRANSITION;
+    
+    if (ELEMENT_GROUPS[TITLES.NOBLE_GAS].includes(z)) return ELEMENT_CATEGORIES[TITLES.NOBLE_GAS];
+    if (ELEMENT_GROUPS[TITLES.ALKALI_METAL].includes(z)) return ELEMENT_CATEGORIES[TITLES.ALKALI_METAL];
+    if (ELEMENT_GROUPS[TITLES.ALKALINE_EARTH].includes(z)) return ELEMENT_CATEGORIES[TITLES.ALKALINE_EARTH];
+    if (ELEMENT_GROUPS[TITLES.LANTHANIDE].includes(z)) return ELEMENT_CATEGORIES[TITLES.LANTHANIDE];
+    if (ELEMENT_GROUPS[TITLES.ACTINIDE].includes(z)) return ELEMENT_CATEGORIES[TITLES.ACTINIDE];
+    if (ELEMENT_GROUPS[TITLES.HALOGEN].includes(z)) return ELEMENT_CATEGORIES[TITLES.HALOGEN];
+    if (ELEMENT_GROUPS[TITLES.METALLOID].includes(z)) return ELEMENT_CATEGORIES[TITLES.METALLOID];
+    if (ELEMENT_GROUPS[TITLES.NON_METAL].includes(z)) return ELEMENT_CATEGORIES[TITLES.NON_METAL];
+    if (ELEMENT_GROUPS[TITLES.POST_TRANSITION].includes(z)) return ELEMENT_CATEGORIES[TITLES.POST_TRANSITION];
+    if (ELEMENT_GROUPS[TITLES.TRANSITION].includes(z)) return ELEMENT_CATEGORIES[TITLES.TRANSITION];
+    
     return ELEMENT_CATEGORIES.OTHER;
 };

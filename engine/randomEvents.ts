@@ -1,5 +1,6 @@
 import { GameState, EntityType, GridEntity } from '../types';
 import { generateEntities } from './gameLogic';
+import { TITLES } from '../constants/titles';
 
 export interface BackgroundEventResult {
     gridEntities: GridEntity[];
@@ -18,7 +19,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     let eventTriggered = false;
 
     // 1. Background random events (Quantum coherence, etc.) - Requires "Unknown" skill
-    const isUnknownSkillActive = state.unlockedGroups.includes("Unknown") && !state.disabledSkills.includes("Unknown");
+    const isUnknownSkillActive = state.unlockedGroups.includes(TITLES.UNKNOWN) && !state.disabledSkills.includes(TITLES.UNKNOWN);
     
     if (isUnknownSkillActive && Math.random() < 0.02) {
         const randEvent = Math.random();
@@ -56,7 +57,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     }
 
     // 2. Periodic Entity Respawn - Skipped if Gluttony skill is active
-    const isGluttonySkillActive = state.unlockedGroups.includes("Gluttony") && !state.disabledSkills.includes("Gluttony");
+    const isGluttonySkillActive = state.unlockedGroups.includes(TITLES.GLUTTONY) && !state.disabledSkills.includes(TITLES.GLUTTONY);
     if (!isGluttonySkillActive && !eventTriggered && Math.random() < 0.15) {
         nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn);
     }

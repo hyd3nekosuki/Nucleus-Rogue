@@ -1,7 +1,7 @@
-
 import { ELEMENT_GROUPS } from '../constants/atomicData';
 import { MAGIC_NUMBERS } from '../constants/physics';
 import { BONUS_SCORES } from '../constants/economy';
+import { TITLES } from '../constants/titles';
 
 import { DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -49,8 +49,8 @@ export const processUnlocks = (
         }
 
         // 5. Special Hidden Title: Unknown
-        if (nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes("Unknown")) {
-            updatedGroups = [...updatedGroups, "Unknown"];
+        if (nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes(TITLES.UNKNOWN)) {
+            updatedGroups = [...updatedGroups, TITLES.UNKNOWN];
             scoreBonus += BONUS_SCORES.UNKNOWN;
             messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
         }
@@ -89,35 +89,35 @@ export const processUnlocks = (
 
 
     // 2. Special Hidden Title: Pair annihilation
-    if (!updatedGroups.includes("Pair annihilation")) {
+    if (!updatedGroups.includes(TITLES.PAIR_ANNIHILATION)) {
         if (isAnnihilation) {
-            updatedGroups = [...updatedGroups, "Pair annihilation"];
+            updatedGroups = [...updatedGroups, TITLES.PAIR_ANNIHILATION];
             scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
             messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
         } else if (betaPlusCount >= 10) {
-            updatedGroups = [...updatedGroups, "Pair annihilation"];
+            updatedGroups = [...updatedGroups, TITLES.PAIR_ANNIHILATION];
             scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
             messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (Mastered β+ Emission) (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
         }
     }
 
     // Special Hidden Title: Neutronization
-    if (!updatedGroups.includes("Neutronization") && betaMinusCount >= 20) {
-        updatedGroups = [...updatedGroups, "Neutronization"];
+    if (!updatedGroups.includes(TITLES.NEUTRONIZATION) && betaMinusCount >= 20) {
+        updatedGroups = [...updatedGroups, TITLES.NEUTRONIZATION];
         scoreBonus += BONUS_SCORES.NEUTRONIZATION;
         messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+${BONUS_SCORES.NEUTRONIZATION.toLocaleString()} PTS)`);
     }
 
     // 3. Special Hidden Title: Exp. Replicate
-    if (isTransmutation && !updatedGroups.includes("Exp. Replicate")) {
-        updatedGroups = [...updatedGroups, "Exp. Replicate"];
+    if (isTransmutation && !updatedGroups.includes(TITLES.EXP_REPLICATE)) {
+        updatedGroups = [...updatedGroups, TITLES.EXP_REPLICATE];
         scoreBonus += BONUS_SCORES.EXP_REPLICATE_TITLE;
         messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+${BONUS_SCORES.EXP_REPLICATE_TITLE.toLocaleString()} PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
-    if (isNucleosynthesis && !updatedGroups.includes("Nucleosynthesis")) {
-        updatedGroups = [...updatedGroups, "Nucleosynthesis"];
+    if (isNucleosynthesis && !updatedGroups.includes(TITLES.NUCLEOSYNTHESIS)) {
+        updatedGroups = [...updatedGroups, TITLES.NUCLEOSYNTHESIS];
         scoreBonus += BONUS_SCORES.NUCLEOSYNTHESIS_TITLE;
         messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
     }
@@ -125,8 +125,8 @@ export const processUnlocks = (
     // 6. Special Hidden Title: Temporal Inversion
     if (isTemporalInversion) {
         const inversionBonus = comboScore * 10;
-        if (!updatedGroups.includes("Temporal Inversion")) {
-            updatedGroups = [...updatedGroups, "Temporal Inversion"];
+        if (!updatedGroups.includes(TITLES.TEMPORAL_INVERSION)) {
+            updatedGroups = [...updatedGroups, TITLES.TEMPORAL_INVERSION];
             messages.push(` ⏱ HIDDEN TITLE: Temporal Inversion. (+${inversionBonus.toLocaleString()} PTS 10x Bonus!)`);
         } else {
             messages.push(` ⏱ TEMPORAL INVERSION: 10x Combo Score! (+${inversionBonus.toLocaleString()} PTS)`);
@@ -135,43 +135,43 @@ export const processUnlocks = (
     }
 
     // 8. Special Hidden Title: Fusion
-    if (isFusionAchieved && !updatedGroups.includes("Fusion")) {
-        updatedGroups = [...updatedGroups, "Fusion"];
+    if (isFusionAchieved && !updatedGroups.includes(TITLES.FUSION)) {
+        updatedGroups = [...updatedGroups, TITLES.FUSION];
         scoreBonus += BONUS_SCORES.FUSION_TITLE;
         messages.push(` 💥 HIDDEN TITLE: Fusion! (+${BONUS_SCORES.FUSION_TITLE.toLocaleString()} PTS)`);
     }
 
     // 9. Special Hidden Title: Fission
-    if (isFissionAchieved && !updatedGroups.includes("Fission")) {
-        updatedGroups = [...updatedGroups, "Fission"];
+    if (isFissionAchieved && !updatedGroups.includes(TITLES.FISSION)) {
+        updatedGroups = [...updatedGroups, TITLES.FISSION];
         scoreBonus += BONUS_SCORES.FISSION_TITLE;
         messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+${BONUS_SCORES.FISSION_TITLE.toLocaleString()} PTS)`);
     }
 
     // 10. Special Hidden Title: zero barn
-    if (isZeroBarnAchieved && !updatedGroups.includes("zero barn")) {
-        updatedGroups = [...updatedGroups, "zero barn"];
+    if (isZeroBarnAchieved && !updatedGroups.includes(TITLES.ZERO_BARN)) {
+        updatedGroups = [...updatedGroups, TITLES.ZERO_BARN];
         scoreBonus += BONUS_SCORES.ZERO_BARN;
         messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+${BONUS_SCORES.ZERO_BARN.toLocaleString()} PTS)`);
     }
 
     // 11. Special Hidden Title: Electron scattering
-    if (isBremsAchieved && !updatedGroups.includes("Electron scattering")) {
-        updatedGroups = [...updatedGroups, "Electron scattering"];
+    if (isBremsAchieved && !updatedGroups.includes(TITLES.ELECTRON_SCATTERING)) {
+        updatedGroups = [...updatedGroups, TITLES.ELECTRON_SCATTERING];
         scoreBonus += BONUS_SCORES.ELECTRON_SCATTERING;
         messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+${BONUS_SCORES.ELECTRON_SCATTERING.toLocaleString()} PTS)`);
     }
 
     // NEW: Special Hidden Title: Gluttony
-    if (isGluttonyAchieved && !updatedGroups.includes("Gluttony")) {
-        updatedGroups = [...updatedGroups, "Gluttony"];
+    if (isGluttonyAchieved && !updatedGroups.includes(TITLES.GLUTTONY)) {
+        updatedGroups = [...updatedGroups, TITLES.GLUTTONY];
         scoreBonus += BONUS_SCORES.GLUTTONY;
         messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+${BONUS_SCORES.GLUTTONY.toLocaleString()} PTS)`);
     }
 
     // NEW: Special Hidden Title: Daredevil
-    if (isDaredevilAchieved && !updatedGroups.includes("Daredevil")) {
-        updatedGroups = [...updatedGroups, "Daredevil"];
+    if (isDaredevilAchieved && !updatedGroups.includes(TITLES.DAREDEVIL)) {
+        updatedGroups = [...updatedGroups, TITLES.DAREDEVIL];
         scoreBonus += BONUS_SCORES.DAREDEVIL;
         messages.push(` 🧨 HIDDEN TITLE: Daredevil! Attempting the impossible from the brink. (+${BONUS_SCORES.DAREDEVIL.toLocaleString()} PTS)`);
     }

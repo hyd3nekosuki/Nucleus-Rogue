@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, HISTORY_METHODS } from '../constants';
@@ -144,6 +143,7 @@ export const usePersistence = (
                 reactionStats: payload.rs || getInitialState().reactionStats, 
                 messages: ["Previous research is cited."], 
                 tutorialMessage: null, 
+                tutorialStartTurn: payload.t || 0,
                 hasSeenCaptureTutorial: true, 
                 hasSeenDecayTutorial: true, 
                 gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, payload.t || 0) 

@@ -6,6 +6,7 @@ import { MAGIC_NUMBERS } from '../constants/physics';
 import { BONUS_SCORES, STABILIZE_COST, NUCLEOSYNTHESIS_COST, FORCE_DECAY_COST, MAX_ENERGY } from '../constants/economy';
 import { HISTORY_METHODS } from '../constants/strings';
 import { REASON } from '../constants/gameOverReason';
+import { TITLES } from '../constants/titles';
 
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
@@ -13,6 +14,7 @@ import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { getInitialState } from '../engine/initialState';
 import { DiscoveryContext } from '../engine/stateTransitions';
+import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 
 export const useSkillController = (
     gameState: GameState,
@@ -31,7 +33,7 @@ export const useSkillController = (
     const handleStabilize = useCallback(() => {
         if (gameState.playerLevel < 2) return;
         setGameState(prev => {
-            const isSynth = prev.energyPoints >= NUCLEOSYNTHESIS_COST && prev.playerLevel >= 5 && !prev.disabledSkills.includes("Nucleosynthesis");
+            const isSynth = prev.energyPoints >= NUCLEOSYNTHESIS_COST && prev.playerLevel >= 5 && !prev.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS);
             const cost = isSynth ? NUCLEOSYNTHESIS_COST : STABILIZE_COST;
             if (prev.energyPoints < cost) return { ...prev, messages: [...prev.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
             const now = Date.now();
@@ -61,12 +63,17 @@ export const useSkillController = (
                     // Drip line warning - suppressed for stable nuclides
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
+                    // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
+                    const nextTurn = prev.turn + 1;
+                    const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
+                    const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+
                     return { 
                         ...prev, 
+                        ...tutorialFlags,
                         hp: prev.maxHp, 
                         energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - NUCLEOSYNTHESIS_COST)), 
-                        tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
-                        hasSeenCaptureTutorial: true, 
+                        tutorialMessage: nextMsg, 
                         score: prev.score + nextZ * 10000 + unlockResult.scoreBonus, 
                         effects: [...prev.effects, zapEffect], 
                         unlockedElements: unlockResult.updatedElements, 
@@ -84,7 +91,7 @@ export const useSkillController = (
     }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, dispatchDiscovery]);
 
     const handleUltimateSynthesis = useCallback(() => {
-        if (gameState.playerLevel < 5 || gameState.disabledSkills.includes("Nucleosynthesis")) return;
+        if (gameState.playerLevel < 5 || gameState.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS)) return;
         setGameState(prev => {
             if (prev.isTimeStopped) return { ...prev, messages: [...prev.messages, "⚠️ System Error: Spacetime stabilization prevents accretion."].slice(-10) };
             let absorbedP = 0, absorbedN = 0, absorbedE = 0, absorbedPos = 0;
@@ -112,13 +119,18 @@ export const useSkillController = (
             // Drip line warning - suppressed for stable nuclides
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
+            // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
+            const nextTurn = prev.turn + 1;
+            const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
+            const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+
             triggerTTS("r-process nucleosynthesis");
             return { 
                 ...prev, 
+                ...tutorialFlags,
                 hp: prev.maxHp, 
                 gridEntities: [], 
-                tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
-                hasSeenCaptureTutorial: true, 
+                tutorialMessage: nextMsg, 
                 score: prev.score + synthBonus + unlockResult.scoreBonus, 
                 unlockedElements: unlockResult.updatedElements, 
                 unlockedGroups: unlockResult.updatedGroups, 
@@ -148,7 +160,7 @@ export const useSkillController = (
     }, [gameState.playerLevel, gameState.currentNuclide.a, gameState.currentNuclide.z, stopAutoMove, setLastFinalCombo, setGameState]);
 
     const handleTransmute = useCallback((selectedZ: number) => {
-        if (gameState.playerLevel < 4 || gameState.disabledSkills.includes("Exp. Replicate")) return; 
+        if (gameState.playerLevel < 4 || gameState.disabledSkills.includes(TITLES.EXP_REPLICATE)) return; 
         const validAs = getValidAsForZ(selectedZ); if (validAs.length === 0) return;
         const randomA = validAs[Math.floor(Math.random() * validAs.length)];
         const newData = getNuclideDataSync(selectedZ, randomA);
@@ -169,11 +181,16 @@ export const useSkillController = (
                 // Drip line warning - suppressed for stable nuclides
                 const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
+                // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
+                const nextTurn = prev.turn + 1;
+                const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
+                const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+
                 triggerTTS("Experimental Replicate"); triggerFlash('bg-neon-blue', 800);
                 return { 
                     ...prev, 
-                    tutorialMessage: prev.tutorialMessage === "Capture particle to transform" ? null : prev.tutorialMessage, 
-                    hasSeenCaptureTutorial: true, 
+                    ...tutorialFlags,
+                    tutorialMessage: nextMsg, 
                     unlockedElements: unlockResult.updatedElements, 
                     unlockedGroups: unlockResult.updatedGroups, 
                     score: prev.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, 
@@ -231,6 +248,8 @@ export const useSkillController = (
                 pa: null
             };
 
+            const nextMsg = getNextTutorialMessage(prev, 'GAME_START', { randomStart });
+
             return { 
                 ...newState, 
                 evolutionHistory: { [`${startNuclide.z}-${startNuclide.a}`]: originEntry },
@@ -244,7 +263,7 @@ export const useSkillController = (
                 reincarnations: randomStart ? currentReincarnations + 1 : 0, 
                 hasSeenCaptureTutorial: randomStart ? currentSeenCapture : false, 
                 hasSeenDecayTutorial: randomStart ? currentSeenDecay : false, 
-                tutorialMessage: (randomStart && currentSeenCapture) ? null : "Capture particle to transform", 
+                tutorialMessage: nextMsg, 
                 messages: [`Journey begins with ${startNuclide.name}.`, ...unlockResult.messages].slice(-10) 
             };
         });

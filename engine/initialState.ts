@@ -1,5 +1,5 @@
 import { GameState, DecayMode } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS, TUTORIAL_MESSAGES } from '../constants';
 
 /**
  * Provides the clean slate initial state for the Nucleus game engine.
@@ -37,7 +37,8 @@ export const getInitialState = (): GameState => ({
     lastConsumedType: null,
     reincarnations: 0,
     magicBarrierCharges: 0,
-    tutorialMessage: "Capture particle to transform",
+    tutorialMessage: TUTORIAL_MESSAGES.CAPTURE,
+    tutorialStartTurn: 0,
     hasSeenDecayTutorial: false,
     hasSeenCaptureTutorial: false,
     comboStartedUnstable: false,

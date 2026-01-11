@@ -1,6 +1,6 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { NuclideData } from '../types';
+import { TITLES } from '../constants/titles';
 
 export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean) => {
     const prevNuclideNameRef = useRef<string>(nuclide.name);
@@ -40,15 +40,39 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
         };
     }, [getTargetVoice]);
 
+    /**
+     * applyNaturalSpeechPatterns: 
+     * Converts technical titles and scientific symbols into natural English for TTS.
+     */
+    const applyNaturalSpeechPatterns = useCallback((text: string) => {
+        let p = text;
+        
+        // 1. Explicit Title Transformations
+        // Use TITLES constant to ensure match, but replace with full natural wording
+        p = p.replace(new RegExp(TITLES.EXP_REPLICATE, 'g'), "Experimental Replicate");
+        p = p.replace(new RegExp(TITLES.ZERO_BARN, 'g'), "Zero Barn");
+        
+        // 2. Scientific Symbol Conversions (Ensures accessibility across all OS voices)
+        p = p.replace(/β\-/g, "Beta Minus");
+        p = p.replace(/β\+/g, "Beta Plus");
+        p = p.replace(/α/g, "Alpha");
+        p = p.replace(/γ/g, "Gamma");
+        
+        return p;
+    }, []);
+
     const createUtterance = useCallback((text: string) => {
-        const utterance = new SpeechSynthesisUtterance(text);
+        // Apply natural speech translations before creating the utterance
+        const processedText = applyNaturalSpeechPatterns(text);
+        const utterance = new SpeechSynthesisUtterance(processedText);
+        
         const voice = getTargetVoice();
         if (voice) utterance.voice = voice;
         utterance.lang = 'en-US';
         utterance.rate = 1.2;
         utterance.pitch = 0.9;
         return utterance;
-    }, [getTargetVoice]);
+    }, [getTargetVoice, applyNaturalSpeechPatterns]);
 
     const processNameForSpeech = (name: string) => {
         if (name === 'Hydrogen-1') return 'Hydrogen';

@@ -2,6 +2,7 @@ import { GameState, DecayMode } from '../types';
 import { calculateReincarnationTargets } from './particleEngine';
 import { REASON } from '../constants/gameOverReason';
 import { processUnlocks } from './unlockSystem';
+import { TITLES } from '../constants/titles';
 
 /**
  * 安定性の危機を解決するための統合管理ユーティリティ。
@@ -31,8 +32,8 @@ export const resolveStabilityCrisis = (
 
     // 1. Temporal Inversion (Auto-Stabilization) Check
     if (checkInversion &&
-        state.unlockedGroups.includes("Temporal Inversion") && 
-        !state.disabledSkills.includes("Temporal Inversion") && 
+        state.unlockedGroups.includes(TITLES.TEMPORAL_INVERSION) && 
+        !state.disabledSkills.includes(TITLES.TEMPORAL_INVERSION) && 
         state.energyPoints >= 5) {
         
         const survivalUpdate: Partial<GameState> = { 
@@ -59,7 +60,7 @@ export const resolveStabilityCrisis = (
     }
 
     // 2. Reincarnation Check
-    const isDaredevilActive = state.unlockedGroups.includes("Daredevil") && !state.disabledSkills.includes("Daredevil");
+    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
     const reinc = calculateReincarnationTargets(
         state.currentNuclide, 
         state.reincarnationPool, 

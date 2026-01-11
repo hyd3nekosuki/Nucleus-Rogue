@@ -3,6 +3,7 @@ import { EntityType, NuclideData, GridEntity, AtomicReactionResult, DecayMode, P
 import { BONUS_SCORES } from '../constants/economy';
 import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
 import { HISTORY_METHODS } from '../constants/strings';
+import { TITLES } from '../constants/titles';
 
 
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -25,10 +26,10 @@ export const calculateInteraction = (
         messages: [], chargesUsed: 0
     };
 
-    const isFusionDisabled = disabledSkills.includes("Fusion");
-    const isZeroBarnActive = unlockedGroups.includes("zero barn") && !disabledSkills.includes("zero barn");
-    const scatteringActive = unlockedGroups.includes("Electron scattering") && !disabledSkills.includes("Electron scattering");
-    const isDaredevilActive = unlockedGroups.includes("Daredevil") && !disabledSkills.includes("Daredevil");
+    const isFusionDisabled = disabledSkills.includes(TITLES.FUSION);
+    const isZeroBarnActive = unlockedGroups.includes(TITLES.ZERO_BARN) && !disabledSkills.includes(TITLES.ZERO_BARN);
+    const scatteringActive = unlockedGroups.includes(TITLES.ELECTRON_SCATTERING) && !disabledSkills.includes(TITLES.ELECTRON_SCATTERING);
+    const isDaredevilActive = unlockedGroups.includes(TITLES.DAREDEVIL) && !disabledSkills.includes(TITLES.DAREDEVIL);
 
     switch (target.type) {
         case EntityType.PROTON:

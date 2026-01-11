@@ -1,4 +1,3 @@
-
 import { 
   DecayMode, 
   NuclideData, 
@@ -71,6 +70,7 @@ export interface GameState {
   reincarnations: number;
   magicBarrierCharges: number;
   tutorialMessage: string | null;
+  tutorialStartTurn: number;
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };

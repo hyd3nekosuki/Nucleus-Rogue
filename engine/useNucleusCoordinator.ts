@@ -29,6 +29,16 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
 
     const stopAutoMoveRef = useRef<() => void>(() => {});
 
+    // Watch for reincarnation events to trigger TTS announcement
+    const prevReincarnationsRef = useRef(gameState.reincarnations);
+    useEffect(() => {
+        // 転生回数が増加したときのみ "Reincarnation" と読み上げる
+        if (gameState.reincarnations > prevReincarnationsRef.current) {
+            triggerTTS("Reincarnation");
+        }
+        prevReincarnationsRef.current = gameState.reincarnations;
+    }, [gameState.reincarnations, triggerTTS]);
+
     const { moveStep } = useMovementExecutor({
         gameState,
         setGameState, 

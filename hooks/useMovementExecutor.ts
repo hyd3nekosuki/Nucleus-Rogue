@@ -4,6 +4,7 @@ import { GameState, DecayMode, NuclideData } from '../types';
 import { ENERGY_EVOLUTION_TURNS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS, BONUS_SCORES } from '../constants/economy';
 import { REASON } from '../constants/gameOverReason';
+import { TITLES } from '../constants/titles';
 
 import { calculateMoveResult } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
@@ -12,6 +13,7 @@ import { getHistoryMethod } from '../utils/historyLogic';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
+import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 
 interface MovementExecutorDeps {
     gameState: GameState;
@@ -114,21 +116,20 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
 
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
+                    const nextTurn = prev.turn + 1;
+                    const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
+                    const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+
                     nextPeripheralUpdate = {
                         ...nextPeripheralUpdate,
+                        ...tutorialUpdates,
+                        tutorialMessage: nextMsg,
                         unlockedElements: unlockResult.updatedElements,
                         unlockedGroups: unlockResult.updatedGroups,
                         messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...dripMsg, ...unlockResult.messages].slice(-10),
                         energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + result.energyBonus),
                         hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty))
                     };
-
-                    if (prev.tutorialMessage === "Capture particle to transform") {
-                        nextPeripheralUpdate.tutorialMessage = null;
-                        nextPeripheralUpdate.hasSeenCaptureTutorial = true;
-                    } else if (!newData.isStable && !prev.hasSeenDecayTutorial) {
-                        nextPeripheralUpdate.tutorialMessage = "Decay to be stable";
-                    }
 
                     if (result.shouldShake) triggerShake();
                     if (result.shouldFlash) triggerFlash('bg-neon-blue');
@@ -138,7 +139,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     // 到達不能な核種への変換試行時
                     // 解禁条件: ドリップライン上かつ「不安定核（放射性）」であること
                     isDaredevilAttempt = !prev.currentNuclide.isStable && (prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine);
-                    const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
+                    const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
 
                     const unlockResult = processUnlocks(
                         prev.unlockedElements, 
@@ -187,6 +188,12 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         `⚠️ ${result.scatteredMessage}`
                     ].slice(-10);
                 }
+
+                // Normal movement (no transformation) - Advance Tutorial Time
+                const nextTurn = prev.turn + 1;
+                const nextMsg = getNextTutorialMessage(prev, 'TURN_ADVANCED', { currentTurn: nextTurn });
+                const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+                Object.assign(nextPeripheralUpdate, { ...tutorialUpdates, tutorialMessage: nextMsg });
             }
 
             let finalNextState = { ...prev, ...nextPeripheralUpdate };
