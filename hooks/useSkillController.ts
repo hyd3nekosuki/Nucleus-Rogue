@@ -5,6 +5,7 @@ import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { MAGIC_NUMBERS } from '../constants/physics';
 import { BONUS_SCORES, STABILIZE_COST, NUCLEOSYNTHESIS_COST, FORCE_DECAY_COST, MAX_ENERGY } from '../constants/economy';
 import { HISTORY_METHODS } from '../constants/strings';
+import { REASON } from '../constants/gameOverReason';
 
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
 import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
@@ -94,7 +95,8 @@ export const useSkillController = (
             const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
             triggerFlash('bg-white', 800);
             const newData = getNuclideDataSync(nextZ, nextA);
-            if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
+            //if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
+            if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
             

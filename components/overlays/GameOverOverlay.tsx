@@ -1,6 +1,7 @@
 import React from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
+import { REASON } from '../../constants/gameOverReason';
 
 interface GameOverOverlayProps {
     isVisible: boolean;
@@ -56,15 +57,29 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 }) => {
     if (!isVisible) return null;
 
-    const isTransformFail = reason === "TRANSFORMATION_FAILED";
-    const isCollapse = reason === "NUCLEUS COLLAPSE";
+    //const isTransformFail = reason === "TRANSFORMATION_FAILED";
+    //const isCollapse = reason === "NUCLEUS COLLAPSE";
+    //const isFatalCollision = reason === "FATAL_COLLISION";
+
+    const isTransformFail = reason ===  REASON.TRANSFORMATION_FAILED;
+    const isDecayFail = reason ===  REASON.DECAY_FAILED;
+    const isCollapse = reason === REASON.NUCLEUS_COLLAPSE;
+    //const isFatalCollision = reason === REASON.FATAL_CAPTURE;
+    const isFatalCapture = reason === REASON.FATAL_CAPTURE;
+    const isUnkown = reason === REASON.UNKNOWN;
     
     let title = "RADIOACTIVE DECAY";
+    if (isDecayFail) title = "DECAY FAILED";
     if (isTransformFail) title = "TRANSFORMATION FAILED";
     if (isCollapse) title = "NUCLEUS COLLAPSE";
+    //if (isFatalCollision) title = "FATAL CAPTURE";
+    if (isFatalCapture) title = "FATAL CAPTURE";
+    if (isUnkown) title = "UNKNOWN";
 
     // Use precise formatting for Game Over screen, regardless of the simplified text used in-game
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
+
+//                        <span className="font-bold text-neon-blue">{nuclide.name}</span> does not exist or is outside the drip lines.
 
     return (
         <div 
@@ -80,9 +95,17 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             </div>
 
             <p className={`mb-4 text-gray-400 text-lg relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
-                {isTransformFail ? (
+                {isFatalCapture ? (
                     <>
-                        <span className="font-bold text-neon-blue">{nuclide.name}</span> does not exist or is outside the drip lines.
+                        Fatal capture occurred at <span className="font-bold text-neon-red">low stability</span>.
+                    </>
+                ) : isDecayFail ? (
+                    <>
+                        <span className="font-bold text-neon-blue">{nuclide.name}</span> fails to decay into a exsisting descendant nuclide.
+                    </>
+                ) : isTransformFail ? (
+                    <>
+                        <span className="font-bold text-neon-blue">{nuclide.name}</span> fails to transform into a exsisting descendant nuclide.
                     </>
                 ) : isCollapse ? (
                     <>
@@ -95,7 +118,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
                 )}
             </p>
             
-            {!isTransformFail && (
+            {!(isDecayFail || isTransformFail || isFatalCapture) && (
                 <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-w-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
                     <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
@@ -116,7 +139,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
                 </div>
             )}
             
-            {isTransformFail && (
+            {(isDecayFail || isTransformFail || isFatalCapture) && (
                 <div className={`mb-8 p-3 bg-black/40 rounded border border-neon-blue/20 relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
                     <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">External Reference:</p>
                     <a 

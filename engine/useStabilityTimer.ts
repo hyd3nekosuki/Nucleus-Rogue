@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { GameState, DecayMode } from '../types';
 import { getStabilityDecayParams } from '../utils/stabilityLogic';
 import { calculateReincarnationTargets } from './particleEngine';
+import { REASON } from '../constants/gameOverReason';
 
 /**
  * Custom hook to manage the continuous HP decay based on nuclide stability.
@@ -87,7 +88,8 @@ export const useStabilityTimer = (
                             hp: 0, 
                             energyPoints: 0, 
                             gameOver: true, 
-                            gameOverReason: "CRITICAL_DECAY", 
+                            //gameOverReason: "CRITICAL_DECAY", 
+                            gameOverReason: REASON.RADIOACTIVE_DECAY,
                             combo: 0, 
                             comboScore: 0, 
                             comboStartNuclide: undefined 

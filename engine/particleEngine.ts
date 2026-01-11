@@ -1,6 +1,7 @@
 import { ELEMENT_SYMBOLS, ELEMENT_NAMES } from '../constants/atomicData';
 import { EntityType, GridEntity, NuclideData, HistoryEntry } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
+import { DRIP_LINE_LIMITS } from '../data/dripLineLimits';
 
 /**
  * Step 1: Goal Nuclide Identification
@@ -169,12 +170,16 @@ export const calculateReincarnationTargets = (
         if (b.z !== a.z) return b.z - a.z;
 
         if (isDaredevilActive) {
-            // Daredevil Mode (Risk Seek): High Z > Drip-line > Unstable (Shortest HL)
-            const aDrip = a.isProtonDripLine || a.isNeutronDripLine;
-            const bDrip = b.isProtonDripLine || b.isNeutronDripLine;
-            if (aDrip !== bDrip) return bDrip ? 1 : -1;
+            // Daredevil Mode (Risk Seek): 
+            // 1. Z (already handled)
+            // 2. Shortest life (Risk seek)
+            if (a.halfLifeSeconds !== b.halfLifeSeconds) {
+                return a.halfLifeSeconds - b.halfLifeSeconds;
+            }
             
-            return a.halfLifeSeconds - b.halfLifeSeconds;
+            // 3. Closest to Neutron Drip Line (highest A for this Z)
+            const maxA = DRIP_LINE_LIMITS[a.z]?.maxA ?? a.a;
+            return (maxA - a.a) - (maxA - b.a);
         } else {
             // Normal Mode (Stability Seek):
             

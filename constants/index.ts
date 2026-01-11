@@ -8,3 +8,4 @@ export * from './atomicData';
 export * from './economy';
 export * from './strings';
 export * from './periodicTableData';
+export * from './gameOverReason';

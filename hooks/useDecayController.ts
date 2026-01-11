@@ -3,6 +3,7 @@ import { GameState, DecayMode, NuclideData } from '../types';
 
 import { COMBO_WINDOW_MS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
+import { REASON } from '../constants/gameOverReason';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
@@ -128,7 +129,9 @@ export const useDecayController = (
                     messages: [...prev.messages, ...unlockResult.messages].slice(-10),
                     gameOver: true, 
                     energyPoints: 0, 
-                    gameOverReason: "TRANSFORMATION_FAILED", 
+                    //gameOverReason: "TRANSFORMATION_FAILED", 
+                    //gameOverReason: REASON.TRANSFORMATION_FAILED,
+                    gameOverReason: REASON.DECAY_FAILED, 
                     combo: 0 
                 };
             });

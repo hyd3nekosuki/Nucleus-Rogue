@@ -105,9 +105,8 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
             {activeStreakType && (
                 <>
                     <span className="mx-2 text-gray-700 font-black">|</span>
-                    <span className="text-neon-purple font-black tracking-normal mr-2 italic">STREAK:</span>
                     <span className={`font-bold ${activeStreakType === 'p' ? 'text-neon-red' : activeStreakType === 'n' ? 'text-neon-blue' : 'text-yellow-400'}`}>
-                        {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}={activeStreakCount}
+                        {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}×{activeStreakCount}
                     </span>
                 </>
             )}
@@ -115,5 +114,11 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
     </div>
   );
 };
+
+/*
+                    <span className="text-neon-purple font-black tracking-normal mr-2 italic">STREAK:</span>
+                    <span className={`font-bold ${activeStreakType === 'p' ? 'text-neon-red' : activeStreakType === 'n' ? 'text-neon-blue' : 'text-yellow-400'}`}>
+                        {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}={activeStreakCount}
+*/
 
 export default GridStatusFooter;

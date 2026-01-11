@@ -1,4 +1,3 @@
-
 import { EntityType, NuclideData, GridEntity, AtomicReactionResult, DecayMode, Position } from '../types';
 
 import { BONUS_SCORES } from '../constants/economy';
@@ -49,8 +48,10 @@ export const calculateInteraction = (
             } else {
                 // Hard mode safety removal for Daredevil
                 if (isDaredevilActive) {
-                    res.hpPenalty = 999; // Fatal
-                    res.scatteredMessage = "FATAL COULOMB COLLISION";
+                    //res.hpPenalty = 999; // Fatal
+                    res.hpPenalty = 20;
+                    res.dZ = 1; res.dA = 1; // Daredevil: Allow transformation even if fatal
+                    res.scatteredMessage = "Unstable proton capture";
                 } else {
                     res.isCoulombScattered = true;
                     res.scatteredMessage = "Proton was scattered by Coulomb barrier";
