@@ -11,7 +11,7 @@ import { processRandomBackgroundEvents } from '../engine/randomEvents';
 import { getHistoryMethod } from '../utils/historyLogic';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { DiscoveryContext } from '../engine/stateTransitions';
-import { calculateReincarnationTargets } from '../engine/particleEngine';
+import { resolveStabilityCrisis } from '../engine/stabilityManager';
 
 interface MovementExecutorDeps {
     gameState: GameState;
@@ -38,6 +38,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
     const moveStep = useCallback((dx: number, dy: number) => {
         let shouldStop = false;
         let potentialReason = REASON.UNKNOWN;
+        let isDaredevilAttempt = false;
 
         setGameState(prev => {
             if (prev.gameOver || prev.loadingData || prev.isTimeStopped) {
@@ -77,13 +78,10 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             const potentialZ = prev.currentNuclide.z + result.dZ;
             const potentialA = prev.currentNuclide.a + result.dA;
             
-            // Check if identity changed
-            //if (result.dZ !== 0 || result.dA !== 0 || result.isPpFusion || result.isPositronAbsorption || result.isCoulombScattered) {
             if (result.dZ !== 0 || result.dA !== 0 || result.isPpFusion || result.isPositronAbsorption ) {
                 const newData = (result.dZ === 0 && result.dA === 0 && !result.isPpFusion && !result.isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
                 
                 if (newData.exists) {
-                    // Unlock Processing
                     const unlockResult = processUnlocks(
                         prev.unlockedElements, prev.unlockedGroups, potentialZ, potentialA, 
                         false, false, false, false, 0, 
@@ -91,12 +89,10 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         0, 0, result.gluttonyTrigger
                     );
 
-                    // Scoring
                     const basePoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
                     const stabilityReward = newData.isStable ? SCORE_FACTORS.MOVEMENT_STABLE_REWARD : SCORE_FACTORS.MOVEMENT_UNSTABLE_REWARD;
                     const totalBaseActionScore = basePoints + stabilityReward + result.actionBonusScore + (result.magicProtectionBonus || 0) + (result.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
 
-                    // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
                     dispatchDiscovery(newData, {
                         method: getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel),
                         pz: prev.currentNuclide.z,
@@ -106,19 +102,15 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         inducedDecayMode: result.inducedDecayMode
                     });
 
-                    // Messaging
                     const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ ${result.isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];
                     const fusionMsg = result.isPpFusion ? [`✨ STELLAR FUSION: p + p → D + e+ (+${BONUS_SCORES.STELLAR_FUSION.toLocaleString()} PTS)`] : [];
                     let coreMsg = result.scatteredMessage && !result.isPositronAbsorption ? `⚠️ ${result.scatteredMessage}` : result.isPpFusion ? `Fusion: Deuterium Synthesized.` : result.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
 
-                    // Daredevil special flavor for high damage transformation (if any)
-                    //if (result.hpPenalty === 999) coreMsg = "☢️ FATAL ERROR: HIGH-ENERGY COLLISION AT LOW STABILITY!";
                     if (result.hpPenalty >= 20) {
                         coreMsg = "☢️ FATAL ERROR: UNSTABLE CAPTURE!";
                         potentialReason = REASON.FATAL_CAPTURE;
                     }
 
-                    // Drip line warning
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
                     nextPeripheralUpdate = {
@@ -142,12 +134,11 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     if (result.isPpFusion) triggerTTS("Nuclear Fusion");
                     
                 } else {
-                    // Target does not exist (Drip line violation)
-                    // Check for Daredevil attempt
+                    // 到達不能な核種への変換試行時
+                    // 解禁条件: ドリップライン上かつ「不安定核（放射性）」であること
+                    isDaredevilAttempt = !prev.currentNuclide.isStable && (prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine);
                     const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
-                    const isDaredevilAttempt = prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine;
 
-                    // Check for achievements even during failure (Bremsstrahlung or Zero Barn)
                     const unlockResult = processUnlocks(
                         prev.unlockedElements, 
                         prev.unlockedGroups, 
@@ -158,61 +149,39 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     );
                     
                     const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ MAGIC BARRIER USED: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];
+                    const failMsg = `⚠️ Transformation failed: Target nuclide is outside the drip lines.`;
                     
                     nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups; 
                     nextPeripheralUpdate.score = prev.score + (result.actionBonusScore || 0) + (result.magicProtectionBonus || 0) + unlockResult.scoreBonus; 
-                    nextPeripheralUpdate.messages = [...prev.messages, ...protectionMsg, ...unlockResult.messages].slice(-10);
+                    nextPeripheralUpdate.messages = [...prev.messages, failMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);
                     
-                    // Daredevil: crossing drip line is now fatal instead of just losing 20HP 
-                    nextPeripheralUpdate.hp = isDaredevilActive ? 0 : Math.max(0, prev.hp - result.hpPenalty);
+                    // 強制的にHPを0にするのは、Daredevilスキルが有効な「ハードモード」時のみ。
+                    // それ以外は物理計算上のダメージ（通常20）を適用し、生存の可能性を残す。
                     if (isDaredevilActive) {
+                        nextPeripheralUpdate.hp = 0;
                         potentialReason = REASON.TRANSFORMATION_FAILED;
+                    } else {
+                        nextPeripheralUpdate.hp = Math.max(0, prev.hp - result.hpPenalty);
+                        if (nextPeripheralUpdate.hp === 0) potentialReason = REASON.FATAL_CAPTURE;
                     }
                     
                     nextPeripheralUpdate.magicBarrierCharges = Math.max(0, prev.magicBarrierCharges - (result.chargesUsed || 0));
                     nextPeripheralUpdate.turn = prev.turn + 1; 
 
-                    // MODIFIED: Do not trigger reincarnation or gameOver immediately here for Daredevil.
-                    // Instead, let it flow to the Global Stability Enforcement block at the end of setGameState.
-                    // This ensures Temporal Inversion (Auto-stabilization) is checked first.
-                    
-                    // Update streak status even on failed transformation
                     nextPeripheralUpdate.consecutiveProtons = result.consecutiveProtons;
                     nextPeripheralUpdate.consecutiveNeutrons = result.consecutiveNeutrons;
                     nextPeripheralUpdate.consecutiveElectrons = result.consecutiveElectrons;
                     nextPeripheralUpdate.lastConsumedType = result.lastConsumedType;
                 }
             } else {
-                // Moving without identity change (e.g. no capture due to Coulomb Scattering, or hitting wall)
                 nextPeripheralUpdate.turn = prev.turn + 1;
-                
-                // Correctly apply stability recovery vs hp penalty (Daredevil case)
                 const recovery = prev.currentNuclide.isStable ? 1 : 0;
                 nextPeripheralUpdate.hp = Math.max(0, Math.min(prev.maxHp, prev.hp + recovery) - result.hpPenalty);
-                
-                // Still check for achievements like Zero Barn if the move was successful but identity didn't change (rare but for safety)
-                /*if (result.isZeroBarnAchieved) {
-                    const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, 
-                    prev.currentNuclide.z, prev.currentNuclide.a,
-                    false, false, false, false, 0, false, false, false, true);
-                    nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups;
-                    nextPeripheralUpdate.messages = [...prev.messages, ...unlockResult.messages].slice(-10);
-                    nextPeripheralUpdate.score = (nextPeripheralUpdate.score || prev.score) + unlockResult.scoreBonus;
-                }
-                
-                if (result.scatteredMessage) {
-                    const msg = result.hpPenalty === 999 
-                        //? "☢️ FATAL ERROR: HIGH-ENERGY COLLISION AT LOW STABILITY!"
-                        ? "☢️ FATAL ERROR: UNSTABLE COLLISION!" 
-                        : `ℹ ${result.scatteredMessage}`;
-                    nextPeripheralUpdate.messages = [...prev.messages, msg].slice(-10);
-                }*/
+                if (nextPeripheralUpdate.hp === 0) potentialReason = REASON.FATAL_CAPTURE;
             }
 
-            // Create intermediate state for background events processing
             let finalNextState = { ...prev, ...nextPeripheralUpdate };
 
-            // Cleanup & Stats
             if (result.additionalEffects) {
                 finalNextState.effects = [...finalNextState.effects, ...result.additionalEffects];
             }
@@ -224,60 +193,13 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 };
             }
 
-            // Global Stability Enforcement (Catch hp <= 0 from 999 damage)
+            // Global Stability Enforcement
             if (finalNextState.hp <= 0 && !finalNextState.gameOver) {
-                if (finalNextState.unlockedGroups.includes("Temporal Inversion") && 
-                    !finalNextState.disabledSkills.includes("Temporal Inversion") && 
-                    finalNextState.energyPoints >= 5) {
-                    
-                    finalNextState.hp = finalNextState.maxHp;
-                    finalNextState.energyPoints -= 5;
-                    finalNextState.messages = [...finalNextState.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!"].slice(-10);
-                    finalNextState.effects = [
-                        ...finalNextState.effects, 
-                        { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...finalNextState.playerPos }, timestamp: Date.now() }
-                    ];
-                } else {
-                    // Final Reincarnation attempt before Game Over
-                    const isDaredevilActive = finalNextState.unlockedGroups.includes("Daredevil") && !finalNextState.disabledSkills.includes("Daredevil");
-                    const reinc = calculateReincarnationTargets(finalNextState.currentNuclide, finalNextState.reincarnationPool, finalNextState.evolutionHistory, isDaredevilActive);
-                    
-                    if (reinc) {
-                        const { nuclide, usage } = reinc;
-                        const nextEnergy = Math.floor((finalNextState.energyPoints / 2) / 5) * 5;
-
-                        finalNextState.currentNuclide = nuclide;
-                        finalNextState.hp = finalNextState.maxHp;
-                        finalNextState.playerLevel = 0;
-                        finalNextState.masteredDecays = [];
-                        finalNextState.energyPoints = nextEnergy;
-                        finalNextState.reincarnationPool = {
-                            p: finalNextState.reincarnationPool.p - usage.p,
-                            n: finalNextState.reincarnationPool.n - usage.n,
-                            e: finalNextState.reincarnationPool.e - usage.e
-                        };
-                        finalNextState.reincarnations += 1;
-                        finalNextState.messages = [...finalNextState.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}! (Energy dissipated)`].slice(-10);
-                        finalNextState.combo = 0;
-                        finalNextState.comboScore = 0;
-                        finalNextState.comboStartNuclide = undefined;
-                        finalNextState.comboStartedUnstable = false;
-                        finalNextState.consecutiveProtons = 0;
-                        finalNextState.consecutiveNeutrons = 0;
-                        finalNextState.consecutiveElectrons = 0;
-                        finalNextState.lastConsumedType = null;
-                    } else {
-                        finalNextState.gameOver = true;
-                        // Use the specific Fatal Collision reason if it was the cause
-                        //finalNextState.gameOverReason = result.hpPenalty === 999 ? "FATAL_COLLISION" : "PARTICLE_COLLISION";
-                        //finalNextState.gameOverReason = result.hpPenalty === 999 ? REASON.FATAL_CAPTURE : REASON.UNKNOWN;
-                        finalNextState.gameOverReason = potentialReason;
-                        shouldStop = true;
-                    }
-                }
+                const crisisUpdate = resolveStabilityCrisis(finalNextState, potentialReason, isDaredevilAttempt);
+                finalNextState = { ...finalNextState, ...crisisUpdate };
+                if (finalNextState.gameOver) shouldStop = true;
             }
 
-            // Background Events
             const backgroundResult = processRandomBackgroundEvents(finalNextState);
             finalNextState.gridEntities = backgroundResult.gridEntities;
             finalNextState.messages = backgroundResult.messages;

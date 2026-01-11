@@ -9,7 +9,7 @@ import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { processUnlocks } from '../engine/unlockSystem';
 import { DiscoveryContext } from '../engine/stateTransitions';
-import { calculateReincarnationTargets } from '../engine/particleEngine';
+import { resolveStabilityCrisis } from '../engine/stabilityManager';
 
 export const useDecayController = (
     gameState: GameState,
@@ -50,7 +50,6 @@ export const useDecayController = (
                 }
             });
             
-            // Choose one decay mode from the possible candidates with a single random roll
             actualMode = candidates[Math.floor(Math.random() * candidates.length)];
         }
 
@@ -81,59 +80,31 @@ export const useDecayController = (
 
         const newData = getNuclideDataSync(gameState.currentNuclide.z + decayResult.dZ, gameState.currentNuclide.a + decayResult.dA);
         if (!newData.exists) {
-            const isDaredevilAttempt = gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine;
+            const isDaredevilAttempt = !gameState.currentNuclide.isStable && (gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine);
             setGameState(prev => {
-                // Reincarnation check on failed transformation
                 const isDaredevilActive = prev.unlockedGroups.includes("Daredevil") && !prev.disabledSkills.includes("Daredevil");
-                const reinc = calculateReincarnationTargets(prev.currentNuclide, prev.reincarnationPool, prev.evolutionHistory, isDaredevilActive);
                 
-                if (reinc) {
-                    const { nuclide, usage } = reinc;
-                    const nextEnergy = Math.floor((prev.energyPoints / 2) / 5) * 5;
-
-                    return {
-                        ...prev,
-                        currentNuclide: nuclide,
-                        hp: prev.maxHp,
-                        playerLevel: 0,
-                        masteredDecays: [],
-                        energyPoints: nextEnergy,
-                        reincarnationPool: {
-                            p: prev.reincarnationPool.p - usage.p,
-                            n: prev.reincarnationPool.n - usage.n,
-                            e: prev.reincarnationPool.e - usage.e
-                        },
-                        reincarnations: prev.reincarnations + 1,
-                        messages: [...prev.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}! (Knowledge dissipated)`].slice(-10),
-                        combo: 0,
-                        comboScore: 0,
-                        comboStartNuclide: undefined,
-                        comboStartedUnstable: false,
-                        consecutiveProtons: 0,
-                        consecutiveNeutrons: 0,
-                        consecutiveElectrons: 0,
-                        lastConsumedType: null
+                if (isDaredevilActive) {
+                    // ハードモード: 即座に危機(Crisis)判定へ
+                    const crisisUpdate = resolveStabilityCrisis(prev, REASON.DECAY_FAILED, isDaredevilAttempt, false);
+                    return { ...prev, ...crisisUpdate };
+                } else {
+                    // 通常モード: ダメージを受けるが即死ではない。HPが0になった場合のみ救済判定へ
+                    const hpPenalty = 20;
+                    const newHp = Math.max(0, prev.hp - hpPenalty);
+                    const failMsg = `⚠️ Decay failed: Target nuclide is outside the drip lines.`;
+                    
+                    if (newHp === 0) {
+                         const crisisUpdate = resolveStabilityCrisis(prev, REASON.DECAY_FAILED, isDaredevilAttempt, false);
+                         return { ...prev, ...crisisUpdate, messages: [...prev.messages, failMsg].slice(-10) };
+                    }
+                    
+                    return { 
+                        ...prev, 
+                        hp: newHp, 
+                        messages: [...prev.messages, failMsg].slice(-10) 
                     };
                 }
-
-                const unlockResult = processUnlocks(
-                    prev.unlockedElements, prev.unlockedGroups, null, null, 
-                    false, false, false, false, 0, 
-                    false, false, false, false, false, 
-                    0, 0, false, isDaredevilAttempt
-                );
-                return { 
-                    ...prev, 
-                    unlockedGroups: unlockResult.updatedGroups,
-                    score: prev.score + unlockResult.scoreBonus,
-                    messages: [...prev.messages, ...unlockResult.messages].slice(-10),
-                    gameOver: true, 
-                    energyPoints: 0, 
-                    //gameOverReason: "TRANSFORMATION_FAILED", 
-                    //gameOverReason: REASON.TRANSFORMATION_FAILED,
-                    gameOverReason: REASON.DECAY_FAILED, 
-                    combo: 0 
-                };
             });
             return;
         }
@@ -144,12 +115,10 @@ export const useDecayController = (
         const totalBasePoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
         const totalActionDelta = totalBasePoints * rawCombo;
 
-        // --- Mastery Check: Priority Event Announcement ---
         if (!gameState.masteredDecays.includes(actualMode) && gameState.playerLevel < 6) {
             triggerTTS("Mastery Level Up");
         }
 
-        // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
         dispatchDiscovery(newData, {
             method: decayResult.trigger,
             pz: gameState.currentNuclide.z,
@@ -159,7 +128,6 @@ export const useDecayController = (
             inducedDecayMode: actualMode
         });
 
-        // Update peripheral state
         setGameState(prev => {
             const unlockResult = processUnlocks(
                 prev.unlockedElements, prev.unlockedGroups, newData.z, newData.a, 
@@ -171,7 +139,6 @@ export const useDecayController = (
             
             if (newData.isStable && rawCombo >= 2) setLastFinalCombo({ count: rawCombo, id: Date.now() }); 
 
-            // Drip line warning - suppressed for stable nuclides
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
             return { 
