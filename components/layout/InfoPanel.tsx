@@ -1,7 +1,7 @@
-// Fix: Removed invalid 'onClick' import from 'react' module.
 import React from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
+import { formatScore } from '../../utils/scientificFormatters';
 import TrefoilIndicator from '../game/TrefoilIndicator';
 
 interface InfoPanelProps {
@@ -40,27 +40,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   onUltimateSynthesis,
   onForceDecay
 }) => {
-
-  const formatScore = (val: number): string => {
-    if (val < 1000000) return val.toLocaleString();
-    
-    const units = [
-      { v: 1e21, s: "Z" }, 
-      { v: 1e18, s: "E" }, 
-      { v: 1e15, s: "P" }, 
-      { v: 1e12, s: "T" }, 
-      { v: 1e9,  s: "G" }, 
-      { v: 1e6,  s: "M" }, 
-    ];
-
-    for (const unit of units) {
-      if (val >= unit.v) {
-        const scaled = val / unit.v;
-        return Number(scaled.toPrecision(4)).toString() + " " + unit.s;
-      }
-    }
-    return val.toLocaleString();
-  };
 
   const handleDecayClick = () => {
     if (nuclide.isStable || !onDecay || disabled) return;

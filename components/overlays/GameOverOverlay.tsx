@@ -1,7 +1,8 @@
 import React from 'react';
-import { NuclideData, DecayMode } from '../../types';
+import { NuclideData } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import { REASON } from '../../constants/gameOverReason';
+import { formatPreciseHalfLife } from '../../utils/scientificFormatters';
 
 interface GameOverOverlayProps {
     isVisible: boolean;
@@ -12,134 +13,96 @@ interface GameOverOverlayProps {
     onToggleSoundTest: () => void;
 }
 
-const formatPreciseHalfLife = (seconds: number): string => {
-    if (seconds === Infinity) return "Stable";
-    
-    // Handle 'V' flag (mapped to 1e-9) or extremely short/unmeasured measurements
-    if (seconds <= 1e-9) return "< 1 ns";
-
-    // Use scientific notation for very fast decays (less than 1ms but greater than 1ns)
-    if (seconds < 1e-3) {
-        return `${seconds.toExponential(3)} s`;
+/**
+ * Metadata table for game over reasons.
+ * Centralizes titles and description templates.
+ */
+const REASON_METADATA: Record<string, { title: string; getDescription: (name: string) => React.ReactNode }> = {
+    [REASON.FATAL_CAPTURE]: {
+        title: "FATAL CAPTURE",
+        getDescription: () => <>Fatal capture occurred at <span className="font-bold text-neon-red">low stability</span>.</>
+    },
+    [REASON.DECAY_FAILED]: {
+        title: "DECAY FAILED",
+        getDescription: (name) => <><span className="font-bold text-neon-blue">{name}</span> fails to decay into a exsisting descendant nuclide.</>
+    },
+    [REASON.TRANSFORMATION_FAILED]: {
+        title: "TRANSFORMATION FAILED",
+        getDescription: (name) => <><span className="font-bold text-neon-blue">{name}</span> fails to transform into a exsisting descendant nuclide.</>
+    },
+    [REASON.NUCLEUS_COLLAPSE]: {
+        title: "NUCLEUS COLLAPSE",
+        getDescription: () => <>Accretion reached an <span className="font-bold text-neon-blue">impossible configuration</span>.</>
+    },
+    [REASON.UNKNOWN]: {
+        title: "UNKNOWN",
+        getDescription: (name) => <>You were <span className="font-bold text-neon-blue">{name}</span></>
+    },
+    // Default fallback
+    "DEFAULT": {
+        title: "RADIOACTIVE DECAY",
+        getDescription: (name) => <>You were <span className="font-bold text-neon-blue">{name}</span></>
     }
-
-    // Seconds
-    if (seconds < 60) {
-        return `${parseFloat(seconds.toPrecision(4))} s`;
-    }
-    
-    // Minutes
-    if (seconds < 3600) {
-        return `${parseFloat((seconds / 60).toPrecision(4))} m`;
-    }
-
-    // Hours
-    if (seconds < 86400) {
-        return `${parseFloat((seconds / 3600).toPrecision(4))} h`;
-    }
-
-    // Days
-    const YEAR = 31557600; // 365.25 days
-    if (seconds < YEAR) {
-        return `${parseFloat((seconds / 86400).toPrecision(4))} d`;
-    }
-
-    // Years
-    const years = seconds / YEAR;
-    if (years >= 1e4) {
-        return `${years.toExponential(3)} y`;
-    }
-    return `${parseFloat(years.toPrecision(4))} y`;
 };
 
+/**
+ * Internal sub-component to display nuclide statistics.
+ */
+const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isSoundTestActive: boolean }> = ({ nuclide, halfLife, isSoundTestActive }) => (
+    <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-w-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
+        <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
+            <div className="text-gray-500">Half-Life:</div>
+            <div className="text-white font-bold text-right drop-shadow-[0_0_5px_white]">{halfLife}</div>
+            
+            <div className="text-gray-500">Mode:</div>
+            <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full drop-shadow-[0_0_5px_#00ff9d]">
+                {formatDecayModes(nuclide)}
+            </div>
+
+            <div className="text-gray-500">Protons (Z):</div>
+            <div className="text-white text-right font-bold">{nuclide.z}</div>
+
+            <div className="text-gray-500">Mass (A):</div>
+            <div className="text-white text-right font-bold">{nuclide.a}</div>
+        </div>
+    </div>
+);
+
 const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ 
-    isVisible, reason, nuclide, onRestart, isSoundTestActive, onToggleSoundTest 
+    isVisible, reason = REASON.UNKNOWN, nuclide, onRestart, isSoundTestActive, onToggleSoundTest 
 }) => {
     if (!isVisible) return null;
 
-    //const isTransformFail = reason === "TRANSFORMATION_FAILED";
-    //const isCollapse = reason === "NUCLEUS COLLAPSE";
-    //const isFatalCollision = reason === "FATAL_COLLISION";
-
-    const isTransformFail = reason ===  REASON.TRANSFORMATION_FAILED;
-    const isDecayFail = reason ===  REASON.DECAY_FAILED;
-    const isCollapse = reason === REASON.NUCLEUS_COLLAPSE;
-    //const isFatalCollision = reason === REASON.FATAL_CAPTURE;
-    const isFatalCapture = reason === REASON.FATAL_CAPTURE;
-    const isUnkown = reason === REASON.UNKNOWN;
-    
-    let title = "RADIOACTIVE DECAY";
-    if (isDecayFail) title = "DECAY FAILED";
-    if (isTransformFail) title = "TRANSFORMATION FAILED";
-    if (isCollapse) title = "NUCLEUS COLLAPSE";
-    //if (isFatalCollision) title = "FATAL CAPTURE";
-    if (isFatalCapture) title = "FATAL CAPTURE";
-    if (isUnkown) title = "UNKNOWN";
-
-    // Use precise formatting for Game Over screen, regardless of the simplified text used in-game
+    const meta = REASON_METADATA[reason] || REASON_METADATA["DEFAULT"];
+    const isCriticalFail = [REASON.DECAY_FAILED, REASON.TRANSFORMATION_FAILED, REASON.FATAL_CAPTURE].includes(reason);
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
-
-//                        <span className="font-bold text-neon-blue">{nuclide.name}</span> does not exist or is outside the drip lines.
 
     return (
         <div 
             onClick={() => isSoundTestActive && onToggleSoundTest()}
             className={`absolute inset-0 bg-[#050508]/95 flex flex-col items-center justify-center rounded-xl z-30 p-6 text-center shadow-[0_0_50px_rgba(0,0,0,1)] backdrop-blur-md border border-neon-blue/20 overflow-hidden transition-all duration-700 ${isSoundTestActive ? 'opacity-30 cursor-pointer' : 'opacity-100'}`}
         >
-            {/* CRT Scanline Overlay for Cyberpunk feel */}
+            {/* CRT Scanline Overlay */}
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(0,243,255,0.02),rgba(0,243,255,0.01),rgba(0,243,255,0.02))] bg-[length:100%_3px,2px_100%] opacity-50"></div>
             
-            {/* Title with strong glow */}
+            {/* Title */}
             <div className={`text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase italic transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
-                {title}
+                {meta.title}
             </div>
 
+            {/* Description Message */}
             <p className={`mb-4 text-gray-400 text-lg relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
-                {isFatalCapture ? (
-                    <>
-                        Fatal capture occurred at <span className="font-bold text-neon-red">low stability</span>.
-                    </>
-                ) : isDecayFail ? (
-                    <>
-                        <span className="font-bold text-neon-blue">{nuclide.name}</span> fails to decay into a exsisting descendant nuclide.
-                    </>
-                ) : isTransformFail ? (
-                    <>
-                        <span className="font-bold text-neon-blue">{nuclide.name}</span> fails to transform into a exsisting descendant nuclide.
-                    </>
-                ) : isCollapse ? (
-                    <>
-                        Accretion reached an <span className="font-bold text-neon-blue">impossible configuration</span>.
-                    </>
-                ) : (
-                    <>
-                        You were <span className="font-bold text-neon-blue">{nuclide.name}</span>
-                    </>
-                )}
+                {meta.getDescription(nuclide.name)}
             </p>
             
-            {!(isDecayFail || isTransformFail || isFatalCapture) && (
-                <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-w-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
-                    <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
-                        <div className="text-gray-500">Half-Life:</div>
-                        <div className="text-white font-bold text-right drop-shadow-[0_0_5px_white]">{preciseHalfLife}</div>
-                        
-                        <div className="text-gray-500">Mode:</div>
-                        <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full drop-shadow-[0_0_5px_#00ff9d]">
-                            {formatDecayModes(nuclide)}
-                        </div>
-
-                        <div className="text-gray-500">Protons (Z):</div>
-                        <div className="text-white text-right font-bold">{nuclide.z}</div>
-
-                        <div className="text-gray-500">Mass (A):</div>
-                        <div className="text-white text-right font-bold">{nuclide.a}</div>
-                    </div>
-                </div>
+            {/* Diagnostics Stats */}
+            {!isCriticalFail && (
+                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} />
             )}
             
-            {(isDecayFail || isTransformFail || isFatalCapture) && (
+            {/* External Reference for Failures */}
+            {isCriticalFail && (
                 <div className={`mb-8 p-3 bg-black/40 rounded border border-neon-blue/20 relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
                     <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">External Reference:</p>
                     <a 
@@ -154,6 +117,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
                 </div>
             )}
 
+            {/* Action Buttons */}
             <div className={`flex flex-col gap-3 w-full max-w-[250px] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`}>
                 <button 
                     onClick={(e) => { e.stopPropagation(); onRestart(true); }}
@@ -170,7 +134,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
                 </button>
             </div>
 
-            {/* Sound Test Icon (Bottom Right - Small version for Mobile compatibility) */}
+            {/* Sound Test Icon */}
             <button 
                 onClick={(e) => { e.stopPropagation(); onToggleSoundTest(); }}
                 className={`absolute bottom-3 right-3 w-8 h-8 flex items-center justify-center bg-black/60 text-yellow-400 border border-yellow-400 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.2)] hover:bg-yellow-400 hover:text-black hover:scale-110 transition-all duration-300 z-40 ${isSoundTestActive ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}
@@ -179,7 +143,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
                 <span className="text-base font-bold">♪</span>
             </button>
             
-            {/* Background decorative corner marks */}
+            {/* Decorative corners */}
             <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-neon-blue/30"></div>
             <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-neon-blue/30"></div>
             <div className="absolute bottom-4 left-4 h-4 border-b-2 border-l-2 border-neon-blue/30 w-4"></div>
