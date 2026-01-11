@@ -1,3 +1,5 @@
+import { TITLES } from './titles';
+
 export const KNOWN_Z_LIMIT = 118;
 
 export const ELEMENT_SYMBOLS = [
@@ -25,21 +27,21 @@ export const ELEMENT_NAMES = [
 ];
 
 export const ELEMENT_GROUPS: Record<string, number[]> = {
-    "Non-metal": [1, 6, 7, 8, 15, 16, 34],
-    "Noble Gas": [2, 10, 18, 36, 54, 86, 118],
-    "Alkali Metal": [3, 11, 19, 37, 55, 87],
-    "Alkaline Earth": [4, 12, 20, 38, 56, 88],
-    "Metalloid": [5, 14, 32, 33, 51, 52],
-    "Halogen": [9, 17, 35, 53, 85, 117],
-    "Transition": [
+    [TITLES.NON_METAL]: [1, 6, 7, 8, 15, 16, 34],
+    [TITLES.NOBLE_GAS]: [2, 10, 18, 36, 54, 86, 118],
+    [TITLES.ALKALI_METAL]: [3, 11, 19, 37, 55, 87],
+    [TITLES.ALKALINE_EARTH]: [4, 12, 20, 38, 56, 88],
+    [TITLES.METALLOID]: [5, 14, 32, 33, 51, 52],
+    [TITLES.HALOGEN]: [9, 17, 35, 53, 85, 117],
+    [TITLES.TRANSITION]: [
         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
         39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
         72, 73, 74, 75, 76, 77, 78, 79, 80,
         104, 105, 106, 107, 108, 109, 110, 111, 112
     ],
-    "Post-Transition": [13, 31, 49, 50, 81, 82, 83, 84, 113, 114, 115, 116],
-    "Lanthanide": Array.from({length: 15}, (_, i) => 57 + i), // 57-71
-    "Actinide": Array.from({length: 15}, (_, i) => 89 + i)    // 89-103
+    [TITLES.POST_TRANSITION]: [13, 31, 49, 50, 81, 82, 83, 84, 113, 114, 115, 116],
+    [TITLES.LANTHANIDE]: Array.from({length: 15}, (_, i) => 57 + i), // 57-71
+    [TITLES.ACTINIDE]: Array.from({length: 15}, (_, i) => 89 + i)    // 89-103
 };
 
 export const getSymbol = (z: number): string => {

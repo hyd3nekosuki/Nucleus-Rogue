@@ -107,7 +107,8 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     let coreMsg = result.scatteredMessage && !result.isPositronAbsorption ? `⚠️ ${result.scatteredMessage}` : result.isPpFusion ? `Fusion: Deuterium Synthesized.` : result.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
 
                     if (result.hpPenalty >= 20) {
-                        coreMsg = "☢️ FATAL ERROR: UNSTABLE CAPTURE!";
+                        //coreMsg = `☢️ FATAL ERROR: UNSTABLE CAPTURE! (${coreMsg})`;
+                        coreMsg = `⚠️ ENFORCED CAPTURE! ${coreMsg}`;
                         potentialReason = REASON.FATAL_CAPTURE;
                     }
 
@@ -178,6 +179,14 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 const recovery = prev.currentNuclide.isStable ? 1 : 0;
                 nextPeripheralUpdate.hp = Math.max(0, Math.min(prev.maxHp, prev.hp + recovery) - result.hpPenalty);
                 if (nextPeripheralUpdate.hp === 0) potentialReason = REASON.FATAL_CAPTURE;
+
+                // 【追記】物理計算結果から散乱メッセージがあるかチェックして追加する
+                if (result.scatteredMessage) {
+                    nextPeripheralUpdate.messages = [
+                        ...prev.messages, 
+                        `⚠️ ${result.scatteredMessage}`
+                    ].slice(-10);
+                }
             }
 
             let finalNextState = { ...prev, ...nextPeripheralUpdate };

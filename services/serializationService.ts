@@ -1,14 +1,33 @@
-
 import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
 import { HISTORY_METHODS } from '../constants';
+import { TITLES } from '../constants/titles';
 
 // ID mapping for binary serialization
-const GROUP_MAP = [
-    "Non-metal", "Noble Gas", "Alkali Metal", "Alkaline Earth", "Metalloid", "Halogen", 
-    "Transition", "Post-Transition", "Lanthanide", "Actinide", "Pair annihilation", 
-    "Neutronization", "Exp. Replicate", "Nucleosynthesis", "Unknown", 
-    "Temporal Inversion", "Fusion", "Fission", "zero barn", "Electron scattering", "Gluttony",
-    "Daredevil"
+// CAUTION: Index order must be preserved to maintain save code compatibility.
+// Added explicit string[] type to fix mismatch between string and specific literal union in indexOf()
+const GROUP_MAP: string[] = [
+    TITLES.NON_METAL,           // 0
+    TITLES.NOBLE_GAS,           // 1
+    TITLES.ALKALI_METAL,        // 2
+    TITLES.ALKALINE_EARTH,      // 3
+    TITLES.METALLOID,           // 4
+    TITLES.HALOGEN,             // 5
+    TITLES.TRANSITION,          // 6
+    TITLES.POST_TRANSITION,     // 7
+    TITLES.LANTHANIDE,          // 8
+    TITLES.ACTINIDE,            // 9
+    TITLES.PAIR_ANNIHILATION,   // 10
+    TITLES.NEUTRONIZATION,      // 11
+    TITLES.EXP_REPLICATE,       // 12
+    TITLES.NUCLEOSYNTHESIS,     // 13
+    TITLES.UNKNOWN,             // 14
+    TITLES.TEMPORAL_INVERSION,  // 15
+    TITLES.FUSION,              // 16
+    TITLES.FISSION,             // 17
+    TITLES.ZERO_BARN,           // 18
+    TITLES.ELECTRON_SCATTERING, // 19
+    TITLES.GLUTTONY,            // 20
+    TITLES.DAREDEVIL            // 21
 ];
 
 const METHOD_MAP = Object.values(HISTORY_METHODS);
@@ -100,6 +119,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
 
     let groupBits = 0;
     state.unlockedGroups.forEach(g => {
+        // Fix: Explicitly typed GROUP_MAP above resolves the string mismatch here
         const idx = GROUP_MAP.indexOf(g);
         if (idx !== -1) groupBits |= (1 << idx);
     });
@@ -107,6 +127,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
 
     let disabledBits = 0;
     state.disabledSkills.forEach(s => {
+        // Fix: Explicitly typed GROUP_MAP above resolves the string mismatch here
         const idx = GROUP_MAP.indexOf(s);
         if (idx !== -1) disabledBits |= (1 << idx);
     });
@@ -226,7 +247,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             const z = view.getUint8(offset++);
             const a = view.getUint16(offset); offset += 2;
             const mIdx = view.getUint8(offset++);
-            const method = mIdx === 255 ? "Unknown" : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
+            const method = mIdx === 255 ? TITLES.UNKNOWN : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
             
             let firstTurn = 0;
             let lastTurn = 0;
