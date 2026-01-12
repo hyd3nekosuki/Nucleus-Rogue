@@ -76,6 +76,7 @@ export interface GameState {
   hasSeenCaptureTutorial: boolean;
   hasSeenDripLineTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
+  emptyTurnCount: number;
 }
 
 export type GameAction =

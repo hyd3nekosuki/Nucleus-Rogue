@@ -1,3 +1,4 @@
+
 import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
@@ -28,11 +29,41 @@ export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
     return DECAY_PHYSICS[mode] || DECAY_PHYSICS[DecayMode.UNKNOWN];
 };
 
-const handleAlphaDecay = (currentTime: number, pos: Position): Partial<DecayResult> => ({
-    trigger: HISTORY_METHODS.ALPHA_DECAY,
-    energyBonus: 5,
-    shouldFlash: false
-});
+/**
+ * Handles Alpha Decay logic, including anti-nuclide neutralization in 8 directions.
+ */
+const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number): Partial<DecayResult> => {
+    let currentEntities = [...gridEntities];
+    let energyBonus = 5;
+    let score = 0;
+    const messages: string[] = [];
+
+    // Find anti-nuclides in 8 directions (Moore neighborhood)
+    const nearbyAntis = currentEntities.filter(e => 
+        e.type === EntityType.ANTI_NUCLIDE && 
+        Math.abs(e.position.x - playerPos.x) <= 1 && 
+        Math.abs(e.position.y - playerPos.y) <= 1
+    );
+
+    if (nearbyAntis.length > 0) {
+        // Remove detected anti-nuclides
+        currentEntities = currentEntities.filter(e => !nearbyAntis.some(a => a.id === e.id));
+        
+        // Apply special rewards
+        energyBonus += 1000;
+        score += Math.floor(940 * currentNuclide.a);
+        messages.push(`✨ ANTIMATTER NEUTRALIZED: Alpha pulse purged anomaly! (+1000 MeV)`);
+    }
+
+    return { 
+        trigger: HISTORY_METHODS.ALPHA_DECAY, 
+        newGridEntities: currentEntities, 
+        energyBonus, 
+        actionBonusScore: score, 
+        extraMessages: messages,
+        shouldFlash: false 
+    };
+};
 
 const handleBetaMinus = (
     playerPos: Position,
@@ -117,11 +148,29 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const fragment = getFissionFragmentOutcome(currentNuclide.z, currentNuclide.a);
     const dZ = fragment.z - currentNuclide.z;
     const dA = fragment.a - currentNuclide.a;
+    
+    // Detection before shockwave filters entities
+    const antisInBlast = gridEntities.filter(e => 
+        e.type === EntityType.ANTI_NUCLIDE &&
+        Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
+    );
+
     const currentEntities = calculateFissionShockwave(playerPos, gridEntities, 2);
+
+    let energyBonus = 200;
+    let score = BONUS_SCORES.FISSION_TITLE;
+    const messages: string[] = [];
+
+    if (antisInBlast.length > 0) {
+        energyBonus += 1000;
+        score += Math.floor(940 * currentNuclide.a);
+        messages.push(`💥 ANTIMATTER PURGED: Fission shockwave dissolved anomaly! (+1000 MeV)`);
+    }
 
     return {
         dZ, dA, trigger: HISTORY_METHODS.FISSION_SPONTANEOUS, shouldShake: true, shouldFlash: true,
-        speechOverride: "Nuclear Fission", actionBonusScore: BONUS_SCORES.FISSION_TITLE, energyBonus: 200, newGridEntities: currentEntities
+        speechOverride: "Nuclear Fission", actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
+        extraMessages: messages
     };
 };
 
@@ -151,7 +200,7 @@ export const calculateDecayEffects = (
 
     switch (effectiveMode) {
         case DecayMode.ALPHA: 
-            Object.assign(result, handleAlphaDecay(currentTime, playerPos));
+            Object.assign(result, handleAlphaDecay(currentNuclide, playerPos, gridEntities, currentTime));
             break;
         case DecayMode.BETA_MINUS: 
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));

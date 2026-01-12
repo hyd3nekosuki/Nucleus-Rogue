@@ -1,3 +1,4 @@
+
 export enum DecayMode {
   STABLE = 'STABLE',
   ALPHA = 'ALPHA',
@@ -55,6 +56,7 @@ export enum EntityType {
   NEUTRON = 'NEUTRON',
   ENEMY_ELECTRON = 'ENEMY_ELECTRON',
   ENEMY_POSITRON = 'ENEMY_POSITRON',
+  ANTI_NUCLIDE = 'ANTI_NUCLIDE',
   VOID = 'VOID'
 }
 

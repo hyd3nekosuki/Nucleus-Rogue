@@ -1,11 +1,14 @@
-import { GameState, EntityType, GridEntity } from '../types';
+
+import { GameState, EntityType, GridEntity, Position } from '../types';
 import { generateEntities } from './gameLogic';
+import { moveAntiNuclides, consumeMatterWithAntiNuclides } from './behaviors/antiNuclideBehavior';
 import { TITLES } from '../constants/titles';
 
 export interface BackgroundEventResult {
     gridEntities: GridEntity[];
     messages: string[];
     activeEvent?: { type: string; color: string; timestamp: number };
+    emptyTurnCount: number;
 }
 
 /**
@@ -17,8 +20,32 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     let nextMessages = [...state.messages];
     let activeEvent = state.activeEvent;
     let eventTriggered = false;
+    let nextEmptyTurnCount = state.emptyTurnCount;
 
-    // 1. Background random events (Quantum coherence, etc.) - Requires "Unknown" skill
+    // 1. Anti-nuclide deadlock check
+    const hasParticles = nextEntities.some(e => 
+        e.type === EntityType.PROTON || 
+        e.type === EntityType.NEUTRON || 
+        e.type === EntityType.ENEMY_ELECTRON || 
+        e.type === EntityType.ENEMY_POSITRON
+    );
+
+    if (!hasParticles) {
+        nextEmptyTurnCount++;
+        if (nextEmptyTurnCount >= 20 && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
+            // Spawn Anti-nuclide at a random free position
+            nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
+            nextMessages = [...nextMessages, "⚠️ WARNING: ANOMALY DETECTED. ANTI-NUCLIDE MATERIALIZED."].slice(-10);
+        }
+    } else {
+        nextEmptyTurnCount = 0;
+    }
+
+    // 2. Anti-nuclide Behavior: Movement and Matter Consumption - Refactored to Behavior layer
+    nextEntities = moveAntiNuclides(nextEntities, state.playerPos);
+    nextEntities = consumeMatterWithAntiNuclides(nextEntities);
+
+    // 3. Background random events (Quantum coherence, etc.) - Requires "Unknown" skill
     const isUnknownSkillActive = state.unlockedGroups.includes(TITLES.UNKNOWN) && !state.disabledSkills.includes(TITLES.UNKNOWN);
     
     if (isUnknownSkillActive && Math.random() < 0.02) {
@@ -38,17 +65,17 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
             eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!"; 
             signalType = "NEUTRON_STORM"; 
             signalColor = "#00f3ff";
-            nextEntities = nextEntities.map(e => e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.NEUTRON } : e);
+            nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE) ? { ...e, type: EntityType.NEUTRON } : e);
         } else if (randEvent < 0.95) {
             eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!"; 
             signalType = "PROTON_BURST"; 
             signalColor = "#ff0055";
-            nextEntities = nextEntities.map(e => e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.PROTON } : e);
+            nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE) ? { ...e, type: EntityType.PROTON } : e);
         } else {
             eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!"; 
             signalType = "ELECTRON_FLUCTUATION"; 
             signalColor = "#facc15";
-            nextEntities = nextEntities.map(e => e.type !== EntityType.ENEMY_POSITRON ? { ...e, type: EntityType.ENEMY_ELECTRON } : e);
+            nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE) ? { ...e, type: EntityType.ENEMY_ELECTRON } : e);
         }
         
         nextMessages = [...nextMessages, eventMsg].slice(-10);
@@ -56,7 +83,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         eventTriggered = true;
     }
 
-    // 2. Periodic Entity Respawn - Skipped if Gluttony skill is active
+    // 4. Periodic Entity Respawn - Skipped if Gluttony skill is active
     const isGluttonySkillActive = state.unlockedGroups.includes(TITLES.GLUTTONY) && !state.disabledSkills.includes(TITLES.GLUTTONY);
     if (!isGluttonySkillActive && !eventTriggered && Math.random() < 0.15) {
         nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn);
@@ -65,6 +92,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     return {
         gridEntities: nextEntities,
         messages: nextMessages,
-        activeEvent
+        activeEvent,
+        emptyTurnCount: nextEmptyTurnCount
     };
 };

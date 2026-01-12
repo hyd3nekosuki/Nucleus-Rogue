@@ -20,9 +20,8 @@ import { useTTS } from './hooks/useTTS';
 import { useNucleusCoordinator } from './engine/useNucleusCoordinator';
 import { useAudioEngine } from './services/audio/useAudioEngine';
 import { useCheatEngine } from './hooks/useCheatEngine';
+import { useGameEventListener } from './hooks/useGameEventListener';
 
-//const STABILIZE_COST = 5;
-//const NUCLEOSYNTHESIS_COST = 200;
 import { STABILIZE_COST, NUCLEOSYNTHESIS_COST } from './constants/economy';
 
 function App() {
@@ -37,12 +36,15 @@ function App() {
   const [isSoundTestActive, setIsSoundTestActive] = useState(false);
   const [lastKickTime, setLastKickTime] = useState(0);
 
-  // --- TTS Bridging Logic ---
-  const ttsTriggerRef = useRef<(text: string) => void>(() => {});
-  const engine = useNucleusCoordinator((text) => ttsTriggerRef.current(text));
-  const { gameState, evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo } = engine;
+  // --- Engine Setup ---
+  const engine = useNucleusCoordinator();
+  const { 
+    gameState, evolutionHistory, 
+    isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+    triggerShake, triggerFlash 
+  } = engine;
   
-  // --- Cheat Engine Real-time Feedback (Step 4) ---
+  // --- Cheat Engine Real-time Feedback ---
   const cheatResult = useCheatEngine(loadInputValue, gameState);
   
   // --- Audio Logic with Dynamic Resonance ---
@@ -54,23 +56,26 @@ function App() {
       () => setLastKickTime(Date.now())
   );
   
+  // --- Speech Engine ---
   const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, isVoiceMuted);
 
-  useEffect(() => {
-    ttsTriggerRef.current = activeTTSTrigger;
-  }, [activeTTSTrigger]);
+  /**
+   * Global Game Event Listener (Step 3 Implementation)
+   * Connects physics events to UI-based effects without direct coupling.
+   */
+  useGameEventListener({
+    onShake: triggerShake,
+    onFlash: triggerFlash,
+    onTTS: activeTTSTrigger
+  });
 
-  // Convert the discovery record into a sorted list for the map visualization
-  // Updated to sort by lastTurn instead of firstTurn to ensure the current position is always the last element
   const sortedHistory = useMemo(() => {
     return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.lastTurn - b.lastTurn);
   }, [evolutionHistory]);
 
-  // Scroll Lock for Periodic Table
   useEffect(() => {
     if (showTable) {
         document.body.style.overflow = 'hidden';
-        // Generate save code when opening table
         engine.generateSaveCode().then(code => setSaveCode(code));
     } else {
         document.body.style.overflow = '';
@@ -142,7 +147,6 @@ function App() {
       inputBorderClass = 'border-yellow-400';
       inputShadowClass = 'shadow-[0_0_15px_rgba(250,204,21,0.5)]';
   } else if (cheatResult) {
-      // Command recognized but unreachable
       inputBorderClass = 'border-red-400';
   }
 
@@ -176,7 +180,6 @@ function App() {
           
           <InfoPanel 
             nuclide={gameState.currentNuclide} hp={gameState.hp} maxHp={gameState.maxHp} energyPoints={gameState.energyPoints} turn={gameState.turn} score={gameState.score} 
-            // Fix: Corrected playerLevel to gameState.playerLevel
             onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={isNucleosynthesisReady} isNucleosynthesisEnabled={isNucleosynthesisEnabled} transmutationReady={transmutationReady} energyPointsAvailable={energyPointsAvailable}
             onStabilize={engine.handleStabilize} onShowTable={() => setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}

@@ -16,14 +16,13 @@ import { processUnlocks } from '../engine/unlockSystem';
 import { getInitialState } from '../engine/initialState';
 import { DiscoveryContext } from '../engine/stateTransitions';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
+import { emitFlash, emitTTS } from '../engine/events/gameEvents';
 
 export const useSkillController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
     dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void,
     setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
-    triggerTTS: (text: string) => void,
-    triggerFlash: (color: string, duration?: number) => void,
     stopAutoMove: () => void,
     handleDecayAction: (mode: DecayMode) => void,
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void,
@@ -50,7 +49,8 @@ export const useSkillController = (
                 const newData = getNuclideDataSync(nextZ, randomA);
                 if (newData.exists) {
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
-                    triggerTTS("Nucleosynthesis"); triggerFlash('bg-white', 800);
+                    emitTTS("Nucleosynthesis"); 
+                    emitFlash('bg-white', 800);
                     
                     dispatchDiscovery(newData, {
                         method: HISTORY_METHODS.NUCLEOSYNTHESIS,
@@ -85,7 +85,7 @@ export const useSkillController = (
                 return { ...prev, turn: prev.turn + 1, hp: prev.maxHp, energyPoints: Math.min(MAX_ENERGY, Math.max(0, prev.energyPoints - STABILIZE_COST)), effects: [...prev.effects, zapEffect], messages: [...prev.messages, `🔬 Stabilization: HP Recovered.`].slice(-10) };
             }
         });
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, dispatchDiscovery]);
+    }, [gameState.playerLevel, setGameState, dispatchDiscovery]);
 
     const handleUltimateSynthesis = useCallback(() => {
         if (gameState.playerLevel < 5 || gameState.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS)) return;
@@ -97,7 +97,7 @@ export const useSkillController = (
             if (totalAbsorbed === 0) return prev;
             const nextZ = prev.currentNuclide.z + absorbedP - absorbedE + absorbedPos;
             const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
-            triggerFlash('bg-white', 800);
+            emitFlash('bg-white', 800);
             const newData = getNuclideDataSync(nextZ, nextA);
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
             const synthBonus = totalAbsorbed * 50000;
@@ -116,7 +116,7 @@ export const useSkillController = (
             const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
             const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
-            triggerTTS("r-process nucleosynthesis");
+            emitTTS("r-process nucleosynthesis");
             return { 
                 ...prev, 
                 ...tutorialFlags,
@@ -136,7 +136,7 @@ export const useSkillController = (
                 lastConsumedType: null 
             };
         });
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, dispatchDiscovery]);
+    }, [gameState.playerLevel, setGameState, dispatchDiscovery]);
 
     const handleToggleTimeStop = useCallback(() => {
         if (gameState.playerLevel < 3) return; 
@@ -174,7 +174,8 @@ export const useSkillController = (
                 const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
                 const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
-                triggerTTS("Experimental Replicate"); triggerFlash('bg-neon-blue', 800);
+                emitTTS("Experimental Replicate"); 
+                emitFlash('bg-neon-blue', 800);
                 return { 
                     ...prev, 
                     ...tutorialFlags,
@@ -192,13 +193,23 @@ export const useSkillController = (
                 };
             });
         }
-    }, [gameState.playerLevel, triggerTTS, triggerFlash, setGameState, setLastDecayEvent, dispatchDiscovery]);
+    }, [gameState.playerLevel, setGameState, setLastDecayEvent, dispatchDiscovery]);
 
     const handleToggleHiddenSkill = useCallback((skillName: string) => {
         setGameState(prev => {
             const isDisabled = prev.disabledSkills.includes(skillName);
             const nextDisabled = isDisabled ? prev.disabledSkills.filter(s => s !== skillName) : [...prev.disabledSkills, skillName];
-            return { ...prev, disabledSkills: nextDisabled, messages: [...prev.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10) };
+            
+            let nextEntities = [...prev.gridEntities];
+            let nextMessages = [...prev.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10);
+
+            // Special spawn: Demon core enabled
+            if (skillName === TITLES.DAREDEVIL && isDisabled && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
+                nextEntities = generateEntities(1, nextEntities, prev.playerPos, prev.turn, EntityType.ANTI_NUCLIDE);
+                nextMessages = [...nextMessages, "🌑 DEMON CORE ACTIVE: Anti-nuclide manifestation detected."].slice(-10);
+            }
+
+            return { ...prev, gridEntities: nextEntities, disabledSkills: nextDisabled, messages: nextMessages };
         });
     }, [setGameState]);
 

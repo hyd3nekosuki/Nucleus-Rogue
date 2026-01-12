@@ -147,6 +147,14 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     </div>
                   );
                   break;
+              case EntityType.ANTI_NUCLIDE:
+                  content = (
+                    <div className="relative w-full h-full rounded-full flex items-center justify-center bg-black shadow-[inset_0_0_10px_#bc13fe,0_0_15px_black] border border-neon-purple/30 animate-pulse">
+                        <div className="absolute inset-[-2px] border border-black rounded-full animate-ping opacity-20"></div>
+                        <div className="text-[10px] text-neon-purple font-black">X</div>
+                    </div>
+                  );
+                  break;
           }
       }
 

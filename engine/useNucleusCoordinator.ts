@@ -1,5 +1,6 @@
+
 import { useEffect, useCallback, useRef } from 'react';
-import { DecayMode } from '../types';
+import { DecayMode, EntityType } from '../types';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 import { generateEntities } from './gameLogic';
 import { useNucleusState } from './useNucleusState';
@@ -13,14 +14,16 @@ import { useSkillController } from '../hooks/useSkillController';
 import { useDecayController } from '../hooks/useDecayController';
 import { useMovementExecutor } from '../hooks/useMovementExecutor';
 import { useAtomicDispatcher } from '../hooks/useAtomicDispatcher';
+import { emitTTS } from './events/gameEvents';
 
-export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
+export const useNucleusCoordinator = () => {
     const { gameState, setGameState, dispatch } = useNucleusState();
     const { dispatchDiscovery } = useAtomicDispatcher(dispatch);
 
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
-        triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, resetVisuals
+        triggerShake, triggerFlash, // UI演出用に公開
+        setLastDecayEvent, setFinalCombo, resetVisuals
     } = useVisualEffects();
 
     useStabilityTimer(gameState, setGameState);
@@ -29,25 +32,20 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
 
     const stopAutoMoveRef = useRef<() => void>(() => {});
 
-    // Watch for reincarnation events to trigger TTS announcement
+    // Watch for reincarnation events to trigger TTS announcement via Event Bus
     const prevReincarnationsRef = useRef(gameState.reincarnations);
     useEffect(() => {
-        // 転生回数が増加したときのみ "Reincarnation" と読み上げる
         if (gameState.reincarnations > prevReincarnationsRef.current) {
-            triggerTTS("Reincarnation");
+            emitTTS("Reincarnation");
         }
         prevReincarnationsRef.current = gameState.reincarnations;
-    }, [gameState.reincarnations, triggerTTS]);
+    }, [gameState.reincarnations]);
 
     const { moveStep } = useMovementExecutor({
         gameState,
         setGameState, 
         dispatchDiscovery,
-        triggerTTS,
-        triggerShake, 
-        triggerFlash, 
         setLastDecayEvent, 
-        // Fix: Corrected property name setFinalCombo to setLastFinalCombo to match MovementExecutorDeps interface
         setLastFinalCombo: setFinalCombo,
         onStopRequest: () => stopAutoMoveRef.current()
     });
@@ -57,8 +55,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
     } = useDecayController(
         gameState, setGameState, 
         dispatchDiscovery,
-        triggerTTS, 
-        triggerShake, triggerFlash, setLastDecayEvent, setFinalCombo, 
+        setLastDecayEvent, setFinalCombo, 
         () => stopAutoMoveRef.current()
     );
 
@@ -80,7 +77,6 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         gameState, setGameState, 
         dispatchDiscovery,
         () => {}, // History integrated into gameState
-        triggerTTS, triggerFlash,
         stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
     );
 
@@ -94,6 +90,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
 
     useEffect(() => {
         const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
+        
         // Dispatch atomic initialization
         dispatch({
             type: 'RESET_STATE',
@@ -123,6 +120,7 @@ export const useNucleusCoordinator = (triggerTTS: (text: string) => void) => {
         gameState, 
         evolutionHistory: gameState.evolutionHistory, 
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        triggerShake, triggerFlash, // UI側でイベント受信時に使用
         moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
         handleUltimateSynthesis, handleForceUnknownDecay, setHP, generateSaveCode, loadSaveCode

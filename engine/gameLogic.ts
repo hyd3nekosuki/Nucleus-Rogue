@@ -1,8 +1,10 @@
+
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt } from '../utils/gridUtils';
 import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
+import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
 
 /**
@@ -136,6 +138,18 @@ export const calculateMoveResult = (
 
     if (entityMatch) {
         targetEntity = entityMatch.entity;
+
+        // Anti-nuclide Interaction - Refactored to external annihilation logic
+        if (targetEntity.type === EntityType.ANTI_NUCLIDE) {
+            const annihilationResult = calculateAnnihilation(prev.currentNuclide, targetEntity, newPos);
+            nextEntities.splice(entityMatch.index, 1);
+            
+            return {
+                ...annihilationResult,
+                evolvedEntities: nextEntities
+            };
+        }
+
         // Collision prevention for positrons unless we are a neutron state
         if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) {
             return { 

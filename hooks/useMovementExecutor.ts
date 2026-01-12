@@ -1,13 +1,13 @@
 
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, NuclideData } from '../types';
+import { GameState, DecayMode, NuclideData, EntityType } from '../types';
 
 import { ENERGY_EVOLUTION_TURNS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS, BONUS_SCORES } from '../constants/economy';
 import { REASON } from '../constants/gameOverReason';
 import { TITLES } from '../constants/titles';
 
-import { calculateMoveResult } from '../engine/gameLogic';
+import { calculateMoveResult, generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { processRandomBackgroundEvents } from '../engine/randomEvents';
 import { getHistoryMethod } from '../utils/historyLogic';
@@ -15,14 +15,12 @@ import { getNuclideDataSync } from '../services/nuclideService';
 import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
+import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 
 interface MovementExecutorDeps {
     gameState: GameState;
     setGameState: React.Dispatch<React.SetStateAction<GameState>>;
     dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void;
-    triggerTTS: (text: string) => void;
-    triggerShake: () => void;
-    triggerFlash: (color: string) => void;
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void;
     setLastFinalCombo: (val: { count: number; id: number } | null) => void;
     onStopRequest: () => void;
@@ -33,8 +31,7 @@ interface MovementExecutorDeps {
  */
 export const useMovementExecutor = (deps: MovementExecutorDeps) => {
     const {
-        setGameState, dispatchDiscovery, triggerTTS,
-        triggerShake, triggerFlash, setLastDecayEvent, 
+        setGameState, dispatchDiscovery, setLastDecayEvent, 
         onStopRequest
     } = deps;
 
@@ -81,6 +78,9 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             const potentialZ = prev.currentNuclide.z + result.dZ;
             const potentialA = prev.currentNuclide.a + result.dA;
             
+            // Interaction with Anti-nuclide check
+            const isAntiCollision = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
+
             if (result.dZ !== 0 || result.dA !== 0 || result.isPpFusion || result.isPositronAbsorption ) {
                 const newData = (result.dZ === 0 && result.dA === 0 && !result.isPpFusion && !result.isPositronAbsorption) ? prev.currentNuclide : getNuclideDataSync(potentialZ, potentialA);
                 
@@ -110,7 +110,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     let coreMsg = result.scatteredMessage && !result.isPositronAbsorption ? `⚠️ ${result.scatteredMessage}` : result.isPpFusion ? `Fusion: Deuterium Synthesized.` : result.isPositronAbsorption ? `Positron capture: Transmuted to ${newData.name}.` : `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
 
                     if (result.hpPenalty >= 20) {
-                        //coreMsg = `☢️ FATAL ERROR: UNSTABLE CAPTURE! (${coreMsg})`;
                         coreMsg = `⚠️ ENFORCED CAPTURE! ${coreMsg}`;
                         potentialReason = REASON.FATAL_CAPTURE;
                     }
@@ -121,24 +120,30 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
                     const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
+                    // Demon core unlock spawn
+                    let finalEntities = nextPeripheralUpdate.gridEntities || prev.gridEntities;
+                    if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !prev.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+                        finalEntities = generateEntities(1, finalEntities, result.newPos, nextTurn, EntityType.ANTI_NUCLIDE);
+                    }
+
                     nextPeripheralUpdate = {
                         ...nextPeripheralUpdate,
                         ...tutorialUpdates,
                         tutorialMessage: nextMsg,
                         unlockedElements: unlockResult.updatedElements,
                         unlockedGroups: unlockResult.updatedGroups,
+                        gridEntities: finalEntities,
                         messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...dripMsg, ...unlockResult.messages].slice(-10),
                         energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + result.energyBonus),
                         hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty))
                     };
 
-                    if (result.shouldShake) triggerShake();
-                    if (result.shouldFlash) triggerFlash('bg-neon-blue');
-                    if (result.isPpFusion) triggerTTS("Nuclear Fusion");
+                    // --- UI Effects via Event Bus ---
+                    if (result.shouldShake) emitShake();
+                    if (result.shouldFlash) emitFlash('bg-neon-blue');
+                    if (result.isPpFusion) emitTTS("Nuclear Fusion");
                     
                 } else {
-                    // 到達不能な核種への変換試行時
-                    // 解禁条件: ドリップライン上かつ「不安定核（放射性）」であること
                     isDaredevilAttempt = !prev.currentNuclide.isStable && (prev.currentNuclide.isProtonDripLine || prev.currentNuclide.isNeutronDripLine);
                     const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
 
@@ -152,22 +157,32 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     );
                     
                     const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ MAGIC BARRIER USED: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];
-                    const failMsg = `⚠️ Transformation failed: Target nuclide is outside the drip lines.`;
+                    let failMsg = `⚠️ Transformation failed: Target nuclide is outside the drip lines.`;
                     
+                    if (isAntiCollision) {
+                        failMsg = `🌑 TOTAL ANNIHILATION: Core matter converted to ${result.energyBonus} MeV energy!`;
+                        emitTTS("Total Annihilation");
+                    }
+
+                    let finalEntities = nextPeripheralUpdate.gridEntities || prev.gridEntities;
+                    if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !prev.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+                        finalEntities = generateEntities(1, finalEntities, prev.playerPos, prev.turn + 1, EntityType.ANTI_NUCLIDE);
+                    }
+
                     nextPeripheralUpdate.unlockedGroups = unlockResult.updatedGroups; 
+                    nextPeripheralUpdate.gridEntities = finalEntities;
                     nextPeripheralUpdate.score = prev.score + (result.actionBonusScore || 0) + (result.magicProtectionBonus || 0) + unlockResult.scoreBonus; 
                     nextPeripheralUpdate.messages = [...prev.messages, failMsg, ...protectionMsg, ...unlockResult.messages].slice(-10);
                     
-                    // 強制的にHPを0にするのは、Daredevilスキルが有効な「ハードモード」時のみ。
-                    // それ以外は物理計算上のダメージ（通常20）を適用し、生存の可能性を残す。
-                    if (isDaredevilActive) {
+                    if (isDaredevilActive || isAntiCollision) {
                         nextPeripheralUpdate.hp = 0;
-                        potentialReason = REASON.TRANSFORMATION_FAILED;
+                        potentialReason = isAntiCollision ? REASON.NOTHINGNESS : REASON.TRANSFORMATION_FAILED;
                     } else {
                         nextPeripheralUpdate.hp = Math.max(0, prev.hp - result.hpPenalty);
                         if (nextPeripheralUpdate.hp === 0) potentialReason = REASON.FATAL_CAPTURE;
                     }
                     
+                    nextPeripheralUpdate.energyPoints = Math.min(MAX_ENERGY, prev.energyPoints + result.energyBonus);
                     nextPeripheralUpdate.magicBarrierCharges = Math.max(0, prev.magicBarrierCharges - (result.chargesUsed || 0));
                     nextPeripheralUpdate.turn = prev.turn + 1; 
 
@@ -182,7 +197,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 nextPeripheralUpdate.hp = Math.max(0, Math.min(prev.maxHp, prev.hp + recovery) - result.hpPenalty);
                 if (nextPeripheralUpdate.hp === 0) potentialReason = REASON.FATAL_CAPTURE;
 
-                // 【追記】物理計算結果から散乱メッセージがあるかチェックして追加する
                 if (result.scatteredMessage) {
                     nextPeripheralUpdate.messages = [
                         ...prev.messages, 
@@ -190,7 +204,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     ].slice(-10);
                 }
 
-                // Normal movement (no transformation) - Advance Tutorial Time
                 const nextTurn = prev.turn + 1;
                 const nextMsg = getNextTutorialMessage(prev, 'TURN_ADVANCED', { currentTurn: nextTurn });
                 const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'TURN_ADVANCED');
@@ -210,7 +223,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 };
             }
 
-            // Global Stability Enforcement
             if (finalNextState.hp <= 0 && !finalNextState.gameOver) {
                 const crisisUpdate = resolveStabilityCrisis(finalNextState, potentialReason, isDaredevilAttempt);
                 finalNextState = { ...finalNextState, ...crisisUpdate };
@@ -221,6 +233,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             finalNextState.gridEntities = backgroundResult.gridEntities;
             finalNextState.messages = backgroundResult.messages;
             finalNextState.activeEvent = backgroundResult.activeEvent;
+            finalNextState.emptyTurnCount = backgroundResult.emptyTurnCount;
 
             return finalNextState;
         });
@@ -228,7 +241,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
         if (shouldStop) {
             onStopRequest();
         }
-    }, [onStopRequest, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setGameState, dispatchDiscovery]);
+    }, [onStopRequest, setLastDecayEvent, setGameState, dispatchDiscovery]);
 
     return { moveStep };
 };

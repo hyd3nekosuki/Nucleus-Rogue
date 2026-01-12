@@ -1,6 +1,6 @@
 
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, NuclideData } from '../types';
+import { GameState, DecayMode, NuclideData, EntityType } from '../types';
 
 import { COMBO_WINDOW_MS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
@@ -9,18 +9,17 @@ import { TITLES } from '../constants/titles';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
+import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
+import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 
 export const useDecayController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
     dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void,
-    triggerTTS: (text: string) => void,
-    triggerShake: () => void,
-    triggerFlash: (color: string) => void,
     setLastDecayEvent: (val: { mode: DecayMode; timestamp: number } | null) => void,
     setLastFinalCombo: (val: { count: number; id: number } | null) => void,
     stopAutoMove: () => void
@@ -80,10 +79,10 @@ export const useDecayController = (
             timestamp: currentTime 
         });
         
-        if (decayResult.shouldShake) triggerShake();
-        if (decayResult.shouldFlash) triggerFlash(actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
-        
-        if (decayResult.speechOverride) triggerTTS(decayResult.speechOverride);
+        // --- UI Effects triggered via Event Bus ---
+        if (decayResult.shouldShake) emitShake();
+        if (decayResult.shouldFlash) emitFlash(actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
+        if (decayResult.speechOverride) emitTTS(decayResult.speechOverride);
 
         const newData = getNuclideDataSync(gameState.currentNuclide.z + decayResult.dZ, gameState.currentNuclide.a + decayResult.dA);
         if (!newData.exists) {
@@ -110,18 +109,18 @@ export const useDecayController = (
         const rawCombo = (currentTime - gameState.lastComboTime <= COMBO_WINDOW_MS) ? gameState.combo + 1 : 1;
         const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
         const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
-        const totalBasePoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
-        const totalActionDelta = totalBasePoints * rawCombo;
+        const totalBaseActionPoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
+        const totalActionDelta = totalBaseActionPoints * rawCombo;
 
         if (!gameState.masteredDecays.includes(actualMode) && gameState.playerLevel < 6) {
-            triggerTTS("Mastery Level Up");
+            emitTTS("Mastery Level Up");
         }
 
         dispatchDiscovery(newData, {
             method: decayResult.trigger,
             pz: gameState.currentNuclide.z,
             pa: gameState.currentNuclide.a,
-            addedScore: totalBasePoints,
+            addedScore: totalBaseActionPoints,
             chargesUsed: 0,
             inducedDecayMode: actualMode
         });
@@ -143,6 +142,12 @@ export const useDecayController = (
             const nextMsg = getNextTutorialMessage(prev, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: nextTurn });
             const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'DECAY_PERFORMED');
 
+            // Demon core unlock spawn
+            let finalEntities = decayResult.newGridEntities;
+            if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !prev.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+                finalEntities = generateEntities(1, finalEntities, prev.playerPos, nextTurn, EntityType.ANTI_NUCLIDE);
+            }
+
             return { 
                 ...prev, 
                 ...tutorialUpdates,
@@ -151,7 +156,7 @@ export const useDecayController = (
                 tutorialMessage: nextMsg, 
                 unlockedElements: unlockResult.updatedElements, 
                 unlockedGroups: unlockResult.updatedGroups, 
-                gridEntities: decayResult.newGridEntities, 
+                gridEntities: finalEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects], 
                 score: prev.score + totalActionDelta + unlockResult.scoreBonus, 
                 hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
@@ -166,7 +171,7 @@ export const useDecayController = (
                 lastConsumedType: null
             };
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.lastComboTime, gameState.combo, gameState.playerPos, gameState.gridEntities, stopAutoMove, setGameState, dispatchDiscovery, triggerTTS, triggerShake, triggerFlash, setLastDecayEvent, setLastFinalCombo]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.currentNuclide, gameState.disabledSkills, gameState.lastComboTime, gameState.combo, gameState.playerPos, gameState.gridEntities, stopAutoMove, setGameState, dispatchDiscovery, setLastDecayEvent, setLastFinalCombo]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

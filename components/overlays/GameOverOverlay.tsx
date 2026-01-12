@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { NuclideData } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import { REASON } from '../../constants/gameOverReason';
 import { formatPreciseHalfLife } from '../../utils/scientificFormatters';
+import { REASON_METADATA } from '../../data/gameOverMetadata';
 
 interface GameOverOverlayProps {
     isVisible: boolean;
@@ -14,57 +16,25 @@ interface GameOverOverlayProps {
 }
 
 /**
- * Metadata table for game over reasons.
- * Centralizes titles and description templates.
- */
-const REASON_METADATA: Record<string, { title: string; getDescription: (name: string) => React.ReactNode }> = {
-    [REASON.FATAL_CAPTURE]: {
-        title: "FATAL CAPTURE",
-        getDescription: () => <>Fatal capture occurred at <span className="font-bold text-neon-red">low stability</span>.</>
-    },
-    [REASON.DECAY_FAILED]: {
-        title: "DECAY FAILED",
-        getDescription: (name) => <><span className="font-bold text-neon-blue">{name}</span> fails to decay into a exsisting descendant nuclide.</>
-    },
-    [REASON.TRANSFORMATION_FAILED]: {
-        title: "TRANSFORMATION FAILED",
-        getDescription: (name) => <><span className="font-bold text-neon-blue">{name}</span> fails to transform into a exsisting descendant nuclide.</>
-    },
-    [REASON.NUCLEUS_COLLAPSE]: {
-        title: "NUCLEUS COLLAPSE",
-        getDescription: () => <>Accretion reached an <span className="font-bold text-neon-blue">impossible configuration</span>.</>
-    },
-    [REASON.UNKNOWN]: {
-        title: "UNKNOWN",
-        getDescription: (name) => <>You were <span className="font-bold text-neon-blue">{name}</span></>
-    },
-    // Default fallback
-    "DEFAULT": {
-        title: "RADIOACTIVE DECAY",
-        getDescription: (name) => <>You were <span className="font-bold text-neon-blue">{name}</span></>
-    }
-};
-
-/**
  * Internal sub-component to display nuclide statistics.
  */
-const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isSoundTestActive: boolean }> = ({ nuclide, halfLife, isSoundTestActive }) => (
-    <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-w-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
+const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isSoundTestActive: boolean; isNothingness: boolean }> = ({ nuclide, halfLife, isSoundTestActive, isNothingness }) => (
+    <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
         <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
         <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
             <div className="text-gray-500">Half-Life:</div>
-            <div className="text-white font-bold text-right drop-shadow-[0_0_5px_white]">{halfLife}</div>
+            <div className="text-white font-bold text-right drop-shadow-[0_0_5px_white]">{isNothingness ? "NULL" : halfLife}</div>
             
             <div className="text-gray-500">Mode:</div>
             <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full drop-shadow-[0_0_5px_#00ff9d]">
-                {formatDecayModes(nuclide)}
+                {isNothingness ? "ANNIHILATED" : formatDecayModes(nuclide)}
             </div>
 
             <div className="text-gray-500">Protons (Z):</div>
-            <div className="text-white text-right font-bold">{nuclide.z}</div>
+            <div className={`text-right font-bold ${isNothingness ? 'text-neon-red animate-pulse' : 'text-white'}`}>{isNothingness ? 0 : nuclide.z}</div>
 
             <div className="text-gray-500">Mass (A):</div>
-            <div className="text-white text-right font-bold">{nuclide.a}</div>
+            <div className={`text-right font-bold ${isNothingness ? 'text-neon-purple animate-pulse' : 'text-white'}`}>{isNothingness ? 0 : nuclide.a}</div>
         </div>
     </div>
 );
@@ -76,6 +46,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
 
     const meta = REASON_METADATA[reason] || REASON_METADATA["DEFAULT"];
     const isCriticalFail = [REASON.DECAY_FAILED, REASON.TRANSFORMATION_FAILED, REASON.FATAL_CAPTURE].includes(reason);
+    const isNothingness = reason === REASON.NOTHINGNESS;
     const preciseHalfLife = formatPreciseHalfLife(nuclide.halfLifeSeconds);
 
     return (
@@ -87,7 +58,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(0,243,255,0.02),rgba(0,243,255,0.01),rgba(0,243,255,0.02))] bg-[length:100%_3px,2px_100%] opacity-50"></div>
             
             {/* Title */}
-            <div className={`text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase italic transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
+            <div className={`text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase italic transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'} ${isNothingness ? 'text-neon-purple' : ''}`}>
                 {meta.title}
             </div>
 
@@ -98,11 +69,11 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             
             {/* Diagnostics Stats */}
             {!isCriticalFail && (
-                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} />
+                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} isNothingness={isNothingness} />
             )}
             
             {/* External Reference for Failures */}
-            {isCriticalFail && (
+            {(isCriticalFail || isNothingness) && (
                 <div className={`mb-8 p-3 bg-black/40 rounded border border-neon-blue/20 relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
                     <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">External Reference:</p>
                     <a 

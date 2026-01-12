@@ -1,3 +1,4 @@
+
 import { GameState, DecayMode } from '../types';
 import { calculateReincarnationTargets } from './particleEngine';
 import { REASON } from '../constants/gameOverReason';
@@ -9,6 +10,7 @@ import { TITLES } from '../constants/titles';
  * 
  * 修正点: 生存ルート（時間反転・転生）でも実績判定（processUnlocks）を
  * 実行し、称号がその場で解禁されるようにしました。
+ * また、対消滅時には全ての生存スキルをバイパスする例外処理を追加しました。
  */
 export const resolveStabilityCrisis = (
     state: GameState, 
@@ -29,6 +31,29 @@ export const resolveStabilityCrisis = (
             0, 0, false, isDaredevilAttempt
         );
     };
+
+    // --- 対消滅の特別処理 ---
+    // 対消滅は全てを無に帰すため、時間反転や転生による救済を一切受け付けず即死させます。
+    // これにより、対消滅回避による無限エネルギー稼ぎの不整合を解消します。
+    if (reason === REASON.NOTHINGNESS) {
+        const finalResult = unlockCheck({ hp: 0, gameOver: true });
+        return { 
+            hp: 0, 
+            energyPoints: 0, 
+            gameOver: true, 
+            gameOverReason: reason,
+            unlockedGroups: finalResult.updatedGroups,
+            score: state.score + finalResult.scoreBonus,
+            messages: [...state.messages, ...finalResult.messages].slice(-10),
+            combo: 0, 
+            comboScore: 0, 
+            comboStartNuclide: undefined,
+            consecutiveProtons: 0,
+            consecutiveNeutrons: 0,
+            consecutiveElectrons: 0,
+            lastConsumedType: null
+        };
+    }
 
     // 1. Temporal Inversion (Auto-Stabilization) Check
     if (checkInversion &&

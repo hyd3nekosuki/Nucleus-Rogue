@@ -45,6 +45,7 @@ export const getInitialState = (): GameState => ({
     hasSeenDripLineTutorial: false,
     comboStartedUnstable: false,
     reincarnationPool: { p: 0, n: 0, e: 0 },
+    emptyTurnCount: 0,
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,
