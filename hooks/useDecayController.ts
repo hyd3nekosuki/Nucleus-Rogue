@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -32,6 +33,9 @@ export const useDecayController = (
         const currentTime = Date.now();
         let actualMode = mode;
 
+        // Check if Daredevil skill (Hard Mode) is active
+        const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
+
         if (mode === DecayMode.UNKNOWN) {
             const candidates = [DecayMode.GAMMA];
             const checkModes = [
@@ -47,7 +51,8 @@ export const useDecayController = (
                 const deltas = getDecayDeltas(m);
                 const targetZ = gameState.currentNuclide.z + deltas.dZ;
                 const targetA = gameState.currentNuclide.a + deltas.dA;
-                if (getNuclideDataSync(targetZ, targetA).exists) {
+                
+                if (isDaredevilActive || getNuclideDataSync(targetZ, targetA).exists) {
                     candidates.push(m);
                 }
             });
@@ -84,28 +89,19 @@ export const useDecayController = (
         if (!newData.exists) {
             const isDaredevilAttempt = !gameState.currentNuclide.isStable && (gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine);
             setGameState(prev => {
-                const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
-                
-                if (isDaredevilActive) {
-                    // ハードモード: 即座に危機(Crisis)判定へ
+                const isDaredevilActiveNow = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
+                if (isDaredevilActiveNow) {
                     const crisisUpdate = resolveStabilityCrisis(prev, REASON.DECAY_FAILED, isDaredevilAttempt, false);
                     return { ...prev, ...crisisUpdate };
                 } else {
-                    // 通常モード: ダメージを受けるが即死ではない。HPが0になった場合のみ救済判定へ
                     const hpPenalty = 20;
                     const newHp = Math.max(0, prev.hp - hpPenalty);
                     const failMsg = `⚠️ Decay failed: Target nuclide is outside the drip lines.`;
-                    
                     if (newHp === 0) {
                          const crisisUpdate = resolveStabilityCrisis(prev, REASON.DECAY_FAILED, isDaredevilAttempt, false);
                          return { ...prev, ...crisisUpdate, messages: [...prev.messages, failMsg].slice(-10) };
                     }
-                    
-                    return { 
-                        ...prev, 
-                        hp: newHp, 
-                        messages: [...prev.messages, failMsg].slice(-10) 
-                    };
+                    return { ...prev, hp: newHp, messages: [...prev.messages, failMsg].slice(-10) };
                 }
             });
             return;
@@ -143,11 +139,9 @@ export const useDecayController = (
 
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
-            // Atomic turn increment happens in DISCOVER_NUCLIDE reducer, but prev.turn in the hook
-            // refers to the state before the increment. Next turn is prev.turn + 1.
             const nextTurn = prev.turn + 1;
-            const nextMsg = getNextTutorialMessage(prev, 'DECAY_PERFORMED', { currentTurn: nextTurn });
-            const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+            const nextMsg = getNextTutorialMessage(prev, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: nextTurn });
+            const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'DECAY_PERFORMED');
 
             return { 
                 ...prev, 

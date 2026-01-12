@@ -1,5 +1,6 @@
+
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry, EntityType, VisualEffect, NuclideData } from '../types';
+import { GameState, DecayMode, NuclideData, HistoryEntry, VisualEffect, EntityType } from '../types';
 
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { MAGIC_NUMBERS } from '../constants/physics';
@@ -9,7 +10,7 @@ import { REASON } from '../constants/gameOverReason';
 import { TITLES } from '../constants/titles';
 
 import { getNuclideDataSync, getValidAsForZ } from '../services/nuclideService';
-import { getRandomKnownNuclideCoordinates } from '../data/staticNuclides';
+import { pickNuclideWithPriority } from '../engine/particleEngine';
 import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { getInitialState } from '../engine/initialState';
@@ -20,7 +21,7 @@ export const useSkillController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
     dispatchDiscovery: (nextNuclide: NuclideData, context: DiscoveryContext) => void,
-    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>, // Legacy unused
+    setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>,
     triggerTTS: (text: string) => void,
     triggerFlash: (color: string, duration?: number) => void,
     stopAutoMove: () => void,
@@ -51,7 +52,6 @@ export const useSkillController = (
                     const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, randomA, false, false, true);
                     triggerTTS("Nucleosynthesis"); triggerFlash('bg-white', 800);
                     
-                    // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
                     dispatchDiscovery(newData, {
                         method: HISTORY_METHODS.NUCLEOSYNTHESIS,
                         pz: prev.currentNuclide.z,
@@ -60,13 +60,10 @@ export const useSkillController = (
                         chargesUsed: 0
                     });
 
-                    // Drip line warning - suppressed for stable nuclides
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
-
-                    // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
                     const nextTurn = prev.turn + 1;
                     const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
-                    const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+                    const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
                     return { 
                         ...prev, 
@@ -102,12 +99,10 @@ export const useSkillController = (
             const nextA = prev.currentNuclide.a + absorbedP + absorbedN;
             triggerFlash('bg-white', 800);
             const newData = getNuclideDataSync(nextZ, nextA);
-            //if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: "NUCLEUS COLLAPSE", gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...prev, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, messages: [...prev.messages, "⚠️ NUCLEUS COLLAPSE: Impossible configuration reached!"].slice(-10) };
             const synthBonus = totalAbsorbed * 50000;
             const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, nextZ, nextA, false, false, true);
             
-            // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
             dispatchDiscovery(newData, {
                 method: HISTORY_METHODS.R_PROCESS,
                 pz: prev.currentNuclide.z,
@@ -116,13 +111,10 @@ export const useSkillController = (
                 chargesUsed: 0
             });
 
-            // Drip line warning - suppressed for stable nuclides
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
-
-            // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
             const nextTurn = prev.turn + 1;
             const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
-            const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+            const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
             triggerTTS("r-process nucleosynthesis");
             return { 
@@ -169,7 +161,6 @@ export const useSkillController = (
                 const unlockResult = processUnlocks(prev.unlockedElements, prev.unlockedGroups, selectedZ, randomA, true);
                 setLastDecayEvent(null);
                 
-                // --- STEP 5: CENTRALIZED TRANSFORMATION DISPATCH ---
                 dispatchDiscovery(newData, {
                     method: HISTORY_METHODS.EXP_REPLICATE,
                     pz: prev.currentNuclide.z,
@@ -178,13 +169,10 @@ export const useSkillController = (
                     chargesUsed: 0
                 });
 
-                // Drip line warning - suppressed for stable nuclides
                 const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
-
-                // Fix: Corrected calculateTutorialFlagUpdates call to include state and current turn (Expected 3 arguments, but got 2)
                 const nextTurn = prev.turn + 1;
                 const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
-                const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+                const tutorialFlags = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
                 triggerTTS("Experimental Replicate"); triggerFlash('bg-neon-blue', 800);
                 return { 
@@ -222,12 +210,17 @@ export const useSkillController = (
             const currentReincarnations = prev.reincarnations;
             const currentSeenCapture = prev.hasSeenCaptureTutorial;
             const currentSeenDecay = prev.hasSeenDecayTutorial;
+            const isDaredevilActive = currentGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
+            
             const newState = getInitialState();
             
             let startNuclide = INITIAL_NUCLIDE;
             if (randomStart) {
-                let coords = getRandomKnownNuclideCoordinates(); 
-                if (coords) { const data = getNuclideDataSync(coords.z, coords.a); if (data.exists) startNuclide = data; }
+                let coords = pickNuclideWithPriority(currentTitles, isDaredevilActive); 
+                if (coords) { 
+                    const data = getNuclideDataSync(coords.z, coords.a); 
+                    if (data.exists) startNuclide = data; 
+                }
             }
             
             let unlockResult = randomStart 
@@ -248,7 +241,7 @@ export const useSkillController = (
                 pa: null
             };
 
-            const nextMsg = getNextTutorialMessage(prev, 'GAME_START', { randomStart });
+            const nextMsg = getNextTutorialMessage(prev, 'GAME_START', { randomStart, nextNuclide: startNuclide });
 
             return { 
                 ...newState, 

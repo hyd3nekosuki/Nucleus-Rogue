@@ -169,11 +169,11 @@ export const processUnlocks = (
         messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+${BONUS_SCORES.GLUTTONY.toLocaleString()} PTS)`);
     }
 
-    // NEW: Special Hidden Title: Daredevil
+    // NEW: Special Hidden Title: Demon core
     if (isDaredevilAchieved && !updatedGroups.includes(TITLES.DAREDEVIL)) {
         updatedGroups = [...updatedGroups, TITLES.DAREDEVIL];
         scoreBonus += BONUS_SCORES.DAREDEVIL;
-        messages.push(` 🧨 HIDDEN TITLE: Daredevil! Attempting the impossible from the brink. (+${BONUS_SCORES.DAREDEVIL.toLocaleString()} PTS)`);
+        messages.push(` 🫀 HIDDEN TITLE: Demon core! Attempting the impossible from the brink. (+${BONUS_SCORES.DAREDEVIL.toLocaleString()} PTS)`);
     }
 
     return { updatedElements, updatedGroups, scoreBonus, messages };

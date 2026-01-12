@@ -141,18 +141,6 @@ export const getKnownNuclide = (z: number, a: number): NuclideRecord | null => {
   return NUCLIDE_REPOSITORY.get(id) || null;
 };
 
-/**
- * Returns a random valid nuclide coordinate from the verified repository.
- */
-export const getRandomKnownNuclideCoordinates = (): { z: number, a: number } | null => {
-    const ids = Array.from(NUCLIDE_REPOSITORY.keys());
-    if (ids.length === 0) return null;
-    
-    const randomId = ids[Math.floor(Math.random() * ids.length)];
-    const parts = randomId.split('-');
-    return { z: parseInt(parts[0]), a: parseInt(parts[1]) };
-};
-
 export const getCategoryName = (cat: NuclideCategory): string => {
     switch(cat) {
         case NuclideCategory.STABLE: return "Stable Nuclide";

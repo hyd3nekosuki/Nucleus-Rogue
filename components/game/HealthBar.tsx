@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { MAGIC_NUMBERS } from '../../constants';
@@ -20,6 +21,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
     isSoundTestActive = false, onHPChange 
 }) => {
     const hpPercent = (hp / maxHp) * 100;
+    const roundedHp = Math.round(hp);
     const protonNumber = nuclide.z;
     const neutronNumber = nuclide.a - nuclide.z;
     const barRef = useRef<HTMLDivElement>(null);
@@ -44,13 +46,11 @@ const HealthBar: React.FC<HealthBarProps> = ({
         let r, g, b;
         
         if (p >= 50) {
-            // Transition from Yellow (50) to Green (100)
             const f = (p - 50) / 50;
             r = Math.round(250 + (0 - 250) * f);
             g = Math.round(204 + (255 - 204) * f);
             b = Math.round(21 + (157 - 21) * f);
         } else {
-            // Transition from Red (0) to Yellow (50)
             const f = p / 50;
             r = Math.round(255 + (250 - 255) * f);
             g = Math.round(0 + (204 - 0) * f);
@@ -89,7 +89,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
 
     const handleInteraction = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isSoundTestActive || !onHPChange || !barRef.current) return;
-        e.stopPropagation(); // Prevent deactivating sound test mode if overlay handles global clicks
+        e.stopPropagation();
         const rect = barRef.current.getBoundingClientRect();
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const x = clientX - rect.left;
@@ -119,11 +119,21 @@ const HealthBar: React.FC<HealthBarProps> = ({
                         {getMagicLabel()}
                     </span>
                 </div>
+                {/* 
+                   CRITICAL FIX: Adding key={roundedHp} forces React to unmount and remount 
+                   this specific text node when the value changes, effectively clearing the 
+                   browser's composite rendering cache and stopping the ghosting issue.
+                */}
                 <div 
-                    className={`font-mono font-bold text-sm text-right transition-colors duration-100 ${hpPercent < 30 && !isSoundTestActive ? "animate-pulse" : ""}`}
-                    style={{ color: dynamicStatusColor }}
+                    key={roundedHp}
+                    className={`font-mono font-bold text-sm text-right transition-none ${hpPercent < 30 && !isSoundTestActive ? "animate-pulse" : ""}`}
+                    style={{ 
+                        color: dynamicStatusColor,
+                        // Low stability glow to maintain high contrast during pulse transparency dips
+                        textShadow: hpPercent < 30 ? `0 0 12px ${dynamicStatusColor}` : 'none'
+                    }}
                 >
-                    {Math.round(hp)}% {isTimeStopped ? 'FROZEN' : (isSoundTestActive ? 'FREQ' : 'STABILITY')}
+                    {roundedHp}% {isTimeStopped ? 'FROZEN' : (isSoundTestActive ? 'FREQ' : 'STABILITY')}
                 </div>
             </div>
             <div 

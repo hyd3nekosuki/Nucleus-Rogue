@@ -1,8 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 // Fix: Import COMBO_WINDOW_MS from constants instead of the engine hook
 import { COMBO_WINDOW_MS } from '../../constants';
+import { NUCLIDE_DOI } from '../../data/nuclideDOI';
 
 interface ControlPanelProps {
+  z: number;
+  a: number;
   combo: number;
   isTimeStopped: boolean;
   lastComboTime: number;
@@ -13,12 +17,17 @@ interface ControlPanelProps {
   lastKickTime: number;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
   const [isCursorLit, setIsCursorLit] = useState(false);
   const showCombo = combo > 0;
+
+  // DOI Lookup Logic
+  const doi = NUCLIDE_DOI[`${z}-${a}`];
+  // Documentation is available if DOI exists, no tutorial is active, and no combo is in progress
+  const hasDOI = !!doi && !tutorialMessage && !showCombo;
 
   // BPM Timing calculations
   const beatDuration = 60 / (bpm || 132); 
@@ -116,7 +125,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
   };
 
   return (
-    <div className="bg-black/60 mx-2 min-h-[75px] md:min-h-[85px] flex flex-col relative overflow-hidden p-2 font-mono select-none touch-none rounded-lg border border-gray-800">
+    <div 
+      onClick={() => hasDOI && window.open(`https://doi.org/${doi}`, '_blank')}
+      className={`bg-black/60 mx-2 min-h-[75px] md:min-h-[85px] flex flex-col relative overflow-hidden p-2 font-mono select-none touch-none rounded-lg border border-gray-800 transition-all ${hasDOI ? 'cursor-pointer hover:bg-white/5 group active:bg-white/10' : ''}`}
+    >
       
       {/* BACKGROUND PULSING BORDER LAYER - Synchronized to 4-beat cycle and event colors */}
       <div 
@@ -131,7 +143,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
       {/* Background ECG Signal */}
       {renderECG()}
 
-      {/* STATIC TEXT LAYER (Content does not scale) */}
+      {/* STATIC TEXT LAYER */}
       <div className="relative z-10 w-full h-full flex flex-col justify-center pointer-events-none">
         {tutorialMessage ? (
           <div className="animate-fade-in w-full text-center">
@@ -179,6 +191,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ combo, isTimeStopped, lastC
              <span className="opacity-60 mr-2 select-none font-bold mt-0.5">&gt;</span>
              <span>
                {description || "Accessing IAEA database..."}
+               {hasDOI && <span className="ml-1 opacity-80 group-hover:opacity-100 transition-opacity">🔗</span>}
                <span 
                   className="inline-block w-1.5 h-3 ml-1 align-middle"
                   style={{ 

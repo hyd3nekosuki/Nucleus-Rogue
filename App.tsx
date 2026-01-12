@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DecayMode, HistoryEntry } from './types';
 
@@ -182,6 +183,7 @@ function App() {
           />
           
           <ControlPanel 
+            z={gameState.currentNuclide.z} a={gameState.currentNuclide.a}
             combo={gameState.combo} isTimeStopped={gameState.isTimeStopped} lastComboTime={gameState.lastComboTime} description={currentDescription}
             activeEvent={gameState.activeEvent} tutorialMessage={gameState.tutorialMessage} bpm={bpm} lastKickTime={lastKickTime}
           />

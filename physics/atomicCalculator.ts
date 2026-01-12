@@ -107,7 +107,8 @@ export const calculateNeutronReaction = (
     annihilationEnabled: boolean,
     fissionEnabled: boolean,
     neutronStarEnabled: boolean,
-    zeroBarnActive: boolean
+    zeroBarnActive: boolean,
+    isDaredevilActive: boolean = false
 ): AtomicReactionResult | null => {
     if (target.type !== EntityType.NEUTRON || !target.isHighEnergy) return null;
 
@@ -128,29 +129,32 @@ export const calculateNeutronReaction = (
 
     // Absorption phase
     const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);
-    if (!intermediateData.exists) return null;
+    
+    // Daredevil check for initial absorption existence
+    if (!isDaredevilActive && !intermediateData.exists) return null;
 
     const options = [];
 
     // (n,γ) is valid if player can exist at currentZ, currentA + 1
-    if (intermediateData.exists) {
+    if (isDaredevilActive || intermediateData.exists) {
         options.push({ mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG });
     }
 
     // (n,p) validation -> Resulting state is (Z-1, A)
-    if (getNuclideDataSync(currentNuclide.z - 1, currentNuclide.a).exists) {
+    if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 1, currentNuclide.a).exists) {
         options.push({ mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP });
     }
 
     // (n,2n) validation -> Resulting state is (Z, A-1)
-    if (getNuclideDataSync(currentNuclide.z, currentNuclide.a - 1).exists) {
+    if (isDaredevilActive || getNuclideDataSync(currentNuclide.z, currentNuclide.a - 1).exists) {
         options.push({ mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N });
     }
     
-    if (intermediateData.z >= 92) {
+    // Fission condition: Normally Z >= 92, but Daredevil allows it for all elements
+    if (isDaredevilActive || intermediateData.z >= 92) {
         if (!fissionEnabled) {
             // (n,α) validation -> Resulting state is (Z-2, A-3)
-            if (getNuclideDataSync(currentNuclide.z - 2, currentNuclide.a - 3).exists) {
+            if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 2, currentNuclide.a - 3).exists) {
                 options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
             }
         }

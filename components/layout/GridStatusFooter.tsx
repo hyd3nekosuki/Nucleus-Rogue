@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GameState, EntityType } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
-import { getSymbol } from '../../constants';
+import { getSymbol, TITLES } from '../../constants';
 import { calculateReincarnationTargets } from '../../engine/particleEngine';
 
 interface Props {
@@ -33,7 +33,7 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
   const pool = gameState.reincarnationPool;
 
   // 4. Calculate Reincarnation Target for Display
-  const isDaredevilActive = gameState.unlockedGroups.includes("Daredevil") && !gameState.disabledSkills.includes("Daredevil");
+  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
   const reincResult = calculateReincarnationTargets(
     gameState.currentNuclide,
     gameState.reincarnationPool,

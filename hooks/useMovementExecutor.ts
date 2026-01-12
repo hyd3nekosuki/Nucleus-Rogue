@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, NuclideData } from '../types';
 
@@ -118,7 +119,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
 
                     const nextTurn = prev.turn + 1;
                     const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
-                    const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+                    const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
                     nextPeripheralUpdate = {
                         ...nextPeripheralUpdate,
@@ -192,7 +193,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                 // Normal movement (no transformation) - Advance Tutorial Time
                 const nextTurn = prev.turn + 1;
                 const nextMsg = getNextTutorialMessage(prev, 'TURN_ADVANCED', { currentTurn: nextTurn });
-                const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn);
+                const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'TURN_ADVANCED');
                 Object.assign(nextPeripheralUpdate, { ...tutorialUpdates, tutorialMessage: nextMsg });
             }
 

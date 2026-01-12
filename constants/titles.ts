@@ -27,7 +27,7 @@ export const TITLES = {
     ZERO_BARN: "zero barn",
     ELECTRON_SCATTERING: "Electron scattering",
     GLUTTONY: "Gluttony",
-    DAREDEVIL: "Daredevil"
+    DAREDEVIL: "Demon core"
 } as const;
 
 export type TitleName = typeof TITLES[keyof typeof TITLES];

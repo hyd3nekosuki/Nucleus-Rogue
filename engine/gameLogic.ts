@@ -3,6 +3,7 @@ import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt } from '../utils/gridUtils';
 import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
+import { TITLES } from '../constants/titles';
 
 /**
  * Result structure for the physics simulation of a move.
@@ -128,9 +129,10 @@ export const calculateMoveResult = (
     let cE = prev.consecutiveElectrons;
     let lT = prev.lastConsumedType;
 
-    const isZeroBarnActive = prev.unlockedGroups.includes("zero barn") && !prev.disabledSkills.includes("zero barn");
-    const scatteringActive = prev.unlockedGroups.includes("Electron scattering") && !prev.disabledSkills.includes("Electron scattering");
-    const isFusionDisabled = prev.disabledSkills.includes("Fusion");
+    const isZeroBarnActive = prev.unlockedGroups.includes(TITLES.ZERO_BARN) && !prev.disabledSkills.includes(TITLES.ZERO_BARN);
+    const scatteringActive = prev.unlockedGroups.includes(TITLES.ELECTRON_SCATTERING) && !prev.disabledSkills.includes(TITLES.ELECTRON_SCATTERING);
+    const isFusionDisabled = prev.disabledSkills.includes(TITLES.FUSION);
+    const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
 
     if (entityMatch) {
         targetEntity = entityMatch.entity;
@@ -163,7 +165,7 @@ export const calculateMoveResult = (
             else { poolInc.e = 1; }
         }
 
-        const isAnnihilationSkillActive = prev.unlockedGroups.includes("Pair annihilation") && !prev.disabledSkills.includes("Pair annihilation");
+        const isAnnihilationSkillActive = prev.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !prev.disabledSkills.includes(TITLES.PAIR_ANNIHILATION);
 
         // High energy neutron special reactions
         const neutronReaction = calculateNeutronReaction(
@@ -173,9 +175,10 @@ export const calculateMoveResult = (
             nextEntities, 
             Date.now(), 
             isAnnihilationSkillActive, 
-            !prev.disabledSkills.includes("Fission"),
-            prev.unlockedGroups.includes("Neutronization") && !prev.disabledSkills.includes("Neutronization"),
-            isZeroBarnActive
+            !prev.disabledSkills.includes(TITLES.FISSION),
+            prev.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !prev.disabledSkills.includes(TITLES.NEUTRONIZATION),
+            isZeroBarnActive,
+            isDaredevilActive
         );
 
         if (neutronReaction) {
@@ -263,7 +266,7 @@ export const calculateMoveResult = (
         isPositronAbsorption: !!interactionResult?.isPositronAbsorption, 
         isCoulombScattered: !!interactionResult?.isCoulombScattered,
         isBremsAchieved: !!interactionResult?.isBremsAchieved,
-        isZeroBarnAchieved: cN >= 20 && !prev.unlockedGroups.includes("zero barn"),
+        isZeroBarnAchieved: cN >= 20 && !prev.unlockedGroups.includes(TITLES.ZERO_BARN),
         isFissionAchieved: inducedDecayMode === DecayMode.SPONTANEOUS_FISSION,
         gluttonyTrigger,
         targetEntity,

@@ -1,7 +1,8 @@
 import { ELEMENT_SYMBOLS, ELEMENT_NAMES } from '../constants/atomicData';
-import { EntityType, GridEntity, NuclideData, HistoryEntry } from '../types';
+import { EntityType, GridEntity, NuclideData, HistoryEntry, DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { DRIP_LINE_LIMITS } from '../data/dripLineLimits';
+import { NUCLIDE_REPOSITORY } from '../data/nuclideRepository';
 
 /**
  * Step 1: Goal Nuclide Identification
@@ -203,4 +204,93 @@ export const calculateReincarnationTargets = (
         nuclide: best.nuclide, 
         usage: { p: best.p, n: nUsed, e: eUsed } 
     };
+};
+
+/**
+ * Returns a random valid nuclide coordinate from the verified repository.
+ * Equivalent to getRandomKnownNuclideCoordinates but located in the logic engine.
+ */
+export const pickRandomNuclideCoords = (): { z: number, a: number } | null => {
+    const ids = Array.from(NUCLIDE_REPOSITORY.keys());
+    if (ids.length === 0) return null;
+    
+    const randomId = ids[Math.floor(Math.random() * ids.length)];
+    const parts = randomId.split('-');
+    return { z: parseInt(parts[0]), a: parseInt(parts[1]) };
+};
+
+/**
+ * Smarter selection for random starts.
+ * 1. Favors undiscovered elements (Z).
+ * 2. In Normal Mode: Uniformly picks an isotope (A) for the selected Z.
+ * 3. In Hard Mode: Favors isotopes with short half-lives and those near drip lines.
+ */
+export const pickNuclideWithPriority = (unlockedElements: number[], isDaredevil: boolean): { z: number, a: number } | null => {
+    // Step 1: Collect all Zs that exist in the repository
+    const allZs = new Set<number>();
+    for (const key of NUCLIDE_REPOSITORY.keys()) {
+        const z = parseInt(key.split('-')[0]);
+        allZs.add(z);
+    }
+    const zList = Array.from(allZs);
+    if (zList.length === 0) return null;
+
+    // Step 2: Weighted selection of Z (Element)
+    // Undiscovered elements get a weight of 10, discovered get 1.
+    const zWeights = zList.map(z => unlockedElements.includes(z) ? 1 : 10);
+    const totalZWeight = zWeights.reduce((a, b) => a + b, 0);
+    let zRand = Math.random() * totalZWeight;
+    let selectedZ = zList[0];
+    for (let i = 0; i < zList.length; i++) {
+        zRand -= zWeights[i];
+        if (zRand <= 0) {
+            selectedZ = zList[i];
+            break;
+        }
+    }
+
+    // Step 3: Weighted selection of A (Isotope) for the chosen Z
+    const prefix = `${selectedZ}-`;
+    const availableAs: number[] = [];
+    for (const key of NUCLIDE_REPOSITORY.keys()) {
+        if (key.startsWith(prefix)) {
+            availableAs.push(parseInt(key.substring(prefix.length)));
+        }
+    }
+
+    if (availableAs.length === 0) return null;
+
+    if (!isDaredevil) {
+        // Normal Mode: Uniform random choice
+        return { z: selectedZ, a: availableAs[Math.floor(Math.random() * availableAs.length)] };
+    } else {
+        // Hard Mode: Weight by instability
+        const aWeights = availableAs.map(a => {
+            const data = getNuclideDataSync(selectedZ, a);
+            
+            // Base weight: favor short half-lives
+            // log10(1s) = 0, log10(1e-9s) = -9, log10(1e9s) = 9
+            // Weight increases as half-life decreases
+            let weight = 1 / (1 + Math.max(-8, Math.log10(Math.max(1e-12, data.halfLifeSeconds))));
+            
+            // Drip line bonus: double the weight if on any drip line
+            if (data.isProtonDripLine || data.isNeutronDripLine) {
+                weight *= 3.0;
+            }
+            
+            return weight;
+        });
+
+        const totalAWeight = aWeights.reduce((a, b) => a + b, 0);
+        let aRand = Math.random() * totalAWeight;
+        let selectedA = availableAs[0];
+        for (let i = 0; i < availableAs.length; i++) {
+            aRand -= aWeights[i];
+            if (aRand <= 0) {
+                selectedA = availableAs[i];
+                break;
+            }
+        }
+        return { z: selectedZ, a: selectedA };
+    }
 };
