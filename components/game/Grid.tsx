@@ -1,8 +1,9 @@
-
 // Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
 import { GameState, EntityType, DecayMode } from '../../types';
 import { CheatValidationResult } from '../../hooks/useCheatEngine';
+import { DripLineService } from '../../engine/dripLineService';
+import { TITLES } from '../../constants';
 
 interface GridProps {
   width: number;
@@ -15,6 +16,9 @@ interface GridProps {
 
 const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, finalCombo, cheatResult }) => {
   const cells = [];
+
+  // Determine if Daredevil (Hard Mode) is active
+  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -162,6 +166,26 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       const isInteractable = (isPlayer || isAdjacent) && !gameState.isTimeStopped;
       if (isAdjacent && !gameState.isTimeStopped) {
           bgClass = "bg-gray-800/30 hover:bg-gray-700/50";
+      }
+
+      // 1. Grid Drip Line Danger Sensing (Normal Mode only)
+      // Visual feedback: Highlight cells that lead to non-existence
+      // REVISION: Adjacency requirement removed to scan entire board.
+      if (!isDaredevilActive && entity && !gameState.isTimeStopped) {
+          let pZ = gameState.currentNuclide.z;
+          let pA = gameState.currentNuclide.a;
+          
+          switch(entity.type) {
+              case EntityType.PROTON: pZ++; pA++; break;
+              case EntityType.NEUTRON: pA++; break;
+              case EntityType.ENEMY_ELECTRON: pZ--; break;
+              case EntityType.ENEMY_POSITRON: pZ++; break;
+              case EntityType.ANTI_NUCLIDE: pZ = -1; pA = -1; break; // Immediate danger
+          }
+          
+          if (DripLineService.isBeyondDripLine(pZ, pA)) {
+              bgClass += " bg-danger-hatch";
+          }
       }
 
       // Highlight cell if consumed by cheat

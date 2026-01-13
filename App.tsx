@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DecayMode, HistoryEntry } from './types';
 
@@ -47,7 +46,7 @@ function App() {
   // --- Cheat Engine Real-time Feedback ---
   const cheatResult = useCheatEngine(loadInputValue, gameState);
   
-  // --- Audio Logic with Dynamic Resonance ---
+  // --- Audio Logic ---
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
       gameState.hp, 
       gameState.gameOver, 
@@ -187,7 +186,7 @@ function App() {
           
           <ControlPanel 
             z={gameState.currentNuclide.z} a={gameState.currentNuclide.a}
-            combo={gameState.combo} isTimeStopped={gameState.isTimeStopped} lastComboTime={gameState.lastComboTime} description={currentDescription}
+            combo={gameState.combo} comboOrigin={gameState.comboOrigin} isTimeStopped={gameState.isTimeStopped} lastComboTime={gameState.lastComboTime} description={currentDescription}
             activeEvent={gameState.activeEvent} tutorialMessage={gameState.tutorialMessage} bpm={bpm} lastKickTime={lastKickTime}
           />
           
@@ -197,7 +196,7 @@ function App() {
           </div>
 
           <div className="p-4 border-b border-gray-800 shrink-0 h-80 flex flex-col items-center justify-center overflow-hidden">
-             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} turn={gameState.turn} />}
+             {activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={sortedHistory} currentNuclide={gameState.currentNuclide} turn={gameState.turn} combo={gameState.combo} comboOrigin={gameState.comboOrigin} />}
           </div>
 
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth select-none">

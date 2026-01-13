@@ -1,4 +1,3 @@
-
 import { GameState, DecayMode } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS, TUTORIAL_MESSAGES } from '../constants';
 
@@ -43,7 +42,7 @@ export const getInitialState = (): GameState => ({
     hasSeenDecayTutorial: false,
     hasSeenCaptureTutorial: false,
     hasSeenDripLineTutorial: false,
-    comboStartedUnstable: false,
+    comboOrigin: undefined,
     reincarnationPool: { p: 0, n: 0, e: 0 },
     emptyTurnCount: 0,
     decayStats: {

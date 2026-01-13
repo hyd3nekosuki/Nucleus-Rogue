@@ -1,4 +1,3 @@
-
 import { 
   DecayMode, 
   NuclideData, 
@@ -33,6 +32,26 @@ export interface HistoryEntry {
   pa: number | null;
 }
 
+/**
+ * Snapshot of the nucleus state at the moment a chain/combo begins.
+ */
+export interface ComboOrigin {
+  z: number;
+  a: number;
+  isUnstable: boolean;
+  timestamp: number;
+}
+
+export interface DiscoveryContext {
+  method: string;
+  pz: number | null;
+  pa: number | null;
+  addedScore: number;
+  chargesUsed: number;
+  inducedDecayMode?: DecayMode;
+  isManualDecay?: boolean; // Added to distinguish decay actions from transformations
+}
+
 export interface GameState {
   turn: number;
   score: number;
@@ -58,8 +77,7 @@ export interface GameState {
   isTimeStopped: boolean;
   playerLevel: number;
   masteredDecays: DecayMode[];
-  comboStartNuclide?: NuclideState;
-  comboStartedUnstable?: boolean;
+  comboOrigin?: ComboOrigin;
   comboScore: number;
   consecutiveProtons: number;
   consecutiveNeutrons: number;
@@ -80,7 +98,7 @@ export interface GameState {
 }
 
 export type GameAction =
-  | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; method: string; pz: number | null; pa: number | null; addedScore: number; chargesUsed: number; inducedDecayMode?: DecayMode } }
+  | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; context: DiscoveryContext } }
   | { type: 'UPDATE_BASIC_STATE'; payload: Partial<GameState> | ((prev: GameState) => Partial<GameState>) }
   | { type: 'RESET_STATE'; payload: GameState }
   | { type: 'APPLY_STABILITY_DECAY'; payload: { hp: number; energyPoints?: number; messages?: string[]; effects?: VisualEffect[]; gameOver?: boolean; gameOverReason?: string } }

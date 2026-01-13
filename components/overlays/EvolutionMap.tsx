@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { NuclideData, DecayMode, HistoryEntry } from '../../types';
+import { NuclideData, DecayMode, HistoryEntry, ComboOrigin } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { DripLineService } from '../../engine/dripLineService';
 
@@ -7,9 +7,11 @@ interface EvolutionMapProps {
     history: HistoryEntry[];
     currentNuclide: NuclideData;
     turn: number; // Current game turn
+    combo: number;
+    comboOrigin?: ComboOrigin;
 }
 
-const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn }) => {
+const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn, combo, comboOrigin }) => {
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
     const [mountTurn] = useState(turn); // Store the turn value when the component was first mounted
     
@@ -227,6 +229,9 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
                             // Animation only if it happened THIS turn AND this component was already mounted before that turn
                             const isNewDiscovery = node?.entry.firstTurn === turn && turn > mountTurn && turn > 0;
 
+                            // Mark the combo origin with a feather
+                            const isComboOrigin = combo > 0 && comboOrigin && absZ === comboOrigin.z && absA === comboOrigin.a;
+
                             return (
                                 <div key={i} 
                                     className={`relative flex items-center justify-center ${borderStyles} ${cliffGradient} ${showBeyondHatching ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.8)_2px,rgba(0,0,0,0.8)_4px)] opacity-50' : ''}`}
@@ -251,6 +256,11 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
                                             <span className={`text-[6px] md:text-[7px] leading-none mt-0.5 font-bold opacity-90 ${node.styles.textColor}`}>
                                                 {node.entry.a}
                                             </span>
+                                            {isComboOrigin && (
+                                                <div className="absolute -top-1 -right-1 md:-top-1.5 md:-right-1.5 text-[8px] md:text-[10px] drop-shadow-md animate-pulse z-40">
+                                                    🪶
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         isCenter ? (

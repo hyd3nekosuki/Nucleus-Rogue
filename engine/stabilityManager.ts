@@ -47,7 +47,8 @@ export const resolveStabilityCrisis = (
             messages: [...state.messages, ...finalResult.messages].slice(-10),
             combo: 0, 
             comboScore: 0, 
-            comboStartNuclide: undefined,
+            // Fix: Corrected comboStartNuclide to comboOrigin as per GameState interface
+            comboOrigin: undefined,
             consecutiveProtons: 0,
             consecutiveNeutrons: 0,
             consecutiveElectrons: 0,
@@ -111,8 +112,8 @@ export const resolveStabilityCrisis = (
             reincarnations: state.reincarnations + 1,
             combo: 0,
             comboScore: 0,
-            comboStartNuclide: undefined,
-            comboStartedUnstable: false,
+            // Fix: Changed comboStartNuclide to comboOrigin and removed non-existent comboStartedUnstable
+            comboOrigin: undefined,
             consecutiveProtons: 0,
             consecutiveNeutrons: 0,
             consecutiveElectrons: 0,
@@ -140,7 +141,8 @@ export const resolveStabilityCrisis = (
         messages: [...state.messages, ...finalResult.messages].slice(-10),
         combo: 0, 
         comboScore: 0, 
-        comboStartNuclide: undefined,
+        // Fix: Corrected comboStartNuclide to comboOrigin as per GameState interface
+        comboOrigin: undefined,
         consecutiveProtons: 0,
         consecutiveNeutrons: 0,
         consecutiveElectrons: 0,

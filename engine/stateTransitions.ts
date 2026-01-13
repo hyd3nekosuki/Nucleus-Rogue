@@ -1,15 +1,6 @@
 import { GameState, GameAction, NuclideData, DecayMode, HistoryEntry } from '../types';
 import { calculateNextLevel, checkBarrierReplenish, createHistoryEntry } from './atomicTransitions';
 
-export interface DiscoveryContext {
-    method: string;
-    pz: number | null;
-    pa: number | null;
-    addedScore: number;
-    chargesUsed: number;
-    inducedDecayMode?: DecayMode;
-}
-
 /**
  * The single source of truth for all game state transitions.
  * Ensures atomicity between Z/A changes, level advancement, barrier replenishment, and evolution history logging.
@@ -17,12 +8,13 @@ export interface DiscoveryContext {
 export const nucleusReducer = (state: GameState, action: GameAction): GameState => {
     switch (action.type) {
         case 'DISCOVER_NUCLIDE': {
-            const { nextNuclide, method, pz, pa, addedScore, chargesUsed, inducedDecayMode } = action.payload;
+            const { nextNuclide, context } = action.payload;
+            const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;
             
             // ATOMIC TURN INCREMENT: Every discovery/transformation advances the cosmic clock
             const nextGlobalTurn = state.turn + 1;
 
-            // 1. Calculate Level Up (Pure logic from Step 1)
+            // 1. Calculate Level Up
             const { nextLevel, nextMastered } = calculateNextLevel(
                 state.playerLevel,
                 state.masteredDecays,
@@ -37,14 +29,13 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 currentChargesAfterConsumption
             );
 
-            // 3. Evolution History Logic (Updated for firstTurn/lastTurn)
+            // 3. Evolution History Logic
             const nuclideKey = `${nextNuclide.z}-${nextNuclide.a}`;
             const existingEntry = state.evolutionHistory[nuclideKey];
             
             let updatedHistoryEntry: HistoryEntry;
             
             if (existingEntry) {
-                // Nuclide already discovered: keep firstTurn, update lastTurn and path info
                 updatedHistoryEntry = {
                     ...existingEntry,
                     lastTurn: nextGlobalTurn,
@@ -53,7 +44,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     pa
                 };
             } else {
-                // New discovery: set both firstTurn and lastTurn to current turn
                 updatedHistoryEntry = createHistoryEntry(
                     nextNuclide,
                     method,
@@ -68,37 +58,48 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 [nuclideKey]: updatedHistoryEntry
             };
 
-            // 4. Handle Level Up message notification in log
+            // 4. Handle Level Up message notification
             let nextMessages = state.messages;
             if (nextLevel > state.playerLevel) {
                 nextMessages = [...state.messages, `✨ Mastery LV. ${nextLevel}`].slice(-10);
             }
 
-            // 5. Handle Combo Logic for discoveries
+            // 5. ATOMIC COMBO LOGIC (Strict Adherence to Definitions)
             let nextCombo = state.combo;
-            let nextComboScore = state.comboScore;
-            let nextComboStartNuclide = state.comboStartNuclide;
-            let nextComboStartedUnstable = state.comboStartedUnstable;
+            let nextComboScore = (state.comboScore || 0) + addedScore;
+            let nextComboOrigin = state.comboOrigin;
+            let nextLastComboTime = state.lastComboTime; // DEFAULT: Maintain existing timer (Gauge continues to decrease)
 
-            // Initiating start detection at the transformation boundary
-            if (nextCombo === 0) {
-                // Record the PARENT nuclide as the start of the potential combo
-                nextComboStartNuclide = { z: state.currentNuclide.z, a: state.currentNuclide.a };
-                nextComboStartedUnstable = !state.currentNuclide.isStable;
-                // Note: comboScore will be updated by UPDATE_BASIC_STATE via score delta
+            if (isManualDecay) {
+                // START CASE: Combo is 0 and an unstable nuclide performs manual decay
+                if (state.combo === 0 && !state.currentNuclide.isStable) {
+                    // Record pre-action parent nuclide as snapshot
+                    nextComboOrigin = { 
+                        z: state.currentNuclide.z, 
+                        a: state.currentNuclide.a,
+                        isUnstable: true,
+                        timestamp: Date.now()
+                    };
+                }
+                // RECOVERY CASE: Manual decay always increments combo AND RECOVERS gauge
+                nextCombo += 1;
+                nextLastComboTime = Date.now();
+            } else {
+                // SUSTAIN CASE: Capture transformation does NOT increment combo, 
+                // and DOES NOT recover the gauge (lastComboTime is not refreshed).
             }
 
-            // Stability check: Forced reset of CHAIN metadata
+            // STABILITY RESET: Becoming a stable nuclide forces chain termination
             if (nextNuclide.isStable) {
                 nextCombo = 0;
                 nextComboScore = 0;
-                nextComboStartNuclide = undefined;
-                nextComboStartedUnstable = false;
+                nextComboOrigin = undefined;
+                nextLastComboTime = 0;
             }
 
             return {
                 ...state,
-                turn: nextGlobalTurn, // Apply the incremented turn globally
+                turn: nextGlobalTurn,
                 currentNuclide: nextNuclide,
                 evolutionHistory: nextEvolutionHistory,
                 playerLevel: nextLevel,
@@ -106,8 +107,9 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 magicBarrierCharges: nextCharges,
                 combo: nextCombo,
                 comboScore: nextComboScore,
-                comboStartNuclide: nextComboStartNuclide,
-                comboStartedUnstable: nextComboStartedUnstable,
+                comboOrigin: nextComboOrigin,
+                lastComboTime: nextLastComboTime, 
+                maxCombo: Math.max(state.maxCombo, nextCombo),
                 messages: nextMessages
             };
         }
@@ -119,32 +121,12 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             
             let nextState = { ...state, ...update };
 
-            // ENSURE COMBO METADATA IS UPDATED ATOMICALLY
-            // A. Start Detection: combo goes from 0 -> 1 (or more)
-            if (state.combo === 0 && nextState.combo > 0) {
-                // Record the parent nuclide if it wasn't already set by DISCOVER_NUCLIDE
-                if (!nextState.comboStartNuclide) {
-                    nextState.comboStartNuclide = { z: state.currentNuclide.z, a: state.currentNuclide.a };
-                    nextState.comboStartedUnstable = !state.currentNuclide.isStable;
-                }
-                // Initial score gain is part of the combo tracking
-                const scoreGain = nextState.score - state.score;
-                nextState.comboScore = Math.max(0, scoreGain);
-            } 
-            // B. Score Accumulation: already in a combo, track additional points gained
-            else if (nextState.combo > 0) {
-                const scoreGain = nextState.score - state.score;
-                if (scoreGain > 0) {
-                    nextState.comboScore = (state.comboScore || 0) + scoreGain;
-                }
-            }
-
-            // C. Forced Stability Reset (Global enforcement)
+            // Forced Stability Reset (Global enforcement)
             if (nextState.currentNuclide.isStable) {
                 nextState.combo = 0;
                 nextState.comboScore = 0;
-                nextState.comboStartNuclide = undefined;
-                nextState.comboStartedUnstable = false;
+                nextState.comboOrigin = undefined;
+                nextState.lastComboTime = 0;
             }
 
             return nextState;
@@ -162,8 +144,8 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 messages: [...state.messages, ...messages].slice(-10),
                 combo: 0,
                 comboScore: 0,
-                comboStartNuclide: undefined,
-                comboStartedUnstable: false
+                comboOrigin: undefined,
+                lastComboTime: 0
             };
         }
 

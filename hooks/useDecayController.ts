@@ -1,6 +1,5 @@
-
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, NuclideData, EntityType } from '../types';
+import { GameState, DecayMode, NuclideData, EntityType, DiscoveryContext } from '../types';
 
 import { COMBO_WINDOW_MS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS } from '../constants/economy';
@@ -11,7 +10,6 @@ import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects, getDecayDeltas } from '../physics/decaySystem';
 import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
-import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
@@ -73,17 +71,8 @@ export const useDecayController = (
         );
 
         if (decayResult.dZ === 0 && decayResult.dA === 0 && decayResult.trigger === "") return; 
-        
-        setLastDecayEvent({ 
-            mode: (actualMode === DecayMode.SPONTANEOUS_FISSION && gameState.disabledSkills.includes(TITLES.FISSION)) ? DecayMode.ALPHA : actualMode, 
-            timestamp: currentTime 
-        });
-        
-        // --- UI Effects triggered via Event Bus ---
-        if (decayResult.shouldShake) emitShake();
-        if (decayResult.shouldFlash) emitFlash(actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
-        if (decayResult.speechOverride) emitTTS(decayResult.speechOverride);
 
+        // CRITICAL CHECK: Verify existence
         const newData = getNuclideDataSync(gameState.currentNuclide.z + decayResult.dZ, gameState.currentNuclide.a + decayResult.dA);
         if (!newData.exists) {
             const isDaredevilAttempt = !gameState.currentNuclide.isStable && (gameState.currentNuclide.isProtonDripLine || gameState.currentNuclide.isNeutronDripLine);
@@ -106,23 +95,33 @@ export const useDecayController = (
             return;
         }
 
-        const rawCombo = (currentTime - gameState.lastComboTime <= COMBO_WINDOW_MS) ? gameState.combo + 1 : 1;
+        // SUCCESS PATH
+        setLastDecayEvent({ 
+            mode: (actualMode === DecayMode.SPONTANEOUS_FISSION && gameState.disabledSkills.includes(TITLES.FISSION)) ? DecayMode.ALPHA : actualMode, 
+            timestamp: currentTime 
+        });
+        
+        if (decayResult.shouldShake) emitShake();
+        if (decayResult.shouldFlash) emitFlash(actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-neon-blue');
+        if (decayResult.speechOverride) emitTTS(decayResult.speechOverride);
+
         const baseActionPoints = newData.a * SCORE_FACTORS.MASS_MULTIPLIER;
         const stabilityReward = newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS;
         const totalBaseActionPoints = baseActionPoints + stabilityReward + decayResult.actionBonusScore;
-        const totalActionDelta = totalBaseActionPoints * rawCombo;
 
         if (!gameState.masteredDecays.includes(actualMode) && gameState.playerLevel < 6) {
             emitTTS("Mastery Level Up");
         }
 
+        // Dispatch with isManualDecay flag to trigger combo increment and origin recording
         dispatchDiscovery(newData, {
             method: decayResult.trigger,
             pz: gameState.currentNuclide.z,
             pa: gameState.currentNuclide.a,
             addedScore: totalBaseActionPoints,
             chargesUsed: 0,
-            inducedDecayMode: actualMode
+            inducedDecayMode: actualMode,
+            isManualDecay: true
         });
 
         setGameState(prev => {
@@ -134,15 +133,14 @@ export const useDecayController = (
                 prev.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0)
             );
             
-            if (newData.isStable && rawCombo >= 2) setLastFinalCombo({ count: rawCombo, id: Date.now() }); 
-
+            // Notification for combo completion happens in useComboTimer or Reducer
+            
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
 
-            const nextTurn = prev.turn + 1;
+            const nextTurn = prev.turn;
             const nextMsg = getNextTutorialMessage(prev, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: nextTurn });
             const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'DECAY_PERFORMED');
 
-            // Demon core unlock spawn
             let finalEntities = decayResult.newGridEntities;
             if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !prev.unlockedGroups.includes(TITLES.DAREDEVIL)) {
                 finalEntities = generateEntities(1, finalEntities, prev.playerPos, nextTurn, EntityType.ANTI_NUCLIDE);
@@ -158,12 +156,9 @@ export const useDecayController = (
                 unlockedGroups: unlockResult.updatedGroups, 
                 gridEntities: finalEntities, 
                 effects: [...prev.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...prev.playerPos }, timestamp: currentTime }, ...decayResult.additionalEffects], 
-                score: prev.score + totalActionDelta + unlockResult.scoreBonus, 
+                score: prev.score + (totalBaseActionPoints * prev.combo) + unlockResult.scoreBonus, 
                 hp: Math.min(prev.maxHp, prev.hp + (newData.isStable ? 10 : 0)), 
-                messages: [...prev.messages, (decayResult.dZ !== 0 || decayResult.dA !== 0) ? `${decayResult.trigger} into ${newData.name}.` : decayResult.trigger, ...unlockResult.messages, ...dripMsg, ...decayResult.extraMessages].slice(-10), 
-                combo: rawCombo,
-                maxCombo: Math.max(prev.maxCombo, rawCombo),
-                lastComboTime: currentTime,
+                messages: [...prev.messages, ...unlockResult.messages, ...dripMsg, ...decayResult.extraMessages].slice(-10), 
                 decayStats: { ...prev.decayStats, [actualMode]: (prev.decayStats[actualMode] || 0) + 1 },
                 consecutiveProtons: 0, 
                 consecutiveNeutrons: 0, 

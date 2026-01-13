@@ -1,7 +1,5 @@
-// Fix: Added React import to resolve missing namespace error
 import React, { useCallback } from 'react';
-import { NuclideData } from '../types';
-import { DiscoveryContext } from '../engine/stateTransitions';
+import { NuclideData, DiscoveryContext } from '../types';
 
 /**
  * Unified Atomic Dispatcher Hook
@@ -28,12 +26,7 @@ export const useAtomicDispatcher = (dispatch: React.Dispatch<any>) => {
             type: 'DISCOVER_NUCLIDE',
             payload: {
                 nextNuclide,
-                method: context.method,
-                pz: context.pz,
-                pa: context.pa,
-                addedScore: context.addedScore,
-                chargesUsed: context.chargesUsed,
-                inducedDecayMode: context.inducedDecayMode
+                context // Passing the full context to the reducer
             }
         });
     }, [dispatch]);

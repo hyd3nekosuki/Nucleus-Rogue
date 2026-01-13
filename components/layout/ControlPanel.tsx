@@ -1,13 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 // Fix: Import COMBO_WINDOW_MS from constants instead of the engine hook
 import { COMBO_WINDOW_MS } from '../../constants';
 import { NUCLIDE_DOI } from '../../data/nuclideDOI';
+import { ComboOrigin } from '../../types';
+import { getNuclideDataSync } from '../../services/nuclideService';
 
 interface ControlPanelProps {
   z: number;
   a: number;
   combo: number;
+  comboOrigin?: ComboOrigin;
   isTimeStopped: boolean;
   lastComboTime: number;
   description?: string;
@@ -17,7 +19,7 @@ interface ControlPanelProps {
   lastKickTime: number;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
@@ -28,6 +30,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, isTimeStopped,
   const doi = NUCLIDE_DOI[`${z}-${a}`];
   // Documentation is available if DOI exists, no tutorial is active, and no combo is in progress
   const hasDOI = !!doi && !tutorialMessage && !showCombo;
+
+  // Origin Name Lookup
+  const originName = comboOrigin ? getNuclideDataSync(comboOrigin.z, comboOrigin.a).name : null;
 
   // BPM Timing calculations
   const beatDuration = 60 / (bpm || 132); 
@@ -162,7 +167,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, isTimeStopped,
                   style={{ color: signalColor }}
                >
                   <span className="opacity-60 mr-2 select-none font-bold">&gt;</span>
-                  CHAIN x{combo} ACTIVE
+                  CHAIN x{combo} {originName ? `from ${originName}` : 'ACTIVE'}
                   <span 
                     className="inline-block w-1.5 h-3 ml-1 align-middle"
                     style={{ 

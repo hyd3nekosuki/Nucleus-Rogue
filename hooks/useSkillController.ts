@@ -1,6 +1,5 @@
-
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, NuclideData, HistoryEntry, VisualEffect, EntityType } from '../types';
+import { GameState, DecayMode, NuclideData, HistoryEntry, VisualEffect, EntityType, DiscoveryContext } from '../types';
 
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { MAGIC_NUMBERS } from '../constants/physics';
@@ -14,7 +13,6 @@ import { pickNuclideWithPriority } from '../engine/particleEngine';
 import { generateEntities } from '../engine/gameLogic';
 import { processUnlocks } from '../engine/unlockSystem';
 import { getInitialState } from '../engine/initialState';
-import { DiscoveryContext } from '../engine/stateTransitions';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 import { emitFlash, emitTTS } from '../engine/events/gameEvents';
 
@@ -57,7 +55,8 @@ export const useSkillController = (
                         pz: prev.currentNuclide.z,
                         pa: prev.currentNuclide.a,
                         addedScore: nextZ * 10000,
-                        chargesUsed: 0
+                        chargesUsed: 0,
+                        isManualDecay: false // Transformation
                     });
 
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
@@ -108,7 +107,8 @@ export const useSkillController = (
                 pz: prev.currentNuclide.z,
                 pa: prev.currentNuclide.a,
                 addedScore: synthBonus,
-                chargesUsed: 0
+                chargesUsed: 0,
+                isManualDecay: false // Transformation
             });
 
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
@@ -166,7 +166,8 @@ export const useSkillController = (
                     pz: prev.currentNuclide.z,
                     pa: prev.currentNuclide.a,
                     addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION,
-                    chargesUsed: 0
+                    chargesUsed: 0,
+                    isManualDecay: false // Transformation
                 });
 
                 const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];

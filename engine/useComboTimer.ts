@@ -1,4 +1,3 @@
-
 // Added React import to provide access to React namespace
 import React, { useEffect } from 'react';
 import { GameState, DecayMode } from '../types';
@@ -33,7 +32,7 @@ export const useComboTimer = (
                     const isMatched = isTemporalInversionEligible(
                         prev.currentNuclide.z, 
                         prev.currentNuclide.a, 
-                        prev.comboStartNuclide
+                        prev.comboOrigin
                     );
                     
                     const isDisabled = prev.disabledSkills.includes("Temporal Inversion");
@@ -43,7 +42,7 @@ export const useComboTimer = (
                     // 2. The chain MUST have started from an UNSTABLE nuclide.
                     // 3. Since stable nuclei reset the chain immediately in Transitions,
                     //    if we are here and matched, we are by definition at an unstable nucleus.
-                    if (isMatched && prev.comboStartedUnstable && !isDisabled) {
+                    if (isMatched && prev.comboOrigin?.isUnstable && !isDisabled) {
                         const unlockResult = processUnlocks(
                             prev.unlockedElements, prev.unlockedGroups, 
                             prev.currentNuclide.z, prev.currentNuclide.a, 
@@ -70,8 +69,7 @@ export const useComboTimer = (
                         messages: nextMessages.slice(-10),
                         combo: 0, 
                         comboScore: 0, 
-                        comboStartNuclide: undefined,
-                        comboStartedUnstable: false
+                        comboOrigin: undefined
                     };
                 });
             }

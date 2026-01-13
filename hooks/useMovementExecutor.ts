@@ -1,6 +1,5 @@
-
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, NuclideData, EntityType } from '../types';
+import { GameState, DecayMode, NuclideData, EntityType, DiscoveryContext } from '../types';
 
 import { ENERGY_EVOLUTION_TURNS } from '../constants/gameConfig';
 import { MAX_ENERGY, SCORE_FACTORS, BONUS_SCORES } from '../constants/economy';
@@ -12,7 +11,6 @@ import { processUnlocks } from '../engine/unlockSystem';
 import { processRandomBackgroundEvents } from '../engine/randomEvents';
 import { getHistoryMethod } from '../utils/historyLogic';
 import { getNuclideDataSync } from '../services/nuclideService';
-import { DiscoveryContext } from '../engine/stateTransitions';
 import { resolveStabilityCrisis } from '../engine/stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../engine/tutorialManager';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
@@ -56,9 +54,7 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             
             if (result.hpPenalty > 0) { potentialReason = REASON.FATAL_CAPTURE; }
 
-            // --- BEGIN GAME PROGRESSION LOGIC ---
-
-            // Update pool based on physics engine result
+            // Update pool
             const nextPool = {
                 p: prev.reincarnationPool.p + result.reincarnationPoolIncrement.p,
                 n: prev.reincarnationPool.n + result.reincarnationPoolIncrement.n,
@@ -78,7 +74,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
             const potentialZ = prev.currentNuclide.z + result.dZ;
             const potentialA = prev.currentNuclide.a + result.dA;
             
-            // Interaction with Anti-nuclide check
             const isAntiCollision = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
 
             if (result.dZ !== 0 || result.dA !== 0 || result.isPpFusion || result.isPositronAbsorption ) {
@@ -96,13 +91,15 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const stabilityReward = newData.isStable ? SCORE_FACTORS.MOVEMENT_STABLE_REWARD : SCORE_FACTORS.MOVEMENT_UNSTABLE_REWARD;
                     const totalBaseActionScore = basePoints + stabilityReward + result.actionBonusScore + (result.magicProtectionBonus || 0) + (result.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
 
+                    // TRANSFORMATION DISPATCH: Capture sustains chain window but does NOT increment count or record origin
                     dispatchDiscovery(newData, {
                         method: getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel),
                         pz: prev.currentNuclide.z,
                         pa: prev.currentNuclide.a,
                         addedScore: totalBaseActionScore,
                         chargesUsed: result.chargesUsed,
-                        inducedDecayMode: result.inducedDecayMode
+                        inducedDecayMode: result.inducedDecayMode,
+                        isManualDecay: false // Explicitly set to false for capture transformations
                     });
 
                     const protectionMsg = (result.magicProtectionBonus || 0) > 0 ? [`✨ ${result.isPositronAbsorption ? 'POSITRON CAPTURE' : 'MAGIC BARRIER USED'}: +${result.magicProtectionBonus.toLocaleString()} PTS`] : [];
@@ -120,7 +117,6 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                     const nextMsg = getNextTutorialMessage(prev, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
                     const tutorialUpdates = calculateTutorialFlagUpdates(prev, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
-                    // Demon core unlock spawn
                     let finalEntities = nextPeripheralUpdate.gridEntities || prev.gridEntities;
                     if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !prev.unlockedGroups.includes(TITLES.DAREDEVIL)) {
                         finalEntities = generateEntities(1, finalEntities, result.newPos, nextTurn, EntityType.ANTI_NUCLIDE);
@@ -135,10 +131,10 @@ export const useMovementExecutor = (deps: MovementExecutorDeps) => {
                         gridEntities: finalEntities,
                         messages: [...prev.messages, coreMsg, ...fusionMsg, ...protectionMsg, ...dripMsg, ...unlockResult.messages].slice(-10),
                         energyPoints: Math.min(MAX_ENERGY, prev.energyPoints + result.energyBonus),
-                        hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty))
+                        hp: Math.min(prev.maxHp, Math.max(0, prev.hp + (newData.isStable ? 10 : 0) - result.hpPenalty)),
+                        score: prev.score + (totalBaseActionScore * (prev.combo || 1)) + unlockResult.scoreBonus
                     };
 
-                    // --- UI Effects via Event Bus ---
                     if (result.shouldShake) emitShake();
                     if (result.shouldFlash) emitFlash('bg-neon-blue');
                     if (result.isPpFusion) emitTTS("Nuclear Fusion");
