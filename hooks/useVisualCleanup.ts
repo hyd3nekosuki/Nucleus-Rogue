@@ -1,3 +1,4 @@
+
 // Added React import to provide access to React namespace
 import React, { useEffect } from 'react';
 import { GameState } from '../types';
@@ -11,8 +12,8 @@ export const useVisualCleanup = (
     setGameState: React.Dispatch<React.SetStateAction<GameState>>
 ) => {
     useEffect(() => {
-        // Guard: If nothing to clean up, do nothing
-        if (gameState.effects.length === 0 && !gameState.activeEvent) return;
+        // Guard: If time is stopped, or nothing to clean up, do nothing
+        if (gameState.isTimeStopped || (gameState.effects.length === 0 && !gameState.activeEvent)) return;
 
         const timer = setTimeout(() => {
             setGameState(prev => {
@@ -39,5 +40,5 @@ export const useVisualCleanup = (
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [gameState.effects, gameState.activeEvent, setGameState]);
+    }, [gameState.isTimeStopped, gameState.effects, gameState.activeEvent, setGameState]);
 };

@@ -550,7 +550,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const nextFrozen = !state.isTimeStopped;
                     return { 
                         ...state, isTimeStopped: nextFrozen, messages: [...state.messages, nextFrozen ? "✨ FROZEN TIME" : "✨ TIME RESTORED"].slice(-10),
-                        lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP', priorityMessages: [nextFrozen ? 'Time Stopped' : 'Time Restored'] }
+                        lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP' }
                     };
                 }
                 case 'TRANSMUTE': {

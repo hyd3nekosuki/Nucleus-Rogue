@@ -1,3 +1,4 @@
+
 // Added React import to provide access to React namespace (FC, CSSProperties)
 import React from 'react';
 import { GameState, EntityType, DecayMode } from '../../types';
@@ -205,9 +206,11 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
             {isTarget && <div className="target-mark"></div>}
             
             {/* Render Effects */}
-            {!gameState.isTimeStopped && activeEffects.map(ef => {
+            {activeEffects.map(ef => {
                 let typeClass = "effect-base effect-generic";
-                let style: React.CSSProperties = {};
+                let style: React.CSSProperties = {
+                    animationPlayState: gameState.isTimeStopped ? 'paused' : 'running'
+                };
 
                 switch(ef.type) {
                     case DecayMode.ALPHA: typeClass = "effect-base effect-alpha"; break;
@@ -225,29 +228,29 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     // Diagonal Lasers
                     case DecayMode.GAMMA_RAY_DIAG_TL_BR: 
                         typeClass = "effect-base effect-gamma-h"; 
-                        style = { transform: 'translate(-50%, -50%) rotate(45deg)' }; 
+                        style = { ...style, transform: 'translate(-50%, -50%) rotate(45deg)' }; 
                         break;
                     case DecayMode.GAMMA_RAY_DIAG_TR_BL: 
                         typeClass = "effect-base effect-gamma-h"; 
-                        style = { transform: 'translate(-50%, -50%) rotate(-45deg)' }; 
+                        style = { ...style, transform: 'translate(-50%, -50%) rotate(-45deg)' }; 
                         break;
                         
                     // Uni-directional Lasers
                     case DecayMode.GAMMA_RAY_RIGHT: 
                         typeClass = "effect-gamma-h"; 
-                        style = { position: 'absolute', top: '50%', left: '50%', transform: 'translateY(-50%)', transformOrigin: 'left' };
+                        style = { ...style, position: 'absolute', top: '50%', left: '50%', transform: 'translateY(-50%)', transformOrigin: 'left' };
                         break;
                     case DecayMode.GAMMA_RAY_LEFT: 
                         typeClass = "effect-gamma-h";
-                        style = { position: 'absolute', top: '50%', right: '50%', transform: 'translateY(-50%)', transformOrigin: 'right' };
+                        style = { ...style, position: 'absolute', top: '50%', right: '50%', transform: 'translateY(-50%)', transformOrigin: 'right' };
                         break;
                     case DecayMode.GAMMA_RAY_DOWN: 
                         typeClass = "effect-gamma-v";
-                        style = { position: 'absolute', top: '50%', left: '50%', transform: 'translateX(-50%)', transformOrigin: 'top' };
+                        style = { ...style, position: 'absolute', top: '50%', left: '50%', transform: 'translateX(-50%)', transformOrigin: 'top' };
                         break;
                     case DecayMode.GAMMA_RAY_UP: 
                         typeClass = "effect-gamma-v";
-                        style = { position: 'absolute', bottom: '50%', left: '50%', transform: 'translateX(-50%)', transformOrigin: 'bottom' };
+                        style = { ...style, position: 'absolute', bottom: '50%', left: '50%', transform: 'translateX(-50%)', transformOrigin: 'bottom' };
                         break;
                 }
                 return <div key={ef.id} className={typeClass} style={style}></div>

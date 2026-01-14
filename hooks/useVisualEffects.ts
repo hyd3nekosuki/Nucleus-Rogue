@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { DecayMode, GameState } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
@@ -13,8 +14,6 @@ const SPEECH_PRIORITY = [
     "Mastery Level",
     "Reincarnation",
     "Temporal Inversion",
-    "Time Stopped",
-    "Time Restored",
     "Total Annihilation"
 ];
 
@@ -56,6 +55,9 @@ export const useVisualEffects = (gameState?: GameState) => {
         const event = gameState.lastEvent;
         if (event.id <= lastProcessedEventId.current) return;
         lastProcessedEventId.current = event.id;
+
+        // Skip all logic for time stop/restore events to fix animation replay side-effects and TTS suppression
+        if (event.subType === 'TIME_STOP') return;
 
         // 1. Physical Feedback (Shake)
         if (event.shake) {
