@@ -7,12 +7,8 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
     const fixedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
     const debounceTimerRef = useRef<number | null>(null);
     
-    // Prevent garbage collection of the utterance objects by keeping them in a ref
-    const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-    
-    // Track if a priority event (e.g. Fusion, Mastery Level Up) is currently speaking
-    const isPriorityActiveRef = useRef<boolean>(false);
-    // Provisional registration for the nuclide name to be spoken after priority event ends
+    // Sequence State
+    const isSpeakingPriorityRef = useRef<boolean>(false);
     const pendingNuclideNameRef = useRef<string | null>(null);
 
     const getTargetVoice = useCallback(() => {
@@ -40,44 +36,21 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
         };
     }, [getTargetVoice]);
 
-    /**
-     * applyNaturalSpeechPatterns: 
-     * Converts technical titles and scientific symbols into natural English for TTS.
-     */
     const applyNaturalSpeechPatterns = useCallback((text: string) => {
         let p = text;
-        
-        // 1. Explicit Title Transformations
-        // Use TITLES constant to ensure match, but replace with full natural wording
-        p = p.replace(new RegExp(TITLES.EXP_REPLICATE, 'g'), "Experimental Replicate");
+        // Specific term overrides for natural English pronunciation
+        p = p.replace(new RegExp(TITLES.EXP_REPLICATE, 'g'), "Experimental Replication");
         p = p.replace(new RegExp(TITLES.ZERO_BARN, 'g'), "Zero Barn");
-        
-        // 2. Scientific Symbol Conversions (Ensures accessibility across all OS voices)
         p = p.replace(/β\-/g, "Beta Minus");
         p = p.replace(/β\+/g, "Beta Plus");
         p = p.replace(/α/g, "Alpha");
         p = p.replace(/γ/g, "Gamma");
-        
         return p;
     }, []);
-
-    const createUtterance = useCallback((text: string) => {
-        // Apply natural speech translations before creating the utterance
-        const processedText = applyNaturalSpeechPatterns(text);
-        const utterance = new SpeechSynthesisUtterance(processedText);
-        
-        const voice = getTargetVoice();
-        if (voice) utterance.voice = voice;
-        utterance.lang = 'en-US';
-        utterance.rate = 1.2;
-        utterance.pitch = 0.9;
-        return utterance;
-    }, [getTargetVoice, applyNaturalSpeechPatterns]);
 
     const processNameForSpeech = (name: string) => {
         if (name === 'Hydrogen-1') return 'Hydrogen';
         if (name === 'Neutron-1') return 'Neutron';
-        
         let processed = name.replace('-', ' ');
         if (processed.includes('Lead')) processed = processed.replace('Lead', 'Led');
         
@@ -90,115 +63,94 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
                 const remainder = parseInt(massStr.slice(1));
                 if (remainder === 0) return `${parts[0]} ${mass}`;
                 if (remainder < 10) return `${parts[0]} ${hundreds} oh ${remainder}`;
-                return processed;
             }
         }
         return processed;
     };
 
     /**
-     * speakPending: Announces the provisionally registered nuclide name.
+     * speakNuclide: Pronounces the latest nuclide name.
+     * Guaranteed to follow an event name if one was just spoken.
      */
-    const speakPending = useCallback(() => {
-        if (pendingNuclideNameRef.current) {
-            const textToSpeak = processNameForSpeech(pendingNuclideNameRef.current);
-            const utterance = createUtterance(textToSpeak);
-            currentUtteranceRef.current = utterance;
-            window.speechSynthesis.speak(utterance);
-            pendingNuclideNameRef.current = null;
+    const speakNuclide = useCallback(() => {
+        if (!('speechSynthesis' in window) || isMuted || gameOver || !pendingNuclideNameRef.current) {
+            isSpeakingPriorityRef.current = false;
+            return;
         }
-    }, [createUtterance]);
+
+        const text = processNameForSpeech(pendingNuclideNameRef.current);
+        pendingNuclideNameRef.current = null;
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voice = getTargetVoice();
+        if (voice) utterance.voice = voice;
+        utterance.lang = 'en-US';
+        utterance.rate = 1.1; 
+        utterance.pitch = 0.85;
+
+        // Reset the priority flag once the full sequence (Event + Name) is done
+        utterance.onend = () => { isSpeakingPriorityRef.current = false; };
+        utterance.onerror = () => { isSpeakingPriorityRef.current = false; };
+
+        window.speechSynthesis.speak(utterance);
+    }, [isMuted, gameOver, getTargetVoice]);
 
     /**
-     * triggerOverride: IMPORTANT EVENTS (Mastery Level Up, etc.)
-     * These interrupt everything and lock the speech engine until finished.
+     * triggerOverride: Pronounces Important Event Name (Priority) 
+     * then automatically sequences the nuclide name.
      */
     const triggerOverride = useCallback((text: string) => {
         if (!('speechSynthesis' in window) || isMuted || gameOver) return;
         
-        // 1. Force cancel everything to clear the path for the priority message
+        // Rule: Latest only - Cancel any current backlog
         window.speechSynthesis.cancel();
-        
-        // 2. Stop any pending nuclide name timers
-        if (debounceTimerRef.current) {
-            window.clearTimeout(debounceTimerRef.current);
-            debounceTimerRef.current = null;
-        }
+        isSpeakingPriorityRef.current = true;
 
-        // 3. Mark as priority - this prevents useEffect from interrupting this message
-        isPriorityActiveRef.current = true;
-
-        const utterance = createUtterance(text);
-        currentUtteranceRef.current = utterance;
+        const utterance = new SpeechSynthesisUtterance(applyNaturalSpeechPatterns(text));
+        const voice = getTargetVoice();
+        if (voice) utterance.voice = voice;
+        utterance.lang = 'en-US';
+        utterance.rate = 1.25;
+        utterance.pitch = 0.9;
         
-        const handleEnd = (e?: SpeechSynthesisEvent | SpeechSynthesisErrorEvent) => {
-            if (currentUtteranceRef.current === utterance) {
-                isPriorityActiveRef.current = false;
-                currentUtteranceRef.current = null;
-                // Important: Speak the nuclide name that was "parked" during this message
-                speakPending();
-            }
+        // Implementation of "Important Event Name + Nuclide Name"
+        utterance.onend = () => speakNuclide();
+        utterance.onerror = () => { 
+            isSpeakingPriorityRef.current = false;
+            speakNuclide();
         };
-
-        utterance.onend = handleEnd;
-        utterance.onerror = (e) => {
-            if (e.error !== 'interrupted' && e.error !== 'canceled') {
-                console.warn(`TTS Warning: Priority speech "${text}" result:`, e.error);
-            }
-            handleEnd();
-        };
-
-        // Short delay to let the engine settle after cancel()
-        window.setTimeout(() => {
-            window.speechSynthesis.speak(utterance);
-        }, 50);
         
-    }, [isMuted, gameOver, createUtterance, speakPending]);
+        window.speechSynthesis.speak(utterance);
+    }, [isMuted, gameOver, getTargetVoice, applyNaturalSpeechPatterns, speakNuclide]);
 
     /**
-     * useEffect: NUCLIDE NAME (DEBOUNCED)
-     * Handles nuclide name announcements with override logic.
+     * Effect for automatic nuclide name vocalization.
+     * Enforces the "latest nuclide only" rule.
      */
     useEffect(() => {
         const currentName = nuclide.name;
         if (currentName === prevNuclideNameRef.current) return;
         prevNuclideNameRef.current = currentName;
 
-        if (!('speechSynthesis' in window) || isMuted || gameOver) {
-            if (isMuted) window.speechSynthesis.cancel();
-            return;
-        }
+        if (isMuted || gameOver) return;
 
-        if (debounceTimerRef.current) {
-            window.clearTimeout(debounceTimerRef.current);
-        }
+        // Store as latest nuclide
+        pendingNuclideNameRef.current = currentName;
 
-        debounceTimerRef.current = window.setTimeout(() => {
-            // IF a priority message is active, we NEVER interrupt it.
-            // We just update the pending buffer so it speaks the LATEST name when priority ends.
-            if (isPriorityActiveRef.current) {
-                pendingNuclideNameRef.current = currentName;
-                debounceTimerRef.current = null;
-                return;
-            }
-
-            // IF no priority is active, we WANT to interrupt any current speech.
-            // (Whatever is currently speaking must be an older nuclide name)
-            window.speechSynthesis.cancel();
-            pendingNuclideNameRef.current = null; // We are speaking it now
-            
-            const textToSpeak = processNameForSpeech(currentName);
-            const utterance = createUtterance(textToSpeak);
-            currentUtteranceRef.current = utterance;
-            
-            window.speechSynthesis.speak(utterance);
-            debounceTimerRef.current = null;
-        }, 200);
-
-        return () => {
+        // If a priority event is already managing the sequence, do nothing (it will use the updated ref)
+        if (!isSpeakingPriorityRef.current) {
             if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current);
-        };
-    }, [nuclide.name, isMuted, gameOver, createUtterance]);
+            debounceTimerRef.current = window.setTimeout(() => {
+                // Re-verify flag after debounce to prevent race conditions with triggerOverride
+                if (!isSpeakingPriorityRef.current) {
+                    // Latest only: Cancel any queue that might have built up
+                    window.speechSynthesis.cancel();
+                    speakNuclide();
+                }
+            }, 50);
+        }
+        
+    }, [nuclide.name, isMuted, gameOver, speakNuclide]);
 
     return { triggerOverride };
 };

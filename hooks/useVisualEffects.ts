@@ -2,9 +2,24 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { DecayMode, GameState } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 
+// Define the priority order for vocalization (Lower index = Higher priority)
+const SPEECH_PRIORITY = [
+    "Nuclear Fusion",
+    "Nuclear Fission",
+    "Pair Annihilation",
+    "Rapid Process Nucleosynthesis",
+    "Nucleosynthesis",
+    "Experimental Replication",
+    "Mastery Level",
+    "Reincarnation",
+    "Temporal Inversion",
+    "Time Stopped",
+    "Time Restored",
+    "Total Annihilation"
+];
+
 /**
  * Custom hook to manage transient visual effect states and bridge engine events.
- * Bridges the pure logic engine state to React-based UI effects.
  */
 export const useVisualEffects = (gameState?: GameState) => {
     const [isScreenShaking, setIsScreenShaking] = useState(false);
@@ -34,7 +49,6 @@ export const useVisualEffects = (gameState?: GameState) => {
 
     /**
      * Effect Bridge: Monitors gameState.lastEvent to trigger global UI side-effects.
-     * This keeps the Reducer pure while allowing it to drive animations and audio.
      */
     useEffect(() => {
         if (!gameState?.lastEvent) return;
@@ -55,9 +69,27 @@ export const useVisualEffects = (gameState?: GameState) => {
             emitFlash(event.flash);
         }
 
-        // 3. Audio/Voice Feedback (TTS)
-        if (event.message) {
-            emitTTS(event.message);
+        // 3. Audio/Voice Feedback (Priority Selection)
+        // We evaluate all candidate messages to find the most "Important" one to announce.
+        const candidates = [...(event.priorityMessages || [])];
+        if (event.message) candidates.push(event.message);
+
+        if (candidates.length > 0) {
+            // Sort by defined priority (Nuclear Fusion > Fission > etc.)
+            const sortedCandidates = candidates.sort((a, b) => {
+                const scoreA = SPEECH_PRIORITY.findIndex(p => a.startsWith(p));
+                const scoreB = SPEECH_PRIORITY.findIndex(p => b.startsWith(p));
+                const pA = scoreA === -1 ? 999 : scoreA;
+                const pB = scoreB === -1 ? 999 : scoreB;
+                return pA - pB;
+            });
+            
+            // Pick exactly one "winner" (the highest priority event)
+            const winner = sortedCandidates[0];
+            
+            // Trigger the TTS system with the winning event. 
+            // useTTS will then handle the "Event + Nuclide Name" sequence.
+            emitTTS(winner);
         }
 
         // 4. Special Case: Internal Decay Sync for Visualizer
@@ -68,8 +100,8 @@ export const useVisualEffects = (gameState?: GameState) => {
             });
         }
 
-        // 5. Reincarnation specific TTS (Previously handled in coordinator)
-        if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION') {
+        // 5. Reincarnation specific (Ensuring it's caught if not in priorityMessages)
+        if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION' && !event.priorityMessages?.includes("Reincarnation")) {
             emitTTS("Reincarnation");
         }
 

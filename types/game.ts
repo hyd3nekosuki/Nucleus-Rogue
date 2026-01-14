@@ -60,6 +60,7 @@ export interface GameStateEvent {
   type: 'COLLISION' | 'DECAY' | 'LEVEL_UP' | 'SKILL' | 'SURVIVAL' | 'DEATH' | 'STABILITY_CRISIS';
   subType?: string;
   message?: string;
+  priorityMessages?: string[]; // New: List of important terms to speak separately
   shake?: boolean;
   flash?: string;
 }

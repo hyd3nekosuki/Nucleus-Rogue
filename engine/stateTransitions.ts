@@ -1,3 +1,4 @@
+
 import { 
   GameState, 
   GameAction, 
@@ -64,8 +65,7 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         levelUpEvent = {
             id: now,
             type: 'LEVEL_UP',
-            message: `Mastery Level ${nextLevel}`
-            // Removed flash: 'bg-white' per user request
+            priorityMessages: [`Mastery Level ${nextLevel}`]
         };
     }
 
@@ -94,16 +94,21 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         nextLastComboTime = 0;
     }
 
-    // Merge Level Up event with any existing collision/event to prevent losing TTS messages
+    // Structured Merge of Events
     let finalEvent = levelUpEvent;
     if (levelUpEvent && state.lastEvent) {
+        // Collect all unique priority items from both events
+        const combinedPriority = [
+            ...(state.lastEvent.priorityMessages || (state.lastEvent.message ? [state.lastEvent.message] : [])),
+            ...(levelUpEvent.priorityMessages || [])
+        ];
+        
         finalEvent = {
             ...levelUpEvent,
             shake: levelUpEvent.shake || state.lastEvent.shake,
             flash: levelUpEvent.flash || state.lastEvent.flash,
-            message: state.lastEvent.message 
-                ? `${state.lastEvent.message}. ${levelUpEvent.message}` 
-                : levelUpEvent.message
+            subType: state.lastEvent.subType || levelUpEvent.subType,
+            priorityMessages: combinedPriority
         };
     } else if (!levelUpEvent) {
         finalEvent = state.lastEvent;
@@ -144,6 +149,11 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             let isDaredevilAttempt = false;
             const nextTurn = state.turn + 1;
 
+            // Added definition for potentialZ, potentialA and isAntiCollision to resolve scope errors
+            const potentialZ = state.currentNuclide.z + result.dZ;
+            const potentialA = state.currentNuclide.a + result.dA;
+            const isAntiCollision = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
+
             const nextPool = {
                 p: state.reincarnationPool.p + result.reincarnationPoolIncrement.p,
                 n: state.reincarnationPool.n + result.reincarnationPoolIncrement.n,
@@ -163,10 +173,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 lastEvent: undefined // Clear previous event
             };
 
-            const potentialZ = state.currentNuclide.z + result.dZ;
-            const potentialA = state.currentNuclide.a + result.dA;
-            const isAntiCollision = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
-
             // Handle Move/Interaction Events
             if (result.shouldShake || result.shouldFlash || result.isPpFusion) {
                 nextState.lastEvent = {
@@ -174,7 +180,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     type: 'COLLISION',
                     shake: result.shouldShake,
                     flash: result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined,
-                    message: result.isPpFusion ? 'Fusion' : undefined
+                    priorityMessages: result.isPpFusion ? ['Nuclear Fusion'] : []
                 };
             }
 
@@ -214,7 +220,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     if (result.scatteredMessage && !result.isPositronAbsorption) {
                         coreMsg = `⚠️ ${result.scatteredMessage}`;
                     } else if (result.isPpFusion) {
-                        coreMsg = `Fusion: Deuterium Synthesized.`;
+                        coreMsg = `Nuclear Fusion: Deuterium Synthesized.`;
                     } else if (result.targetEntity?.type === EntityType.ENEMY_ELECTRON) {
                         coreMsg = `Enforced electron capture into ${newData.name}`;
                     } else if (result.targetEntity?.type === EntityType.ENEMY_POSITRON) {
@@ -421,19 +427,20 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 subType: actualMode,
                 shake: decayResult.shouldShake,
                 flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined,
-                message: decayResult.speechOverride || undefined
+                priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : []
             };
 
             // Merge decayEvent with whatever applyDiscoveryLogic produced (could be Level Up)
             const finalEvent: GameStateEvent = nextState.lastEvent 
                 ? {
                     ...nextState.lastEvent,
-                    message: nextState.lastEvent.message 
-                        ? (decayEvent.message ? `${nextState.lastEvent.message}. ${decayEvent.message}` : nextState.lastEvent.message)
-                        : decayEvent.message,
+                    priorityMessages: [
+                        ...(nextState.lastEvent.priorityMessages || []),
+                        ...(decayEvent.priorityMessages || [])
+                    ],
                     shake: nextState.lastEvent.shake || decayEvent.shake,
                     flash: nextState.lastEvent.flash || decayEvent.flash,
-                    subType: decayEvent.subType
+                    subType: decayEvent.subType || nextState.lastEvent.subType
                   }
                 : decayEvent;
 
@@ -485,12 +492,15 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: state.turn + 1 });
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
-                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, message: 'Nucleosynthesis' };
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] };
                     // Merge skillEvent with potential Level Up from nextState.lastEvent
                     const finalEvent: GameStateEvent = nextState.lastEvent 
                         ? {
                             ...nextState.lastEvent,
-                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            priorityMessages: [
+                                ...(skillEvent.priorityMessages || []),
+                                ...(nextState.lastEvent.priorityMessages || [])
+                            ],
                             shake: nextState.lastEvent.shake || skillEvent.shake,
                             flash: nextState.lastEvent.flash || skillEvent.flash
                         }
@@ -517,12 +527,15 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: state.turn + 1 });
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
-                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, message: 'Rapid Process Nucleosynthesis' };
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] };
                     // Merge skillEvent with potential Level Up from nextState.lastEvent
                     const finalEvent: GameStateEvent = nextState.lastEvent 
                         ? {
                             ...nextState.lastEvent,
-                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            priorityMessages: [
+                                ...(skillEvent.priorityMessages || []),
+                                ...(nextState.lastEvent.priorityMessages || [])
+                            ],
                             shake: nextState.lastEvent.shake || skillEvent.shake,
                             flash: nextState.lastEvent.flash || skillEvent.flash
                         }
@@ -537,7 +550,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const nextFrozen = !state.isTimeStopped;
                     return { 
                         ...state, isTimeStopped: nextFrozen, messages: [...state.messages, nextFrozen ? "✨ FROZEN TIME" : "✨ TIME RESTORED"].slice(-10),
-                        lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP', message: nextFrozen ? 'Time Stopped' : 'Time Restored' }
+                        lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP', priorityMessages: [nextFrozen ? 'Time Stopped' : 'Time Restored'] }
                     };
                 }
                 case 'TRANSMUTE': {
@@ -551,11 +564,14 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn + 1);
                     const unlockResult = processUnlocks(state.unlockedElements, state.unlockedGroups, selectedZ, randomA, true);
                     
-                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, message: 'Experimental Replication' };
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: ['Experimental Replication'] };
                     const finalEvent: GameStateEvent = nextState.lastEvent 
                         ? {
                             ...nextState.lastEvent,
-                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            priorityMessages: [
+                                ...(skillEvent.priorityMessages || []),
+                                ...(nextState.lastEvent.priorityMessages || [])
+                            ],
                             shake: nextState.lastEvent.shake || skillEvent.shake,
                             flash: nextState.lastEvent.flash || skillEvent.flash
                         }
