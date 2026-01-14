@@ -49,7 +49,19 @@ export interface DiscoveryContext {
   addedScore: number;
   chargesUsed: number;
   inducedDecayMode?: DecayMode;
-  isManualDecay?: boolean; // Added to distinguish decay actions from transformations
+  isManualDecay?: boolean; 
+}
+
+/**
+ * Representation of a transient game event for the effect bridge.
+ */
+export interface GameStateEvent {
+  id: number;
+  type: 'COLLISION' | 'DECAY' | 'LEVEL_UP' | 'SKILL' | 'SURVIVAL' | 'DEATH' | 'STABILITY_CRISIS';
+  subType?: string;
+  message?: string;
+  shake?: boolean;
+  flash?: string;
 }
 
 export interface GameState {
@@ -95,9 +107,13 @@ export interface GameState {
   hasSeenDripLineTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
   emptyTurnCount: number;
+  lastEvent?: GameStateEvent; // Bridge for UI side-effects
 }
 
 export type GameAction =
+  | { type: 'MOVE_PLAYER'; payload: { dx: number; dy: number } }
+  | { type: 'MANUAL_DECAY'; payload: { mode: DecayMode } }
+  | { type: 'USE_SKILL'; payload: { skillType: 'STABILIZE' | 'NUCLEOSYNTHESIS' | 'R_PROCESS' | 'TIME_STOP' | 'TRANSMUTE' | 'TOGGLE_SKILL'; params?: any } }
   | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; context: DiscoveryContext } }
   | { type: 'UPDATE_BASIC_STATE'; payload: Partial<GameState> | ((prev: GameState) => Partial<GameState>) }
   | { type: 'RESET_STATE'; payload: GameState }

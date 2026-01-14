@@ -1,6 +1,4 @@
-
 import { useEffect, useCallback, useRef } from 'react';
-import { DecayMode, EntityType } from '../types';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 import { generateEntities } from './gameLogic';
 import { useNucleusState } from './useNucleusState';
@@ -14,17 +12,17 @@ import { useSkillController } from '../hooks/useSkillController';
 import { useDecayController } from '../hooks/useDecayController';
 import { useMovementExecutor } from '../hooks/useMovementExecutor';
 import { useAtomicDispatcher } from '../hooks/useAtomicDispatcher';
-import { emitTTS } from './events/gameEvents';
 
 export const useNucleusCoordinator = () => {
     const { gameState, setGameState, dispatch } = useNucleusState();
     const { dispatchDiscovery } = useAtomicDispatcher(dispatch);
 
+    // Pass gameState to useVisualEffects to enable the Effect Bridge
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
-        triggerShake, triggerFlash, // UI演出用に公開
+        triggerShake, triggerFlash, 
         setLastDecayEvent, setFinalCombo, resetVisuals
-    } = useVisualEffects();
+    } = useVisualEffects(gameState);
 
     useStabilityTimer(gameState, setGameState);
     useComboTimer(gameState, setGameState, setFinalCombo);
@@ -32,30 +30,15 @@ export const useNucleusCoordinator = () => {
 
     const stopAutoMoveRef = useRef<() => void>(() => {});
 
-    // Watch for reincarnation events to trigger TTS announcement via Event Bus
-    const prevReincarnationsRef = useRef(gameState.reincarnations);
-    useEffect(() => {
-        if (gameState.reincarnations > prevReincarnationsRef.current) {
-            emitTTS("Reincarnation");
-        }
-        prevReincarnationsRef.current = gameState.reincarnations;
-    }, [gameState.reincarnations]);
-
     const { moveStep } = useMovementExecutor({
-        gameState,
-        setGameState, 
-        dispatchDiscovery,
-        setLastDecayEvent, 
-        setLastFinalCombo: setFinalCombo,
+        dispatch,
         onStopRequest: () => stopAutoMoveRef.current()
     });
 
     const { 
         handleDecayAction, handlePlayerInteract 
     } = useDecayController(
-        gameState, setGameState, 
-        dispatchDiscovery,
-        setLastDecayEvent, setFinalCombo, 
+        gameState, dispatch, 
         () => stopAutoMoveRef.current()
     );
 
@@ -74,24 +57,20 @@ export const useNucleusCoordinator = () => {
         handleStabilize, handleUltimateSynthesis, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay
     } = useSkillController(
-        gameState, setGameState, 
-        dispatchDiscovery,
-        () => {}, // History integrated into gameState
-        stopAutoMove, handleDecayAction, setLastDecayEvent, setFinalCombo, resetVisuals
+        gameState, dispatch, 
+        stopAutoMove, handleDecayAction, resetVisuals
     );
 
     const { generateSaveCode, loadSaveCode } = usePersistence(
         gameState,
         setGameState,
         gameState.evolutionHistory,
-        () => {}, // History integrated into gameState
+        () => {}, 
         resetVisuals
     );
 
     useEffect(() => {
         const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
-        
-        // Dispatch atomic initialization
         dispatch({
             type: 'RESET_STATE',
             payload: {
@@ -99,15 +78,7 @@ export const useNucleusCoordinator = () => {
                 gridEntities: initialEntities,
                 evolutionHistory: {
                     [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
-                        firstTurn: 0, 
-                        lastTurn: 0,
-                        name: INITIAL_NUCLIDE.name, 
-                        symbol: INITIAL_NUCLIDE.symbol,
-                        z: INITIAL_NUCLIDE.z, 
-                        a: INITIAL_NUCLIDE.a, 
-                        method: HISTORY_METHODS.ORIGIN,
-                        pz: null, 
-                        pa: null
+                        firstTurn: 0, lastTurn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol, z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN, pz: null, pa: null
                     }
                 }
             }
@@ -117,11 +88,8 @@ export const useNucleusCoordinator = () => {
     const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), []);
 
     return {
-        gameState, 
-        evolutionHistory: gameState.evolutionHistory, 
-        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
-        triggerShake, triggerFlash, // UI側でイベント受信時に使用
-        moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
+        gameState, evolutionHistory: gameState.evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        triggerShake, triggerFlash, moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
         handleUltimateSynthesis, handleForceUnknownDecay, setHP, generateSaveCode, loadSaveCode
     };

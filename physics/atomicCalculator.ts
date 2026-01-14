@@ -123,7 +123,8 @@ export const calculateNeutronReaction = (
             messages: [],
             scatteredMessage: "High energy neutron was not absorbed due to 0 barn",
             chargesUsed: 0,
-            newGridEntities: currentEntities
+            newGridEntities: currentEntities,
+            shouldFlash: false
         };
     }
 
@@ -166,7 +167,6 @@ export const calculateNeutronReaction = (
     const chosen = options[Math.floor(Math.random() * options.length)];
     
     // Decay phase (triggered by absorption energy)
-    // Pass currentEntities (the ones already adjusted for the collision) to calculateDecayEffects
     const decayResult = calculateDecayEffects(
         chosen.mode, 
         intermediateData, 
@@ -193,7 +193,8 @@ export const calculateNeutronReaction = (
         inducedDecayMode: chosen.mode,
         inducedReactionLabel: chosen.label,
         shouldShake: decayResult.shouldShake,
-        shouldFlash: decayResult.shouldFlash,
+        // (n,2n)反応時は明示的にフラッシュを無効化
+        shouldFlash: chosen.label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
         chargesUsed: 0,
         chainDecayResult: decayResult,
         newGridEntities: decayResult.newGridEntities

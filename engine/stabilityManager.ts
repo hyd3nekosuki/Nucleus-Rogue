@@ -1,4 +1,3 @@
-
 import { GameState, DecayMode } from '../types';
 import { calculateReincarnationTargets } from './particleEngine';
 import { REASON } from '../constants/gameOverReason';
@@ -7,10 +6,6 @@ import { TITLES } from '../constants/titles';
 
 /**
  * 安定性の危機を解決するための統合管理ユーティリティ。
- * 
- * 修正点: 生存ルート（時間反転・転生）でも実績判定（processUnlocks）を
- * 実行し、称号がその場で解禁されるようにしました。
- * また、対消滅時には全ての生存スキルをバイパスする例外処理を追加しました。
  */
 export const resolveStabilityCrisis = (
     state: GameState, 
@@ -18,8 +13,9 @@ export const resolveStabilityCrisis = (
     isDaredevilAttempt: boolean = false,
     checkInversion: boolean = true
 ): Partial<GameState> => {
-    
-    // 実績チェック（特に生存時にもDaredevilを解禁するため）
+    const now = Date.now();
+
+    // 実績チェック
     const unlockCheck = (updatedState: Partial<GameState>) => {
         const tempState = { ...state, ...updatedState };
         return processUnlocks(
@@ -33,8 +29,6 @@ export const resolveStabilityCrisis = (
     };
 
     // --- 対消滅の特別処理 ---
-    // 対消滅は全てを無に帰すため、時間反転や転生による救済を一切受け付けず即死させます。
-    // これにより、対消滅回避による無限エネルギー稼ぎの不整合を解消します。
     if (reason === REASON.NOTHINGNESS) {
         const finalResult = unlockCheck({ hp: 0, gameOver: true });
         return { 
@@ -47,12 +41,12 @@ export const resolveStabilityCrisis = (
             messages: [...state.messages, ...finalResult.messages].slice(-10),
             combo: 0, 
             comboScore: 0, 
-            // Fix: Corrected comboStartNuclide to comboOrigin as per GameState interface
             comboOrigin: undefined,
             consecutiveProtons: 0,
             consecutiveNeutrons: 0,
             consecutiveElectrons: 0,
-            lastConsumedType: null
+            lastConsumedType: null,
+            lastEvent: { id: now, type: 'DEATH', message: 'Total Annihilation', flash: 'bg-neon-purple', shake: true }
         };
     }
 
@@ -71,9 +65,11 @@ export const resolveStabilityCrisis = (
                     id: Math.random().toString(36).substr(2, 9), 
                     type: DecayMode.STABILIZE_ZAP, 
                     position: { ...state.playerPos }, 
-                    timestamp: Date.now() 
+                    timestamp: now 
                 }
-            ]
+            ],
+            // フラッシュ効果(flash: 'bg-white')を削除
+            lastEvent: { id: now, type: 'SURVIVAL', subType: 'TEMPORAL_INVERSION', message: 'Temporal Inversion' }
         };
 
         const result = unlockCheck(survivalUpdate);
@@ -112,12 +108,12 @@ export const resolveStabilityCrisis = (
             reincarnations: state.reincarnations + 1,
             combo: 0,
             comboScore: 0,
-            // Fix: Changed comboStartNuclide to comboOrigin and removed non-existent comboStartedUnstable
             comboOrigin: undefined,
             consecutiveProtons: 0,
             consecutiveNeutrons: 0,
             consecutiveElectrons: 0,
-            lastConsumedType: null
+            lastConsumedType: null,
+            lastEvent: { id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', message: 'Reincarnation' }
         };
 
         const result = unlockCheck(reincarnationUpdate);
@@ -141,11 +137,11 @@ export const resolveStabilityCrisis = (
         messages: [...state.messages, ...finalResult.messages].slice(-10),
         combo: 0, 
         comboScore: 0, 
-        // Fix: Corrected comboStartNuclide to comboOrigin as per GameState interface
         comboOrigin: undefined,
         consecutiveProtons: 0,
         consecutiveNeutrons: 0,
         consecutiveElectrons: 0,
-        lastConsumedType: null
+        lastConsumedType: null,
+        lastEvent: { id: now, type: 'DEATH' }
     };
 };
