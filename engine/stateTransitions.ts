@@ -64,8 +64,8 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         levelUpEvent = {
             id: now,
             type: 'LEVEL_UP',
-            message: `Mastery Level ${nextLevel}`,
-            flash: 'bg-white'
+            message: `Mastery Level ${nextLevel}`
+            // Removed flash: 'bg-white' per user request
         };
     }
 
@@ -94,6 +94,21 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         nextLastComboTime = 0;
     }
 
+    // Merge Level Up event with any existing collision/event to prevent losing TTS messages
+    let finalEvent = levelUpEvent;
+    if (levelUpEvent && state.lastEvent) {
+        finalEvent = {
+            ...levelUpEvent,
+            shake: levelUpEvent.shake || state.lastEvent.shake,
+            flash: levelUpEvent.flash || state.lastEvent.flash,
+            message: state.lastEvent.message 
+                ? `${state.lastEvent.message}. ${levelUpEvent.message}` 
+                : levelUpEvent.message
+        };
+    } else if (!levelUpEvent) {
+        finalEvent = state.lastEvent;
+    }
+
     return {
         ...state,
         turn: targetTurn,
@@ -108,7 +123,7 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         lastComboTime: nextLastComboTime, 
         maxCombo: Math.max(state.maxCombo, nextCombo),
         messages: nextMessages,
-        lastEvent: levelUpEvent || state.lastEvent
+        lastEvent: finalEvent
     };
 };
 
@@ -159,7 +174,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     type: 'COLLISION',
                     shake: result.shouldShake,
                     flash: result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined,
-                    message: result.isPpFusion ? 'Stellar Fusion' : undefined
+                    message: result.isPpFusion ? 'Fusion' : undefined
                 };
             }
 
@@ -371,7 +386,8 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 isManualDecay: true
             };
 
-            let nextState = applyDiscoveryLogic(state, newData, discoveryContext, state.turn);
+            // Clear previous event explicitly before applying discovery to prevent stale merging
+            let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn);
             const unlockResult = processUnlocks(
                 state.unlockedElements, state.unlockedGroups, newData.z, newData.a, 
                 false, !!decayResult.isAnnihilation, false, false, 0, 
@@ -399,6 +415,28 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 actualMode === DecayMode.SPONTANEOUS_FISSION ? `Spontaneous fission into ${newData.name}` :
                 actualMode === DecayMode.GAMMA ? `γ decay` : "";
 
+            const decayEvent: GameStateEvent = {
+                id: now,
+                type: 'DECAY',
+                subType: actualMode,
+                shake: decayResult.shouldShake,
+                flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined,
+                message: decayResult.speechOverride || undefined
+            };
+
+            // Merge decayEvent with whatever applyDiscoveryLogic produced (could be Level Up)
+            const finalEvent: GameStateEvent = nextState.lastEvent 
+                ? {
+                    ...nextState.lastEvent,
+                    message: nextState.lastEvent.message 
+                        ? (decayEvent.message ? `${nextState.lastEvent.message}. ${decayEvent.message}` : nextState.lastEvent.message)
+                        : decayEvent.message,
+                    shake: nextState.lastEvent.shake || decayEvent.shake,
+                    flash: nextState.lastEvent.flash || decayEvent.flash,
+                    subType: decayEvent.subType
+                  }
+                : decayEvent;
+
             return { 
                 ...nextState, 
                 ...tutorialUpdates,
@@ -414,14 +452,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 messages: [...nextState.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...unlockResult.messages, ...dripMsg, ...decayResult.extraMessages].slice(-10), 
                 decayStats: { ...state.decayStats, [actualMode]: (state.decayStats[actualMode] || 0) + 1 },
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-                lastEvent: {
-                    id: now,
-                    type: 'DECAY',
-                    subType: actualMode,
-                    shake: decayResult.shouldShake,
-                    flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined,
-                    message: decayResult.speechOverride || undefined
-                }
+                lastEvent: finalEvent
             };
         }
 
@@ -449,14 +480,25 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     if (!newData.exists) return state;
 
                     const discoveryContext: DiscoveryContext = { method: HISTORY_METHODS.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false };
-                    let nextState = applyDiscoveryLogic(state, newData, discoveryContext, state.turn + 1);
+                    let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn + 1);
                     const unlockResult = processUnlocks(state.unlockedElements, state.unlockedGroups, nextZ, randomA, false, false, true);
                     const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: state.turn + 1 });
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, message: 'Nucleosynthesis' };
+                    // Merge skillEvent with potential Level Up from nextState.lastEvent
+                    const finalEvent: GameStateEvent = nextState.lastEvent 
+                        ? {
+                            ...nextState.lastEvent,
+                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            shake: nextState.lastEvent.shake || skillEvent.shake,
+                            flash: nextState.lastEvent.flash || skillEvent.flash
+                        }
+                        : skillEvent;
+
                     return { 
                         ...nextState, ...tutorialFlags, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tutorialMessage: nextMsg, score: nextState.score + nextZ * 10000 + unlockResult.scoreBonus, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}!`, ...unlockResult.messages].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-                        lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, message: 'Nucleosynthesis' }
+                        lastEvent: finalEvent
                     };
                 }
                 case 'R_PROCESS': {
@@ -470,14 +512,25 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...state, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, lastEvent: { id: now, type: 'DEATH' } };
                     
                     const discoveryContext: DiscoveryContext = { method: HISTORY_METHODS.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false };
-                    let nextState = applyDiscoveryLogic(state, newData, discoveryContext, state.turn + 1);
+                    let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn + 1);
                     const unlockResult = processUnlocks(state.unlockedElements, state.unlockedGroups, nextZ, nextA, false, false, true);
                     const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: state.turn + 1 });
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, message: 'Rapid Process Nucleosynthesis' };
+                    // Merge skillEvent with potential Level Up from nextState.lastEvent
+                    const finalEvent: GameStateEvent = nextState.lastEvent 
+                        ? {
+                            ...nextState.lastEvent,
+                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            shake: nextState.lastEvent.shake || skillEvent.shake,
+                            flash: nextState.lastEvent.flash || skillEvent.flash
+                        }
+                        : skillEvent;
+
                     return { 
                         ...nextState, ...tutorialFlags, hp: state.maxHp, gridEntities: [], tutorialMessage: nextMsg, score: nextState.score + totalAbsorbed * 50000 + unlockResult.scoreBonus, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, playerLevel: 0, masteredDecays: [], messages: [...state.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles!`, "⚠️ MASTERY CONSUMED: Level reset to 0."].slice(-10), combo: 0,
-                        lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, message: 'Rapid Process Nucleosynthesis' }
+                        lastEvent: finalEvent
                     };
                 }
                 case 'TIME_STOP': {
@@ -495,11 +548,22 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     if (!newData.exists) return state;
 
                     const discoveryContext: DiscoveryContext = { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false };
-                    let nextState = applyDiscoveryLogic(state, newData, discoveryContext, state.turn + 1);
+                    let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn + 1);
                     const unlockResult = processUnlocks(state.unlockedElements, state.unlockedGroups, selectedZ, randomA, true);
+                    
+                    const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, message: 'Experimental Replication' };
+                    const finalEvent: GameStateEvent = nextState.lastEvent 
+                        ? {
+                            ...nextState.lastEvent,
+                            message: nextState.lastEvent.message ? `${skillEvent.message}. ${nextState.lastEvent.message}` : skillEvent.message,
+                            shake: nextState.lastEvent.shake || skillEvent.shake,
+                            flash: nextState.lastEvent.flash || skillEvent.flash
+                        }
+                        : skillEvent;
+
                     return { 
                         ...nextState, unlockedElements: unlockResult.updatedElements, unlockedGroups: unlockResult.updatedGroups, score: nextState.score + BONUS_SCORES.EXP_REPLICATE_ACTION + unlockResult.scoreBonus, messages: [...state.messages, `🔮 EXP. REPLICATE: ${newData.name}!`, ...unlockResult.messages].slice(-10), isTimeStopped: false, combo: 0,
-                        lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, message: 'Experimental Replication' }
+                        lastEvent: finalEvent
                     };
                 }
                 case 'TOGGLE_SKILL': {
