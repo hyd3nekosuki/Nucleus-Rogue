@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { DecayMode, GameState } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
@@ -74,7 +73,7 @@ export const useVisualEffects = (gameState?: GameState) => {
         // 3. Audio/Voice Feedback (Priority Selection)
         // We evaluate all candidate messages to find the most "Important" one to announce.
         const candidates = [...(event.priorityMessages || [])];
-        if (event.message) candidates.push(event.message);
+        if (event.message && event.subType !== 'COMBO_SETTLED') candidates.push(event.message);
 
         if (candidates.length > 0) {
             // Sort by defined priority (Nuclear Fusion > Fission > etc.)
@@ -95,14 +94,24 @@ export const useVisualEffects = (gameState?: GameState) => {
         }
 
         // 4. Special Case: Internal Decay Sync for Visualizer
-        if (event.type === 'DECAY' && event.subType) {
+        // Modified: Preserved trigger field takes priority to allow simultaneous combo and decay visuals
+        const decayToVisualise = event.decayModeTrigger || (event.type === 'DECAY' ? event.subType : null);
+        if (decayToVisualise) {
             setLastDecayEvent({
-                mode: event.subType as DecayMode,
+                mode: decayToVisualise as DecayMode,
                 timestamp: event.id
             });
         }
 
-        // 5. Reincarnation specific (Ensuring it's caught if not in priorityMessages)
+        // 5. Special Case: Combo Settlement for Grid Display
+        if (event.subType === 'COMBO_SETTLED' && event.message) {
+            const count = parseInt(event.message);
+            if (!isNaN(count) && count >= 2) {
+                setFinalCombo({ count, id: event.id });
+            }
+        }
+
+        // 6. Reincarnation specific (Ensuring it's caught if not in priorityMessages)
         if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION' && !event.priorityMessages?.includes("Reincarnation")) {
             emitTTS("Reincarnation");
         }

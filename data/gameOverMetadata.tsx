@@ -24,7 +24,7 @@ export const REASON_METADATA: Record<string, { title: string; getDescription: (n
     },
     [REASON.NOTHINGNESS]: {
         title: "TOTAL ANNIHILATION",
-        getDescription: () => <>Matter and anti-matter collided. The nucleus was reduced to <span className="font-bold text-neon-purple animate-pulse">pure radiation</span>.</>
+        getDescription: () => <>Matter and anti-nuclide collided. The nucleus was reduced to <span className="font-bold text-neon-purple animate-pulse">pure radiation</span>.</>
     },
     [REASON.UNKNOWN]: {
         title: "UNKNOWN",

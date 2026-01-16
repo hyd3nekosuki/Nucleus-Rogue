@@ -99,6 +99,45 @@ export const createHat = (ctx: AudioContext, dest: AudioNode, time: number, powe
     noise.start(time); noise.stop(time + 0.1);
 };
 
+/**
+ * Camera Shutter Sound Synthesis
+ * Mimics a mechanical shutter click using high-pass filtered white noise pulses.
+ */
+export const createShutterSound = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
+    const bufferSize = ctx.sampleRate * 0.2;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(2500, time);
+    filter.Q.setValueAtTime(1, time);
+
+    const gain = ctx.createGain();
+    // Shutter "ka-chak" (Two quick pulses)
+    gain.gain.setValueAtTime(0, time);
+    // Click 1 (Curtain 1)
+    gain.gain.linearRampToValueAtTime(0.5 * power, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.02);
+    // Short Gap
+    gain.gain.setValueAtTime(0.01, time + 0.04);
+    // Click 2 (Curtain 2)
+    gain.gain.linearRampToValueAtTime(0.4 * power, time + 0.045);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.08);
+    gain.gain.linearRampToValueAtTime(0, time + 0.1);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(dest);
+
+    noise.start(time);
+    noise.stop(time + 0.15);
+};
+
 export const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, power: number = 1.0, type: 'pulse' | 'sub' | 'dark' | 'gabber' | 'void' | 'acid' | 'dnb-lead' | 'sparkle' = 'pulse') => {
     if (power <= 0.001) return;
     const osc1 = ctx.createOscillator();

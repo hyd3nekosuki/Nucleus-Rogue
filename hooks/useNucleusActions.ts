@@ -1,19 +1,21 @@
 
-// Add React import to provide access to React namespace
+// Fix: Added React import to provide access to React namespace for Dispatch type
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry, GameAction, EntityType } from '../types';
+import { GameState, DecayMode, HistoryEntry, GameAction } from '../types';
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
 import { getNuclideDataSync } from '../services/nuclideService';
-import { generateEntities } from '../engine/gameLogic';
-import { processUnlocks } from '../engine/unlockSystem';
+import { generateEntities } from '../engine/moveSimulator';
 import { getInitialState } from '../engine/initialState';
 import { pickNuclideWithPriority } from '../engine/particleEngine';
-import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { getNextTutorialMessage } from '../engine/tutorialManager';
 
-export const useSkillController = (
+/**
+ * Nucleus Actions Controller
+ * Responsible for all user-initiated atomic transformations and session lifecycle management.
+ */
+export const useNucleusActions = (
     gameState: GameState,
     dispatch: React.Dispatch<GameAction>,
     stopAutoMove: () => void,
@@ -46,6 +48,10 @@ export const useSkillController = (
         dispatch({ type: 'USE_SKILL', payload: { skillType: 'TOGGLE_SKILL', params: { skillName } } });
     }, [dispatch]);
 
+    const handleEngraveCurrent = useCallback((isResonating: boolean = false) => {
+        dispatch({ type: 'ENGRAVE_CURRENT', payload: { isResonating } });
+    }, [dispatch]);
+
     const restartGame = useCallback((randomStart: boolean = false) => {
         const currentTitles = gameState.unlockedElements;
         const currentGroups = gameState.unlockedGroups;
@@ -62,17 +68,60 @@ export const useSkillController = (
         
         resetVisuals();
         const newState = getInitialState();
-        const originEntry: HistoryEntry = { firstTurn: 0, lastTurn: 0, name: startNuclide.name, symbol: startNuclide.symbol, z: startNuclide.z, a: startNuclide.a, method: HISTORY_METHODS.ORIGIN, pz: null, pa: null };
+        
+        // Random Generation時はチュートリアルの既読状態を引き継ぐ
+        if (randomStart) {
+            newState.hasSeenDecayTutorial = gameState.hasSeenDecayTutorial;
+            newState.hasSeenCaptureTutorial = gameState.hasSeenCaptureTutorial;
+            newState.hasSeenDripLineTutorial = gameState.hasSeenDripLineTutorial;
+            newState.hasSeenEngraveTutorial = gameState.hasSeenEngraveTutorial;
+        }
+
+        // ターン数のリセット: 歴史に刻印する機能の導入に伴い、Random Generation 時もターン 0 から開始する
+        const startTurn = 0;
+
+        const originEntry: HistoryEntry = { 
+            firstTurn: startTurn, 
+            lastTurn: startTurn, 
+            name: startNuclide.name, 
+            symbol: startNuclide.symbol, 
+            z: startNuclide.z, 
+            a: startNuclide.a, 
+            method: HISTORY_METHODS.ORIGIN, 
+            pz: null, 
+            pa: null 
+        };
+
+        // 履歴のフィルタリング: randomStart の場合は刻印済みエントリのみを抽出して引き継ぐ
+        let nextHistory: Record<string, HistoryEntry> = {};
+        if (randomStart) {
+            Object.entries(gameState.evolutionHistory).forEach(([key, entry]) => {
+                if (entry.isEngraved) {
+                    // 新セッション用にターン情報をリセットして引き継ぐ
+                    nextHistory[key] = {
+                        ...entry,
+                        firstTurn: 0,
+                        lastTurn: 0
+                    };
+                }
+            });
+            // 開始核種を追加
+            nextHistory[`${startNuclide.z}-${startNuclide.a}`] = originEntry;
+        } else {
+            nextHistory = { [`${startNuclide.z}-${startNuclide.a}`]: originEntry };
+        }
+
         const nextMsg = getNextTutorialMessage(newState, 'GAME_START', { randomStart, nextNuclide: startNuclide });
 
         dispatch({
             type: 'RESET_STATE',
             payload: { 
                 ...newState, 
-                evolutionHistory: { [`${startNuclide.z}-${startNuclide.a}`]: originEntry },
+                turn: startTurn,
+                evolutionHistory: nextHistory,
                 disabledSkills: randomStart ? gameState.disabledSkills : [], 
                 currentNuclide: startNuclide, 
-                gridEntities: generateEntities(5, [], newState.playerPos, 0), 
+                gridEntities: generateEntities(5, [], newState.playerPos, startTurn), 
                 unlockedElements: randomStart ? currentTitles : [], 
                 unlockedGroups: randomStart ? currentGroups : [], 
                 maxCombo: randomStart ? gameState.maxCombo : 0, 
@@ -87,5 +136,14 @@ export const useSkillController = (
         handleDecayAction(DecayMode.UNKNOWN);
     }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, handleDecayAction]);
 
-    return { handleStabilize, handleUltimateSynthesis, handleToggleTimeStop, handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay };
+    return { 
+        handleStabilize, 
+        handleUltimateSynthesis, 
+        handleToggleTimeStop, 
+        handleTransmute, 
+        handleToggleHiddenSkill, 
+        restartGame, 
+        handleForceUnknownDecay,
+        handleEngraveCurrent
+    };
 };

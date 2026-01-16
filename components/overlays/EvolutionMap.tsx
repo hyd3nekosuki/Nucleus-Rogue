@@ -243,13 +243,22 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
                                                 ${node.styles.color} 
                                                 ${node.isCurrent 
                                                     ? `${node.styles.glow} shadow-[0_0_15px_currentColor] scale-110 z-30 ring-2 ring-white ring-offset-1 ring-offset-black` 
-                                                    : 'z-20 border border-black/40 shadow-md opacity-90'
+                                                    : node.entry.isEngraved 
+                                                        ? 'z-20 border-2 border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]' 
+                                                        : 'z-20 border border-black/40 shadow-md opacity-90'
                                                 }
                                                 ${isNewDiscovery ? 'z-40 animate-discovery-pop' : ''}
                                             `}
                                             onClick={() => setSelectedInfo(getTooltipText(node.entry.name, node.entry.method))}
                                             title={getTooltipText(node.entry.name, node.entry.method)}
                                         >
+                                            {/* 📍 Engrave Mark */}
+                                            {node.entry.isEngraved && (
+                                                <div className="absolute -top-1.5 -left-1 text-[8px] md:text-[10px] drop-shadow-md z-40">
+                                                    📍
+                                                </div>
+                                            )}
+
                                             <span className={`text-[9px] md:text-[10px] font-black leading-none ${node.styles.textColor}`}>
                                                 {node.entry.symbol}
                                             </span>

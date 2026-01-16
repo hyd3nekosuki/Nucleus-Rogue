@@ -4,31 +4,32 @@ import { GameState, NuclideData } from '../types';
 import { parseNuclideCommand, solveParticleRequirements } from '../engine/particleEngine';
 import { getNuclideDataSync } from '../services/nuclideService';
 
-export interface CheatValidationResult {
+export interface OverrideValidationResult {
     isReachable: boolean;
     targetData?: NuclideData;
     idsToConsume?: string[];
 }
 
 /**
- * Step 3: Dynamic Validation Engine Implementation
- * Executes parsing and resource equation solving in real-time as the user types.
- * Restricted to Mastery Level 6.
+ * Quantum Override Validation Engine
+ * ユーザーが入力した核種コマンドを解析し、盤面上の粒子資源で到達可能か（方程式の解があるか）をリアルタイムで検証します。
+ * この機能はマスタリーレベル 6（論文引用）の到達時にのみ有効化されます。
  */
-export const useCheatEngine = (inputValue: string, gameState: GameState): CheatValidationResult | null => {
+export const useOverrideValidator = (inputValue: string, gameState: GameState): OverrideValidationResult | null => {
     return useMemo(() => {
-        // レベルチェック: gameState.playerLevel === 6 でない場合は即座に終了。
+        // レベルチェック: マスタリーレベル 6 未満の場合はバリデーションを行わない
         if (gameState.playerLevel < 6) return null;
 
         const trimmedInput = inputValue.trim();
         if (!trimmedInput) return null;
 
         // Step 1: 目標核種の特定（解析フェーズ）
+        // 入力文字列（例: "Au-197"）を原子座標 (Z, A) に変換
         const targetCoords = parseNuclideCommand(trimmedInput);
         if (!targetCoords) return null;
 
-        // 資源カウントと到達可能性判定（計算フェーズ）
-        // Step 2の方程式を満たす組み合わせを探索
+        // Step 2: 資源方程式の解決（計算フェーズ）
+        // 質量保存・電荷保存の法則に基づき、目標状態へ遷移するために必要な粒子の組み合わせを盤面から探索
         const requirements = solveParticleRequirements(
             gameState.currentNuclide.z,
             gameState.currentNuclide.a,
@@ -47,15 +48,13 @@ export const useCheatEngine = (inputValue: string, gameState: GameState): CheatV
             };
         }
 
-        // 到達可能な場合
-        // 最適解（最小粒子数）は solveParticleRequirements 内で既に選択されている
+        // 到達可能な場合（量子共鳴が確立）
         return {
             isReachable: true,
             targetData,
             idsToConsume: requirements.idsToConsume
         };
         
-        // 依存配列により、入力内容、レベル、現在の核種、盤面資源のいずれかが変化した時のみ再計算
     }, [
         inputValue, 
         gameState.playerLevel, 

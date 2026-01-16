@@ -22,7 +22,7 @@ export const moveAntiNuclides = (entities: GridEntity[], playerPos: Position): G
 };
 
 /**
- * Processes matter-antimatter removal for particles occupying the same space as an anti-nuclide.
+ * Processes matter-anti-nuclide removal for particles occupying the same space as an anti-nuclide.
  */
 export const consumeMatterWithAntiNuclides = (entities: GridEntity[]): GridEntity[] => {
     const antiNuclides = entities.filter(e => e.type === EntityType.ANTI_NUCLIDE);

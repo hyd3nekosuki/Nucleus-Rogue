@@ -15,7 +15,7 @@ import { MAX_ENERGY, SCORE_FACTORS, BONUS_SCORES, STABILIZE_COST, NUCLEOSYNTHESI
 import { REASON } from '../constants/gameOverReason';
 import { TITLES } from '../constants/titles';
 import { HISTORY_METHODS } from '../constants/strings';
-import { calculateMoveResult, generateEntities } from './gameLogic';
+import { calculateMoveResult, generateEntities } from './moveSimulator';
 import { processUnlocks } from './unlockSystem';
 import { processRandomBackgroundEvents } from './randomEvents';
 import { getHistoryMethod } from '../utils/historyLogic';
@@ -33,10 +33,11 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
     const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;
     const now = Date.now();
 
+    // マスタリーレベルの上昇は、自機の崩壊アクション（Manual Decay）時のみに限定
     const { nextLevel, nextMastered } = calculateNextLevel(
         state.playerLevel,
         state.masteredDecays,
-        inducedDecayMode || DecayMode.STABLE
+        isManualDecay ? (inducedDecayMode || DecayMode.STABLE) : DecayMode.STABLE
     );
 
     const currentChargesAfterConsumption = Math.max(0, state.magicBarrierCharges - chargesUsed);
@@ -87,7 +88,21 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         nextLastComboTime = now;
     }
 
+    // 記録用のコンボ数（リセット前に最大値を評価するため）
+    const recordableCombo = nextCombo;
+
+    // 安定化イベントの定義
+    let settlementEvent: GameStateEvent | undefined;
     if (nextNuclide.isStable) {
+        // 安定化した際にコンボが発生していれば、演出用イベントを発行
+        if (nextCombo >= 2) {
+            settlementEvent = {
+                id: now + 50, 
+                type: 'SURVIVAL',
+                subType: 'COMBO_SETTLED',
+                message: `${nextCombo}`
+            };
+        }
         nextCombo = 0;
         nextComboScore = 0;
         nextComboOrigin = undefined;
@@ -96,23 +111,30 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
 
     // Structured Merge of Events
     let finalEvent = levelUpEvent;
-    if (levelUpEvent && state.lastEvent) {
-        // Collect all unique priority items from both events
+    
+    // イベントのマージロジック
+    const mergeEvents = (base: GameStateEvent | undefined, overlay: GameStateEvent | undefined): GameStateEvent | undefined => {
+        if (!base) return overlay;
+        if (!overlay) return base;
+        
         const combinedPriority = [
-            ...(state.lastEvent.priorityMessages || (state.lastEvent.message ? [state.lastEvent.message] : [])),
-            ...(levelUpEvent.priorityMessages || [])
+            ...(base.priorityMessages || (base.message ? [base.message] : [])),
+            ...(overlay.priorityMessages || (overlay.message ? [overlay.message] : []))
         ];
         
-        finalEvent = {
-            ...levelUpEvent,
-            shake: levelUpEvent.shake || state.lastEvent.shake,
-            flash: levelUpEvent.flash || state.lastEvent.flash,
-            subType: state.lastEvent.subType || levelUpEvent.subType,
-            priorityMessages: combinedPriority
+        return {
+            ...base,
+            id: Math.max(base.id, overlay.id),
+            shake: base.shake || overlay.shake,
+            flash: base.flash || overlay.flash,
+            subType: overlay.subType || base.subType, 
+            message: overlay.message || base.message,
+            priorityMessages: Array.from(new Set(combinedPriority)) 
         };
-    } else if (!levelUpEvent) {
-        finalEvent = state.lastEvent;
-    }
+    };
+
+    finalEvent = mergeEvents(state.lastEvent, levelUpEvent);
+    finalEvent = mergeEvents(finalEvent, settlementEvent);
 
     return {
         ...state,
@@ -126,7 +148,7 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         comboScore: nextComboScore,
         comboOrigin: nextComboOrigin,
         lastComboTime: nextLastComboTime, 
-        maxCombo: Math.max(state.maxCombo, nextCombo),
+        maxCombo: Math.max(state.maxCombo, recordableCombo), 
         messages: nextMessages,
         lastEvent: finalEvent
     };
@@ -149,7 +171,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             let isDaredevilAttempt = false;
             const nextTurn = state.turn + 1;
 
-            // Added definition for potentialZ, potentialA and isAntiCollision to resolve scope errors
             const potentialZ = state.currentNuclide.z + result.dZ;
             const potentialA = state.currentNuclide.a + result.dA;
             const isAntiCollision = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
@@ -170,7 +191,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 lastConsumedType: result.lastConsumedType,
                 reincarnationPool: nextPool,
                 turn: nextTurn,
-                lastEvent: undefined // Clear previous event
+                lastEvent: undefined 
             };
 
             // Handle Move/Interaction Events
@@ -227,7 +248,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                         coreMsg = `Enforced positron capture into ${newData.name}`;
                     } else if (result.targetEntity?.type === EntityType.PROTON) {
                         coreMsg = `Enforced proton capture into ${newData.name}`;
-                    } else if (result.targetEntity?.type === EntityType.NEUTRON && !result.inducedReactionLabel) {
+                    } else if (result.targetEntity?.type === EntityType.NEUTRON) {
                         coreMsg = `Neutron capture into ${newData.name}`;
                     } else {
                         coreMsg = `${result.inducedReactionLabel ? result.inducedReactionLabel + ' reaction' : 'Transformation'} into ${newData.name}.`;
@@ -239,7 +260,10 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     }
 
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
-                    const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn });
+                    
+                    // Energy increase check for tutorial re-trigger
+                    const energyIncreased = result.energyBonus > 0;
+                    const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn, energyIncreased });
                     const tutorialUpdates = calculateTutorialFlagUpdates(nextState, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
 
                     let finalEntities = nextState.gridEntities;
@@ -296,7 +320,10 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             } else {
                 const recovery = state.currentNuclide.isStable ? 1 : 0;
                 const nextHp = Math.max(0, Math.min(state.maxHp, state.hp + recovery) - result.hpPenalty);
-                const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn });
+                
+                // Energy increase check for tutorial re-trigger (even if no movement transformation)
+                const energyIncreased = result.energyBonus > 0;
+                const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn, energyIncreased });
                 const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, nextTurn, 'TURN_ADVANCED');
 
                 Object.assign(nextState, {
@@ -392,7 +419,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 isManualDecay: true
             };
 
-            // Clear previous event explicitly before applying discovery to prevent stale merging
             let nextState = applyDiscoveryLogic({ ...state, lastEvent: undefined }, newData, discoveryContext, state.turn);
             const unlockResult = processUnlocks(
                 state.unlockedElements, state.unlockedGroups, newData.z, newData.a, 
@@ -403,7 +429,10 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             );
             
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
-            const nextMsg = getNextTutorialMessage(state, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: state.turn });
+            
+            // Energy increase check for tutorial re-trigger
+            const energyIncreased = (decayResult.energyBonus || 0) > 0;
+            const nextMsg = getNextTutorialMessage(state, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: state.turn, energyIncreased });
             const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'DECAY_PERFORMED');
 
             let finalEntities = decayResult.newGridEntities;
@@ -425,12 +454,16 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 id: now,
                 type: 'DECAY',
                 subType: actualMode,
+                decayModeTrigger: actualMode, 
                 shake: decayResult.shouldShake,
                 flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined,
                 priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : []
             };
 
-            // Merge decayEvent with whatever applyDiscoveryLogic produced (could be Level Up)
+            const finalSubType = (nextState.lastEvent?.subType === 'COMBO_SETTLED') 
+                ? 'COMBO_SETTLED' 
+                : (decayEvent.subType || nextState.lastEvent?.subType);
+
             const finalEvent: GameStateEvent = nextState.lastEvent 
                 ? {
                     ...nextState.lastEvent,
@@ -440,7 +473,8 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     ],
                     shake: nextState.lastEvent.shake || decayEvent.shake,
                     flash: nextState.lastEvent.flash || decayEvent.flash,
-                    subType: decayEvent.subType || nextState.lastEvent.subType
+                    subType: finalSubType,
+                    decayModeTrigger: decayEvent.decayModeTrigger || nextState.lastEvent.decayModeTrigger 
                   }
                 : decayEvent;
 
@@ -493,7 +527,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
                     const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] };
-                    // Merge skillEvent with potential Level Up from nextState.lastEvent
                     const finalEvent: GameStateEvent = nextState.lastEvent 
                         ? {
                             ...nextState.lastEvent,
@@ -528,7 +561,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const tutorialFlags = calculateTutorialFlagUpdates(state, nextMsg, state.turn + 1, 'PARTICLE_CAPTURED');
 
                     const skillEvent: GameStateEvent = { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] };
-                    // Merge skillEvent with potential Level Up from nextState.lastEvent
                     const finalEvent: GameStateEvent = nextState.lastEvent 
                         ? {
                             ...nextState.lastEvent,
@@ -587,13 +619,45 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     const isDisabled = state.disabledSkills.includes(skillName);
                     const nextDisabled = isDisabled ? state.disabledSkills.filter(s => s !== skillName) : [...state.disabledSkills, skillName];
                     let nextEntities = [...state.gridEntities];
-                    if (skillName === TITLES.DAREDEVIL && isDisabled && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
-                        nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
+                    if (skillName === TITLES.DAREDEVIL) {
+                        if (isDisabled && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
+                            nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
+                        }
                     }
                     return { ...state, gridEntities: nextEntities, disabledSkills: nextDisabled, messages: [...state.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10) };
                 }
                 default: return state;
             }
+        }
+
+        case 'ENGRAVE_CURRENT': {
+            const { isResonating } = action.payload;
+            const cost = isResonating ? 0 : 1;
+            
+            if (state.gameOver || state.loadingData || state.energyPoints < cost) return state;
+            
+            const key = `${state.currentNuclide.z}-${state.currentNuclide.a}`;
+            const entry = state.evolutionHistory[key];
+            if (!entry || entry.isEngraved) return state;
+
+            const nextHistory = {
+                ...state.evolutionHistory,
+                [key]: { ...entry, isEngraved: true }
+            };
+
+            const nextMsg = getNextTutorialMessage(state, 'ENGRAVE_PERFORMED');
+            const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'ENGRAVE_PERFORMED');
+            const resonanceMsg = isResonating ? ["✨ RHYTHMIC RESONANCE: Cost 0E"] : [];
+
+            return {
+                ...state,
+                ...tutorialUpdates,
+                tutorialMessage: nextMsg,
+                energyPoints: state.energyPoints - cost,
+                evolutionHistory: nextHistory,
+                messages: [...state.messages, `📍 ${state.currentNuclide.name} engraved in history!`, ...resonanceMsg].slice(-10),
+                lastEvent: { id: now, type: 'ENGRAVE', flash: 'bg-yellow-400' }
+            };
         }
 
         case 'DISCOVER_NUCLIDE': {

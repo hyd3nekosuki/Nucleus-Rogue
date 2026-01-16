@@ -51,21 +51,40 @@ export const useTTS = (nuclide: NuclideData, gameOver: boolean, isMuted: boolean
     const processNameForSpeech = (name: string) => {
         if (name === 'Hydrogen-1') return 'Hydrogen';
         if (name === 'Neutron-1') return 'Neutron';
-        let processed = name.replace('-', ' ');
-        if (processed.includes('Lead')) processed = processed.replace('Lead', 'Led');
         
         const parts = name.split('-');
+        let elementName = parts[0];
+        
+        // Correct pronunciation for Lead (metal) vs Lead (verb)
+        if (elementName === 'Lead') elementName = 'Led';
+        
         if (parts.length === 2) {
             const massStr = parts[1];
             const mass = parseInt(massStr);
-            if (!isNaN(mass) && massStr.length === 3) {
-                const hundreds = massStr[0];
-                const remainder = parseInt(massStr.slice(1));
-                if (remainder === 0) return `${parts[0]} ${mass}`;
-                if (remainder < 10) return `${parts[0]} ${hundreds} oh ${remainder}`;
+            
+            if (!isNaN(mass)) {
+                // Native speaker style for 3-digit isotopes (e.g., Uranium "two thirty-five" vs "two hundred thirty-five")
+                if (massStr.length === 3) {
+                    const hundreds = massStr[0];
+                    const lastTwoStr = massStr.slice(1);
+                    const lastTwo = parseInt(lastTwoStr);
+                    
+                    if (lastTwo === 0) {
+                        return `${elementName} ${hundreds} hundred`; // 200 -> "two hundred"
+                    }
+                    if (lastTwo < 10) {
+                        return `${elementName} ${hundreds} oh ${lastTwo}`; // 208 -> "two oh eight"
+                    }
+                    // For the speech engine, separating digits with a space triggers the "two thirty-five" style
+                    return `${elementName} ${hundreds} ${lastTwo}`; // 235 -> "two thirty-five"
+                }
+                
+                // For 1 or 2 digits, standard pronunciation is natural (Carbon 14, Helium 4)
+                return `${elementName} ${mass}`;
             }
         }
-        return processed;
+        
+        return name.replace('-', ' ');
     };
 
     /**

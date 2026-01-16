@@ -30,6 +30,7 @@ export interface HistoryEntry {
   method: string;
   pz: number | null;
   pa: number | null;
+  isEngraved?: boolean;
 }
 
 /**
@@ -57,8 +58,9 @@ export interface DiscoveryContext {
  */
 export interface GameStateEvent {
   id: number;
-  type: 'COLLISION' | 'DECAY' | 'LEVEL_UP' | 'SKILL' | 'SURVIVAL' | 'DEATH' | 'STABILITY_CRISIS';
+  type: 'COLLISION' | 'DECAY' | 'LEVEL_UP' | 'SKILL' | 'SURVIVAL' | 'DEATH' | 'STABILITY_CRISIS' | 'ENGRAVE';
   subType?: string;
+  decayModeTrigger?: DecayMode; // Added: Preserves the physical decay mode even if subType is used for UI signals
   message?: string;
   priorityMessages?: string[]; // New: List of important terms to speak separately
   shake?: boolean;
@@ -106,6 +108,7 @@ export interface GameState {
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
   hasSeenDripLineTutorial: boolean;
+  hasSeenEngraveTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
   emptyTurnCount: number;
   lastEvent?: GameStateEvent; // Bridge for UI side-effects
@@ -121,7 +124,8 @@ export type GameAction =
   | { type: 'APPLY_STABILITY_DECAY'; payload: { hp: number; energyPoints?: number; messages?: string[]; effects?: VisualEffect[]; gameOver?: boolean; gameOverReason?: string } }
   | { type: 'SET_HP'; payload: number }
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
-  | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } };
+  | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
+  | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } };
 
 export interface SavePayload {
   v: string;

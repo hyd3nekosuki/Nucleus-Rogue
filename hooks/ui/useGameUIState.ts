@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useMemo, RefObject } from 'react';
 import { useNucleusCoordinator } from '../../engine/useNucleusCoordinator';
 import { MAGIC_NUMBERS } from '../../constants/physics';
 import { STABILIZE_COST, NUCLEOSYNTHESIS_COST } from '../../constants/economy';
-import { CheatValidationResult } from '../useCheatEngine';
 import { HistoryEntry } from '../../types';
 
 /**
@@ -12,7 +11,6 @@ import { HistoryEntry } from '../../types';
  */
 export const useGameUIState = (
   engine: ReturnType<typeof useNucleusCoordinator>,
-  cheatResult: CheatValidationResult | null,
   scrollRef: RefObject<HTMLDivElement | null>,
   containerRef: RefObject<HTMLDivElement | null>
 ) => {
@@ -28,7 +26,7 @@ export const useGameUIState = (
   const [isSoundTestActive, setIsSoundTestActive] = useState(false);
   const [lastKickTime, setLastKickTime] = useState(0);
 
-  // --- Derived View Logic (Moved from App.tsx) ---
+  // --- Derived View Logic ---
   
   const isNucleosynthesisEnabled = !gameState.disabledSkills.includes("Nucleosynthesis");
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
@@ -50,23 +48,11 @@ export const useGameUIState = (
     return (Object.values(evolutionHistory) as HistoryEntry[]).sort((a, b) => a.lastTurn - b.lastTurn);
   }, [evolutionHistory]);
 
-  // Input styling based on validation/cheat state
-  const inputStyles = useMemo(() => {
-    let borderClass = isLoadError ? 'border-red-500' : 'border-gray-700';
-    let shadowClass = '';
-    if (cheatResult?.isReachable) {
-      borderClass = 'border-yellow-400';
-      shadowClass = 'shadow-[0_0_15px_rgba(250,204,21,0.5)]';
-    } else if (cheatResult) {
-      borderClass = 'border-red-400';
-    }
-    return { borderClass, shadowClass };
-  }, [isLoadError, cheatResult]);
-
   // --- Callbacks ---
 
   const handleLoadData = useCallback(async () => {
-    const success = await engine.loadSaveCode(loadInputValue);
+    // Calling the integrated facade: handleLoad
+    const success = await engine.handleLoad(loadInputValue);
     if (success) {
       setLoadInputValue("");
       setIsLoadError(false);
@@ -128,7 +114,6 @@ export const useGameUIState = (
     transmutationReady,
     energyPointsAvailable,
     sortedHistory,
-    inputStyles,
     // Handlers
     handleLoadData,
     handleTransmuteWrapper

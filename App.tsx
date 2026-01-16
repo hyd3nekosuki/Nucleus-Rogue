@@ -1,5 +1,4 @@
-
-import React, { useRef } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION } from './constants/gameConfig';
 
 import Grid from './components/game/Grid';
@@ -16,7 +15,7 @@ import EvolutionMap from './components/overlays/EvolutionMap';
 import { useTTS } from './hooks/useTTS';
 import { useNucleusCoordinator } from './engine/useNucleusCoordinator';
 import { useAudioEngine } from './services/audio/useAudioEngine';
-import { useCheatEngine } from './hooks/useCheatEngine';
+import { useOverrideValidator } from './hooks/useOverrideValidator';
 import { useGameEventListener } from './hooks/useGameEventListener';
 import { useGameUIState } from './hooks/ui/useGameUIState';
 import { useKeyboardControls } from './hooks/input/useKeyboardControls';
@@ -30,31 +29,52 @@ function App() {
   const engine = useNucleusCoordinator();
   const { gameState } = engine;
   
-  // Input logic
-  const tempInputValue = useRef(""); // Temporary holder for UI state derivation if needed
-  const cheatResult = useCheatEngine(tempInputValue.current, gameState); // Note: ui state will drive this in next line
-
   // --- UI/View Layer Setup ---
-  // Re-run cheat engine with actual state from UI
-  const ui = useGameUIState(engine, null, scrollRef, containerRef);
-  const activeCheatResult = useCheatEngine(ui.loadInputValue, gameState);
+  const ui = useGameUIState(engine, scrollRef, containerRef);
   
-  // Re-initialize UI with cheat result for dynamic styling
-  const uiWithCheat = { ...ui, ...useGameUIState(engine, activeCheatResult, scrollRef, containerRef) };
+  // Compute override result based on the real input state
+  const activeOverrideResult = useOverrideValidator(ui.loadInputValue, gameState);
+  
+  // Local style calculation for the Cite Research input field
+  const inputStyles = useMemo(() => {
+    let borderClass = ui.isLoadError ? 'border-red-500' : 'border-gray-700';
+    let shadowClass = '';
+    if (activeOverrideResult?.isReachable) {
+      borderClass = 'border-yellow-400';
+      shadowClass = 'shadow-[0_0_15px_rgba(250,204,21,0.5)]';
+    } else if (activeOverrideResult) {
+      borderClass = 'border-red-400';
+    }
+    return { borderClass, shadowClass };
+  }, [ui.isLoadError, activeOverrideResult]);
 
   // --- Audio & Speech Layer ---
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
       gameState.hp, 
       gameState.gameOver, 
       gameState.currentNuclide.decayModes,
-      uiWithCheat.isSoundTestActive,
-      uiWithCheat.setLastKick
+      ui.isSoundTestActive,
+      ui.setLastKick,
+      gameState.lastEvent // SEイベント検知のために追加
   );
   
-  const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, uiWithCheat.isVoiceMuted);
+  const { triggerOverride: activeTTSTrigger } = useTTS(gameState.currentNuclide, gameState.gameOver, ui.isVoiceMuted);
+
+  // --- Resonance Detection for Secret Mechanic ---
+  const handleEngraveWithResonance = useCallback(() => {
+    const now = Date.now();
+    // Calculate timing relative to kick
+    const beatMs = (60 / bpm) * 1000;
+    const nextKick = ui.lastKickTime + beatMs;
+    const diff = Math.min(Math.abs(now - ui.lastKickTime), Math.abs(now - nextKick));
+    
+    // Just window: +/- 100ms
+    const isResonating = diff < 100; 
+    engine.handleEngraveCurrent(isResonating);
+  }, [engine, ui.lastKickTime, bpm]);
 
   // --- Listeners & Controls ---
-  useKeyboardControls(engine, uiWithCheat, toggleMute);
+  useKeyboardControls(engine, ui, toggleMute);
   useGameEventListener({
     onShake: engine.triggerShake,
     onFlash: engine.triggerFlash,
@@ -66,7 +86,7 @@ function App() {
       className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${engine.isScreenShaking ? 'animate-shake' : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${engine.flashColor} mix-blend-screen transition-opacity duration-500 ${engine.isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
       
-      {uiWithCheat.showTable && (
+      {ui.showTable && (
         <PeriodicTable 
             unlocked={gameState.unlockedElements} 
             unlockedGroups={gameState.unlockedGroups} 
@@ -76,10 +96,10 @@ function App() {
             onToggleSkill={engine.handleToggleHiddenSkill} 
             maxCombo={gameState.maxCombo} 
             reincarnations={gameState.reincarnations}
-            onClose={() => uiWithCheat.setShowTable(false)} 
-            canTransmute={uiWithCheat.transmutationReady} 
-            onSelectElement={uiWithCheat.handleTransmuteWrapper}
-            saveCode={uiWithCheat.saveCode}
+            onClose={() => ui.setShowTable(false)} 
+            canTransmute={ui.transmutationReady} 
+            onSelectElement={ui.handleTransmuteWrapper}
+            saveCode={ui.saveCode}
         />
       )}
 
@@ -92,23 +112,42 @@ function App() {
           <InfoPanel 
             nuclide={gameState.currentNuclide} hp={gameState.hp} maxHp={gameState.maxHp} energyPoints={gameState.energyPoints} turn={gameState.turn} score={gameState.score} 
             onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
-            isNucleosynthesisReady={uiWithCheat.isNucleosynthesisReady} isNucleosynthesisEnabled={uiWithCheat.isNucleosynthesisEnabled} transmutationReady={uiWithCheat.transmutationReady} energyPointsAvailable={uiWithCheat.energyPointsAvailable}
-            onStabilize={engine.handleStabilize} onShowTable={() => uiWithCheat.setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
+            isNucleosynthesisReady={ui.isNucleosynthesisReady} isNucleosynthesisEnabled={ui.isNucleosynthesisEnabled} transmutationReady={ui.transmutationReady} energyPointsAvailable={ui.energyPointsAvailable}
+            onStabilize={engine.handleStabilize} onShowTable={() => ui.setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
           />
           
           <ControlPanel 
             z={gameState.currentNuclide.z} a={gameState.currentNuclide.a}
             combo={gameState.combo} comboOrigin={gameState.comboOrigin} isTimeStopped={gameState.isTimeStopped} lastComboTime={gameState.lastComboTime} description={gameState.currentNuclide.description}
-            activeEvent={gameState.activeEvent} tutorialMessage={gameState.tutorialMessage} bpm={bpm} lastKickTime={uiWithCheat.lastKickTime}
+            activeEvent={gameState.activeEvent} tutorialMessage={gameState.tutorialMessage} bpm={bpm} lastKickTime={ui.lastKickTime}
           />
           
           <div className="flex border-b border-gray-800 bg-gray-900/30">
-             <button onClick={() => uiWithCheat.setActiveTab('structure')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${uiWithCheat.activeTab === 'structure' ? 'border-neon-blue text-neon-blue bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Structure</button>
-             <button onClick={() => uiWithCheat.setActiveTab('history')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${uiWithCheat.activeTab === 'history' ? 'border-neon-green text-neon-green bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>History</button>
+             <button onClick={() => ui.setActiveTab('structure')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${ui.activeTab === 'structure' ? 'border-neon-blue text-neon-blue bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Structure</button>
+             <button onClick={() => ui.setActiveTab('history')} className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-bold transition-all border-b-2 ${ui.activeTab === 'history' ? 'border-neon-green text-neon-green bg-gray-800/50' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>History</button>
           </div>
 
           <div className="p-4 border-b border-gray-800 shrink-0 h-80 flex flex-col items-center justify-center overflow-hidden">
-             {uiWithCheat.activeTab === 'structure' ? <NucleusVisualizer z={gameState.currentNuclide.z} a={gameState.currentNuclide.a} symbol={gameState.currentNuclide.symbol} decayModes={gameState.currentNuclide.decayModes} lastDecayEvent={engine.lastDecayEvent} isTimeStopped={gameState.isTimeStopped} /> : <EvolutionMap history={uiWithCheat.sortedHistory} currentNuclide={gameState.currentNuclide} turn={gameState.turn} combo={gameState.combo} comboOrigin={gameState.comboOrigin} />}
+             {ui.activeTab === 'structure' ? (
+                <NucleusVisualizer 
+                    z={gameState.currentNuclide.z} 
+                    a={gameState.currentNuclide.a} 
+                    symbol={gameState.currentNuclide.symbol} 
+                    decayModes={gameState.currentNuclide.decayModes} 
+                    lastDecayEvent={engine.lastDecayEvent} 
+                    isTimeStopped={gameState.isTimeStopped}
+                    onClick={handleEngraveWithResonance}
+                    isEngraved={gameState.evolutionHistory[`${gameState.currentNuclide.z}-${gameState.currentNuclide.a}`]?.isEngraved}
+                />
+             ) : (
+                <EvolutionMap 
+                    history={ui.sortedHistory} 
+                    currentNuclide={gameState.currentNuclide} 
+                    turn={gameState.turn} 
+                    combo={gameState.combo} 
+                    comboOrigin={gameState.comboOrigin} 
+                />
+             )}
           </div>
 
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth select-none">
@@ -118,32 +157,32 @@ function App() {
           <div className="p-4 border-t border-gray-800 shrink-0 bg-black/20">
               <div className="text-[9px] text-gray-500 uppercase tracking-widest mb-1 font-bold flex justify-between">
                 <span>Cite Research</span>
-                {activeCheatResult?.isReachable && <span className="text-yellow-400 animate-pulse">RESONANCE ESTABLISHED</span>}
+                {activeOverrideResult?.isReachable && <span className="text-yellow-400 animate-pulse">RESONANCE ESTABLISHED</span>}
               </div>
               <div className="flex gap-1">
                   <input 
-                      type="text" value={uiWithCheat.loadInputValue} onChange={(e) => uiWithCheat.setLoadInputValue(e.target.value)} placeholder="Paste Password..."
-                      className={`flex-1 bg-black/40 border ${uiWithCheat.inputStyles.borderClass} ${uiWithCheat.inputStyles.shadowClass} rounded px-2 py-1 text-[10px] font-mono outline-none transition-all focus:border-neon-blue`}
+                      type="text" value={ui.loadInputValue} onChange={(e) => ui.setLoadInputValue(e.target.value)} placeholder="Paste Password..."
+                      className={`flex-1 bg-black/40 border ${inputStyles.borderClass} ${inputStyles.shadowClass} rounded px-2 py-1 text-[10px] font-mono outline-none transition-all focus:border-neon-blue`}
                   />
-                  <button onClick={uiWithCheat.handleLoadData} className="px-2 py-1 bg-neon-blue/20 border border-neon-blue/50 text-neon-blue rounded text-[9px] font-bold uppercase hover:bg-neon-blue hover:text-black transition-all">Load</button>
+                  <button onClick={ui.handleLoadData} className="px-2 py-1 bg-neon-blue/20 border border-neon-blue/50 text-neon-blue rounded text-[9px] font-bold uppercase hover:bg-neon-blue hover:text-black transition-all">Load</button>
               </div>
           </div>
 
           <SidebarFooter 
-            version={APP_VERSION} isMuted={isMuted} toggleMute={toggleMute} bpm={bpm} primaryMode={primaryMode} isVoiceMuted={uiWithCheat.isVoiceMuted} onToggleVoice={uiWithCheat.toggleVoiceMute}
+            version={APP_VERSION} isMuted={isMuted} toggleMute={toggleMute} bpm={bpm} primaryMode={primaryMode} isVoiceMuted={ui.isVoiceMuted} onToggleVoice={ui.toggleVoiceMute}
           />
       </div>
 
       {/* Main Game Area */}
-      <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${uiWithCheat.showTable ? 'touch-none' : ''}`}>
+      <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${ui.showTable ? 'touch-none' : ''}`}>
          <HealthBar 
-            hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={uiWithCheat.isSoundTestActive} onHPChange={engine.setHP} 
+            hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={ui.isSoundTestActive} onHPChange={engine.setHP} 
          />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
-            <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={engine.finalCombo} cheatResult={activeCheatResult} />
+            <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} />
             <GridStatusFooter gameState={gameState} />
-            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { uiWithCheat.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={uiWithCheat.isSoundTestActive} onToggleSoundTest={uiWithCheat.toggleSoundTest} />
+            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { ui.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={ui.isSoundTestActive} onToggleSoundTest={ui.toggleSoundTest} />
          </div>
       </div>
     </div>

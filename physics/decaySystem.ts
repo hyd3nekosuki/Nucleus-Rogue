@@ -52,7 +52,7 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
         // Apply special rewards
         energyBonus += 1000;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(`✨ ANTIMATTER NEUTRALIZED: Alpha pulse purged anomaly! (+1000 MeV)`);
+        messages.push(`✨ ANTI-NUCLIDE NEUTRALIZED: Alpha pulse purged anomaly! (+1000 MeV)`);
     }
 
     return { 
@@ -164,7 +164,7 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     if (antisInBlast.length > 0) {
         energyBonus += 1000;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(`💥 ANTIMATTER PURGED: Fission shockwave dissolved anomaly! (+1000 MeV)`);
+        messages.push(`💥 ANTI-NUCLIDE PURGED: Fission shockwave dissolved anomaly! (+1000 MeV)`);
     }
 
     return {

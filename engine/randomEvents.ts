@@ -1,6 +1,6 @@
 
 import { GameState, EntityType, GridEntity, Position } from '../types';
-import { generateEntities } from './gameLogic';
+import { generateEntities } from './moveSimulator';
 import { moveAntiNuclides, consumeMatterWithAntiNuclides } from './behaviors/antiNuclideBehavior';
 import { TITLES } from '../constants/titles';
 

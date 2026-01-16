@@ -88,8 +88,8 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
     const historyList = Object.values(history);
     
-    // Buffer size calculation: 1024 base + (15 bytes per history entry)
-    const bufferSize = 1024 + (historyList.length * 15);
+    // Buffer size calculation: 1024 base + (16 bytes per history entry)
+    const bufferSize = 1024 + (historyList.length * 16);
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
@@ -154,6 +154,8 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
         view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
         view.setUint32(offset, h.firstTurn); offset += 4;
         view.setUint32(offset, h.lastTurn); offset += 4;
+        // Engrave flag (1 byte for extensibility)
+        view.setUint8(offset++, h.isEngraved ? 1 : 0);
     });
 
     const packedData = buffer.slice(0, offset);
@@ -256,9 +258,16 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
                 firstTurn = view.getUint32(offset); offset += 4;
                 lastTurn = firstTurn;
             }
+
+            // Read Engraved flag
+            let isEngraved = false;
+            if (offset < view.byteLength) {
+                isEngraved = view.getUint8(offset++) === 1;
+            }
             
             const key = `${z}-${a}`;
-            ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}`;
+            // ev format: pz:pa:method:firstTurn:lastTurn:isEngraved
+            ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
         }
 
         return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, pp, pn, pe };

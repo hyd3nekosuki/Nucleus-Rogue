@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { EntityType, DecayMode } from '../../types';
 import { MAGIC_NUMBERS } from '../../constants';
@@ -10,6 +9,8 @@ interface NucleusVisualizerProps {
   decayModes: DecayMode[];
   lastDecayEvent?: { mode: DecayMode, timestamp: number } | null;
   isTimeStopped?: boolean;
+  onClick?: () => void;
+  isEngraved?: boolean;
 }
 
 interface Particle {
@@ -27,7 +28,7 @@ interface EmissionParticle {
     startDist: number;
 }
 
-const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, decayModes, lastDecayEvent, isTimeStopped }) => {
+const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, decayModes, lastDecayEvent, isTimeStopped, onClick, isEngraved }) => {
   const n = a - z; // Neutrons
   const [emissionParticles, setEmissionParticles] = useState<EmissionParticle[]>([]);
   
@@ -325,7 +326,11 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
   const rotationStyle = { animationPlayState: isTimeStopped ? 'paused' : 'running' } as React.CSSProperties;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-black/20 rounded relative overflow-hidden">
+    <div 
+      onClick={onClick}
+      className={`w-full h-full flex flex-col items-center justify-center bg-black/20 rounded relative overflow-hidden transition-all duration-500 ${onClick ? 'cursor-pointer hover:bg-white/5 active:scale-95' : ''}`}
+      title={onClick ? "Click to Engrave in History (Costs 1E)" : ""}
+    >
       <style>
           {`
             @keyframes shootOut {
@@ -344,7 +349,7 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
 
       <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-700 via-transparent to-transparent"></div>
 
-      <svg viewBox={`${-halfSize} ${-halfSize} ${viewSize} ${viewSize}`} className="w-full h-full max-w-[250px] overflow-visible" style={{ overflow: 'visible' }}>
+      <svg viewBox={`${-halfSize} ${-halfSize} ${viewSize} ${viewSize}`} className="w-full h-full max-w-[250px] overflow-visible relative z-10" style={{ overflow: 'visible' }}>
         <defs>
             <radialGradient id="gradStable" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
                 <stop offset="0%" stopColor="#00ff9d" stopOpacity="0.4" />
@@ -385,7 +390,7 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
         <g>{renderEmissions()}</g>
       </svg>
       
-      <div className="absolute bottom-2 right-2 flex flex-col text-[10px] font-mono bg-black/60 p-1.5 rounded border border-gray-700 backdrop-blur-sm z-10">
+      <div className="absolute bottom-1 right-2 flex flex-col text-[10px] font-mono bg-black/60 p-1.5 rounded border border-gray-700 backdrop-blur-sm z-10">
           <div className={`flex items-center gap-2 ${isMagicZ ? 'text-yellow-400 font-bold' : 'text-neon-red'}`}>
              <span className={`w-2 h-2 rounded-full ${isMagicZ ? 'bg-yellow-400' : 'bg-neon-red shadow-[0_0_5px_#ff0055]'}${isMagicZ && !isTimeStopped ? ' animate-pulse shadow-[0_0_5px_gold]' : ''}`}></span>
              <span>Protons: {z} {isMagicZ ? '★' : ''}</span>
@@ -394,6 +399,11 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
              <span className={`w-2 h-2 rounded-full ${isMagicN ? 'bg-yellow-400' : 'bg-neon-blue shadow-[0_0_5px_#00f3ff]'}${isMagicN && !isTimeStopped ? ' animate-pulse shadow-[0_0_5px_gold]' : ''}`}></span>
              <span>Neutrons: {n} {isMagicN ? '★' : ''}</span>
           </div>
+          {isEngraved && (
+              <div className="text-yellow-400 font-black flex items-center gap-1 mt-0.5 tracking-tighter">
+                  📍 FIXED IN HISTORY
+              </div>
+          )}
       </div>
     </div>
   );

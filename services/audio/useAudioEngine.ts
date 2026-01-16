@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../../types';
 import { playRhythm } from './audioSequencer';
 import { createMasterRack } from './audioGraph';
+import { createShutterSound } from './audioInstruments';
 
 // --- Internal Audio Configuration ---
 const AUDIO_CONFIG = {
@@ -27,7 +28,7 @@ const getPrimaryMode = (modes: DecayMode[]) => {
            || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
 };
 
-export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void) => {
+export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void, lastEvent?: any) => {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const masterGainRef = useRef<GainNode | null>(null);
     const masterEntryRef = useRef<AudioNode | null>(null);
@@ -59,11 +60,23 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
     const hpRef = useRef(hp);
     const decayModesRef = useRef(decayModes);
+    const lastProcessedEventId = useRef<number>(0);
 
     // Synchronize HP in real-time for BPM updates
     useEffect(() => {
         hpRef.current = hp;
     }, [hp]);
+
+    // Handle one-shot sound effects (Engrave shutter)
+    useEffect(() => {
+        if (!lastEvent || isMuted || !audioCtxRef.current || !masterEntryRef.current) return;
+        if (lastEvent.id <= lastProcessedEventId.current) return;
+        lastProcessedEventId.current = lastEvent.id;
+
+        if (lastEvent.type === 'ENGRAVE') {
+            createShutterSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime);
+        }
+    }, [lastEvent, isMuted]);
 
     // Initialize BPM ref once when hook first runs
     useEffect(() => {

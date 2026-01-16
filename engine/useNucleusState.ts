@@ -1,7 +1,7 @@
 import { useReducer, useCallback } from 'react';
 import { GameState, GameAction } from '../types';
 import { getInitialState } from './initialState';
-import { nucleusReducer } from './stateTransitions';
+import { nucleusReducer } from './nucleusReducer';
 
 /**
  * Single Source of Truth hook for the raw game state and discovery history.

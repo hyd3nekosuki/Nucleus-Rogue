@@ -6,10 +6,16 @@ interface TutorialContext {
     randomStart?: boolean;
     nextNuclide?: NuclideData;
     currentTurn?: number;
+    energyIncreased?: boolean;
 }
 
 /**
  * Pure function to determine the next tutorial message based on current state and events.
+ * Priority order: 
+ * 1. DRIP_LINE (Critical Danger)
+ * 2. DECAY (Physical stability requirement)
+ * 3. RECORD_HISTORY (E-point usage)
+ * 4. CAPTURE (Default goal)
  */
 export const getNextTutorialMessage = (
     state: GameState,
@@ -21,56 +27,71 @@ export const getNextTutorialMessage = (
         hasSeenDecayTutorial, 
         hasSeenCaptureTutorial,
         hasSeenDripLineTutorial,
-        tutorialStartTurn
+        hasSeenEngraveTutorial,
+        tutorialStartTurn,
+        energyPoints
     } = state;
 
     const currentTurn = context.currentTurn ?? state.turn;
     const nextNuclide = context.nextNuclide;
 
-    // Condition for Drip Line Tutorial: 
-    // Is at Drip Line limit AND has not mastered this critical phase.
+    // --- PRIORITY 1: Drip Line Danger ---
     const isAtDripLine = nextNuclide && !nextNuclide.isStable && (nextNuclide.isProtonDripLine || nextNuclide.isNeutronDripLine);
     if (isAtDripLine && !hasSeenDripLineTutorial) {
         return TUTORIAL_MESSAGES.DRIP_LINE;
     }
 
-    // Check if the resulting state is radioactive (unstable) for the first time
+    // --- PRIORITY 2: Decay Requirement ---
     const shouldShowDecayNow = nextNuclide && !nextNuclide.isStable && !hasSeenDecayTutorial;
+    if (shouldShowDecayNow) {
+        return TUTORIAL_MESSAGES.DECAY;
+    }
+
+    // --- PRIORITY 3: Record History (Feature Discovery) ---
+    const canShowEngrave = (energyPoints >= 1) && !hasSeenEngraveTutorial;
+
+    // Special Trigger: If energy increased, re-show the recording hint if not already done
+    if (context.energyIncreased && canShowEngrave && !shouldShowDecayNow && !isAtDripLine) {
+        return TUTORIAL_MESSAGES.RECORD_HISTORY;
+    }
 
     switch (event) {
         case 'GAME_START':
-            if (shouldShowDecayNow) {
-                return TUTORIAL_MESSAGES.DECAY;
-            }
             if (context.randomStart && hasSeenCaptureTutorial) {
-                return null;
+                return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return TUTORIAL_MESSAGES.CAPTURE;
 
         case 'PARTICLE_CAPTURED':
-            if (shouldShowDecayNow) {
-                return TUTORIAL_MESSAGES.DECAY;
-            }
-            // If the nucleus becomes stable via capture, clear any tutorial message 
-            // (either CAPTURE or DECAY), but notably we don't set the "seen" flag yet 
-            // for decay unless they actually perform the decay action.
             if (nextNuclide?.isStable) {
-                return null;
+                return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return currentMsg;
 
         case 'DECAY_PERFORMED':
-            // Performing a decay manually implies mastery of the mechanic.
-            // Clear the guidance regardless of whether the daughter is unstable.
+            return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+
+        case 'ENGRAVE_PERFORMED':
             return null;
 
         case 'TURN_ADVANCED':
+            // Decay nudge logic
             if (currentMsg === TUTORIAL_MESSAGES.DECAY) {
                 const elapsed = currentTurn - tutorialStartTurn;
                 if (elapsed >= 50) {
                     return TUTORIAL_MESSAGES.DECAY_MANUAL;
                 }
             }
+            
+            // Engrave message display timeout logic:
+            // If shown for 10 turns without action, hide it temporarily.
+            if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY) {
+                const elapsed = currentTurn - tutorialStartTurn;
+                if (elapsed >= 10) {
+                    return null;
+                }
+            }
+            
             return currentMsg;
 
         default:
@@ -107,9 +128,13 @@ export const calculateTutorialFlagUpdates = (
     }
 
     // Drip Line Tutorial is mastered once the player successfully transforms into another nuclide
-    // and the message is cleared.
     if (currentMsg === TUTORIAL_MESSAGES.DRIP_LINE && nextMsg !== TUTORIAL_MESSAGES.DRIP_LINE) {
         updates.hasSeenDripLineTutorial = true;
+    }
+
+    // Engrave Tutorial is mastered if user performs the action
+    if (event === 'ENGRAVE_PERFORMED') {
+        updates.hasSeenEngraveTutorial = true;
     }
     
     return updates;

@@ -1,5 +1,4 @@
-
-import React, { useRef } from 'react';
+import React, { useRef, memo } from 'react';
 import { NuclideData, DecayMode } from '../../types';
 import { MAGIC_NUMBERS } from '../../constants';
 import { formatDecayModes } from '../../services/nuclideService';
@@ -160,4 +159,4 @@ const HealthBar: React.FC<HealthBarProps> = ({
     );
 };
 
-export default HealthBar;
+export default memo(HealthBar);
