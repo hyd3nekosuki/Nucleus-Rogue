@@ -1,4 +1,3 @@
-
 import { 
   GameState, 
   GameAction, 
@@ -33,7 +32,6 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
     const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;
     const now = Date.now();
 
-    // マスタリーレベルの上昇は、自機の崩壊アクション（Manual Decay）時のみに限定
     const { nextLevel, nextMastered } = calculateNextLevel(
         state.playerLevel,
         state.masteredDecays,
@@ -88,13 +86,10 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         nextLastComboTime = now;
     }
 
-    // 記録用のコンボ数（リセット前に最大値を評価するため）
     const recordableCombo = nextCombo;
 
-    // 安定化イベントの定義
     let settlementEvent: GameStateEvent | undefined;
     if (nextNuclide.isStable) {
-        // 安定化した際にコンボが発生していれば、演出用イベントを発行
         if (nextCombo >= 2) {
             settlementEvent = {
                 id: now + 50, 
@@ -109,10 +104,8 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
         nextLastComboTime = 0;
     }
 
-    // Structured Merge of Events
     let finalEvent = levelUpEvent;
     
-    // イベントのマージロジック
     const mergeEvents = (base: GameStateEvent | undefined, overlay: GameStateEvent | undefined): GameStateEvent | undefined => {
         if (!base) return overlay;
         if (!overlay) return base;
@@ -154,9 +147,6 @@ const applyDiscoveryLogic = (state: GameState, nextNuclide: NuclideData, context
     };
 };
 
-/**
- * The single source of truth for all game state transitions.
- */
 export const nucleusReducer = (state: GameState, action: GameAction): GameState => {
     const now = Date.now();
     switch (action.type) {
@@ -166,6 +156,78 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
 
             const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS);
             if (!result.moved || !result.newPos) return state;
+
+            // Handle Another Nuclide Collision
+            if (result.targetEntity?.type === EntityType.ANOTHER_NUCLIDE) {
+                const enemy = result.targetEntity;
+                const penalty = 50;
+                
+                // Reduction logic based on player core mass.
+                // Min reduction of 1 ensures boss Z,A always decrease.
+                const dZ_enemy = Math.max(1, Math.floor(state.currentNuclide.z / 2 + 0.5));
+                const dA_enemy = Math.max(1, Math.floor(state.currentNuclide.a / 2 + 0.5));
+                
+                let nextEntities = state.gridEntities.map(e => {
+                    if (e.id === enemy.id) {
+                        return { 
+                            ...e, 
+                            z: Math.max(0, (e.z || 0) - dZ_enemy), 
+                            a: Math.max(0, (e.a || 0) - dA_enemy) 
+                        };
+                    }
+                    return e;
+                });
+
+                const updatedEnemy = nextEntities.find(e => e.id === enemy.id);
+                const finalZ = updatedEnemy?.z || 0;
+                const finalA = updatedEnemy?.a || 0;
+                const finalData = getNuclideDataSync(finalZ, finalA);
+
+                // Defeated if Z/A hits 0 OR resulting state is non-existent in the database
+                const isDefeated = !updatedEnemy || finalZ <= 0 || finalA <= 0 || !finalData.exists;
+
+                let rewardMsg: string[] = [];
+                let nextEnergy = state.energyPoints;
+                let nextHistory = state.evolutionHistory;
+
+                if (isDefeated) {
+                    // Engrave the nuclide as it was BEFORE the collision damage
+                    const preZ = enemy.z || 0;
+                    const preA = enemy.a || 0;
+                    const preData = getNuclideDataSync(preZ, preA);
+
+                    nextEntities = nextEntities.filter(e => e.id !== enemy.id);
+                    nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + 50);
+                    rewardMsg = [`💥 ANOTHER NUCLIDE DEFEATED! (+50E)`];
+                    
+                    if (preData.exists) {
+                        const key = `${preZ}-${preA}`;
+                        nextHistory = {
+                            ...nextHistory,
+                            [key]: {
+                                ...(nextHistory[key] || createHistoryEntry(preData, "Defeated Mid-boss", null, null, state.turn)),
+                                isEngraved: true
+                            }
+                        };
+                    }
+                }
+
+                const nextState: GameState = {
+                    ...state,
+                    hp: Math.max(0, state.hp - penalty),
+                    energyPoints: nextEnergy,
+                    evolutionHistory: nextHistory,
+                    gridEntities: nextEntities,
+                    messages: [...state.messages, `⚠️ COLLISION WITH ANOTHER NUCLIDE! HP -${penalty}`, ...rewardMsg].slice(-10),
+                    lastEvent: { id: now, type: 'COLLISION', shake: true, flash: 'bg-amber-700' }
+                };
+
+                if (nextState.hp <= 0) {
+                    return { ...nextState, ...resolveStabilityCrisis(nextState, REASON.FATAL_CAPTURE) };
+                }
+
+                return { ...nextState, ...processRandomBackgroundEvents(nextState) };
+            }
 
             let potentialReason: string = REASON.UNKNOWN;
             let isDaredevilAttempt = false;
@@ -194,7 +256,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 lastEvent: undefined 
             };
 
-            // Handle Move/Interaction Events
             if (result.shouldShake || result.shouldFlash || result.isPpFusion) {
                 nextState.lastEvent = {
                     id: now,
@@ -261,7 +322,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
 
                     const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
                     
-                    // Energy increase check for tutorial re-trigger
                     const energyIncreased = result.energyBonus > 0;
                     const nextMsg = getNextTutorialMessage(nextState, 'PARTICLE_CAPTURED', { nextNuclide: newData, currentTurn: nextTurn, energyIncreased });
                     const tutorialUpdates = calculateTutorialFlagUpdates(nextState, nextMsg, nextTurn, 'PARTICLE_CAPTURED');
@@ -321,7 +381,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 const recovery = state.currentNuclide.isStable ? 1 : 0;
                 const nextHp = Math.max(0, Math.min(state.maxHp, state.hp + recovery) - result.hpPenalty);
                 
-                // Energy increase check for tutorial re-trigger (even if no movement transformation)
                 const energyIncreased = result.energyBonus > 0;
                 const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn, energyIncreased });
                 const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, nextTurn, 'TURN_ADVANCED');
@@ -430,7 +489,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             
             const dripMsg = (!newData.isStable && (newData.isProtonDripLine || newData.isNeutronDripLine)) ? ["⚠️ Danger: Drip line limit"] : [];
             
-            // Energy increase check for tutorial re-trigger
             const energyIncreased = (decayResult.energyBonus || 0) > 0;
             const nextMsg = getNextTutorialMessage(state, 'DECAY_PERFORMED', { nextNuclide: newData, currentTurn: state.turn, energyIncreased });
             const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'DECAY_PERFORMED');
@@ -671,6 +729,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 nextState.combo = 0;
                 nextState.comboScore = 0;
                 nextState.comboOrigin = undefined;
+                // Fix: Corrected 'nextLastComboTime' to 'nextState.lastComboTime'
                 nextState.lastComboTime = 0;
             }
             return nextState;

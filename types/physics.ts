@@ -1,4 +1,3 @@
-
 export enum DecayMode {
   STABLE = 'STABLE',
   ALPHA = 'ALPHA',
@@ -57,6 +56,7 @@ export enum EntityType {
   ENEMY_ELECTRON = 'ENEMY_ELECTRON',
   ENEMY_POSITRON = 'ENEMY_POSITRON',
   ANTI_NUCLIDE = 'ANTI_NUCLIDE',
+  ANOTHER_NUCLIDE = 'ANOTHER_NUCLIDE',
   VOID = 'VOID'
 }
 
@@ -66,6 +66,8 @@ export interface GridEntity {
   position: Position;
   spawnTurn: number;
   isHighEnergy: boolean;
+  z?: number; // Used for ANOTHER_NUCLIDE
+  a?: number; // Used for ANOTHER_NUCLIDE
 }
 
 export interface NuclideData {

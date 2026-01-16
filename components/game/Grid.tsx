@@ -4,6 +4,7 @@ import { GameState, EntityType, DecayMode, Position } from '../../types';
 import { OverrideValidationResult } from '../../hooks/useOverrideValidator';
 import { DripLineService } from '../../engine/dripLineService';
 import { TITLES } from '../../constants';
+import { getSymbol } from '../../constants/atomicData';
 
 interface GridProps {
   width: number;
@@ -131,6 +132,23 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     </div>
                   );
                   break;
+              case EntityType.ANOTHER_NUCLIDE:
+                  const ez = entity.z || 0;
+                  const ea = entity.a || 0;
+                  const ehue = (ez * 10) % 360;
+                  const eBgStyle = ez === 0 ? '#ffffff' : `hsl(${ehue}, 80%, 80%)`;
+                  content = (
+                    <div 
+                        className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold border border-black/20 shadow-[0_0_12px_rgba(0,0,0,0.4)] animate-pulse transition-all duration-300`}
+                        style={{ backgroundColor: eBgStyle, color: '#000000' }}
+                    >
+                        <span className="z-10 relative top-[1px]">{getSymbol(ez)}</span>
+                        <div className="absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ea}</div>
+                        <div className="absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ez}</div>
+                        <div className={`absolute inset-[-4px] border-2 border-dashed border-black/10 rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_8s_linear_infinite]'}`}></div>
+                    </div>
+                  );
+                  break;
           }
       }
 
@@ -150,7 +168,6 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
           if (DripLineService.isBeyondDripLine(pZ, pA)) bgClass += " bg-danger-hatch";
       }
 
-      // Highlight cell background if targeted by current input
       if (isConsumedByOverride) {
           bgClass = "bg-yellow-400/10";
           borderClass = "border-yellow-400/50";
@@ -189,7 +206,6 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
     }
   }
 
-  // Pure logic for rendering a single resonance line from particle to player
   const renderResonanceLine = (pos: Position, id: string) => {
     const x1 = ((pos.x + 0.5) / width) * 100;
     const y1 = ((pos.y + 0.5) / height) * 100;
@@ -215,7 +231,6 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
     <div className={`relative transition-all touch-none ${gameState.isTimeStopped ? 'grayscale-[0.4] contrast-125' : ''}`}>
         <div className="grid gap-0.5 select-none" style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}>{cells}</div>
         
-        {/* Quantum Resonance Lines - Rendered only when reachable in current state (Typing/Preview phase) */}
         {overrideResult?.isReachable && (
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-40 overflow-visible" style={{ mixBlendMode: 'screen' }}>
                 {overrideResult.idsToConsume?.map(id => {
@@ -235,7 +250,6 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   );
 };
 
-// Optimized with custom comparison function to ignore HP changes
 export default memo(Grid, (prevProps, nextProps) => {
   const p = prevProps.gameState;
   const n = nextProps.gameState;
@@ -246,7 +260,6 @@ export default memo(Grid, (prevProps, nextProps) => {
     prevProps.onCellClick === nextProps.onCellClick &&
     prevProps.finalCombo === nextProps.finalCombo &&
     prevProps.overrideResult === nextProps.overrideResult &&
-    // Check key visual gameState properties but ignore hp, score, energyPoints, messages
     p.playerPos.x === n.playerPos.x &&
     p.playerPos.y === n.playerPos.y &&
     p.targetPos?.x === n.targetPos?.x &&
