@@ -5,9 +5,14 @@ import { getNuclideDataSync } from '../../services/nuclideService';
 /**
  * Handles the AI movement of another nuclide.
  * Moves 1 step towards the player every 2 turns.
- * Step 3: Updated to avoid overlapping with nuclides of the same affiliation.
+ * Step 1 Update: Allows enemy nuclides to enter player cell if Demon core (isDaredevilActive) is on.
  */
-export const moveAnotherNuclides = (entities: GridEntity[], playerPos: Position, currentTurn: number): GridEntity[] => {
+export const moveAnotherNuclides = (
+    entities: GridEntity[], 
+    playerPos: Position, 
+    currentTurn: number,
+    isDaredevilActive: boolean = false // Added in Step 1
+): GridEntity[] => {
     return entities.map(e => {
         if (e.type === EntityType.ANOTHER_NUCLIDE) {
             const elapsed = currentTurn - e.spawnTurn;
@@ -26,11 +31,15 @@ export const moveAnotherNuclides = (entities: GridEntity[], playerPos: Position,
                     if (dx !== 0) candidates.push({ x: e.position.x + (dx > 0 ? 1 : -1), y: e.position.y });
                 }
 
+                const canOverlapPlayer = isDaredevilActive && !e.isFriendly;
+
                 for (const nextPos of candidates) {
-                    // Check bounds and player collision
-                    if (isWithinBounds(nextPos) && !(nextPos.x === playerPos.x && nextPos.y === playerPos.y)) {
+                    const isPlayerPos = nextPos.x === playerPos.x && nextPos.y === playerPos.y;
+                    
+                    // Check bounds and player collision (ignore player collision if canOverlapPlayer is true)
+                    if (isWithinBounds(nextPos) && (!isPlayerPos || canOverlapPlayer)) {
                         
-                        // Step 3 logic: Check if this cell is already occupied by a nuclide of the SAME affiliation
+                        // Check if this cell is already occupied by a nuclide of the SAME affiliation
                         const isAllyOccupied = entities.some(other => 
                             other.id !== e.id && 
                             other.type === EntityType.ANOTHER_NUCLIDE &&

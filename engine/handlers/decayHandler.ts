@@ -14,9 +14,12 @@ import { resolveStabilityCrisis } from '../stabilityManager';
 import { getDecayDeltas, calculateDecayEffects } from '../../physics/decaySystem';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { processUnlocks } from '../unlockSystem';
+import { processRandomBackgroundEvents } from '../randomEvents';
+import { handleAnotherNuclideCollision } from '../core/collisionService';
 
 /**
  * Handler for manual radioactive decay actions.
+ * Step 4 Update: Now advances the global turn and triggers AI movement/assault resolution.
  */
 export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }): GameState => {
     const { mode } = payload;
@@ -42,7 +45,6 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     if (!newData.exists) {
         const isDare = !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine);
         
-        // Fix for Demon core: Check unlocks even on survival path
         const unlockResult = processUnlocks(
             state.unlockedElements, state.unlockedGroups, null, null,
             false, false, false, false, 0, 
@@ -98,14 +100,10 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const decayEvent: GameStateEvent = { id: now, type: 'DECAY', subType: actualMode, decayModeTrigger: actualMode, shake: decayResult.shouldShake, flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined, priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] };
 
     let nextEntities = decayResult.newGridEntities;
-    // Procedure 3: Centralized emission processing
     if (decayResult.emissions && decayResult.emissions.length > 0) {
         decayResult.emissions.forEach(emitType => {
-            // SF fragments are fast (high energy)
             const isFission = actualMode === DecayMode.SPONTANEOUS_FISSION;
-            // Particles emitted by the player are marked as friendly
             nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, emitType, true);
-            // Mark the last added entity as high energy if it was a fission neutron
             if (isFission && nextEntities.length > 0) {
                 const last = nextEntities[nextEntities.length - 1];
                 if (last.type === EntityType.NEUTRON) last.isHighEnergy = true;
@@ -113,7 +111,6 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         });
     }
 
-    // Procedure 4: Byproduct realization
     if (decayResult.byproduct) {
         const spawnPos = findNearbyFreeCell(state.playerPos, nextEntities, state.playerPos);
         nextEntities.push({
@@ -124,14 +121,26 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             isHighEnergy: false,
             z: decayResult.byproduct.z,
             a: decayResult.byproduct.a,
-            isFriendly: true // Marked as friendly companion
+            isFriendly: true
         });
     }
 
+    // Advance turn and trigger background AI/assault processing
+    const nextTurn = state.turn + 1;
     let nextState = applyDiscoveryLogic(
-        { ...state, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: { ...state.decayStats, [actualMode]: (state.decayStats[actualMode] || 0) + 1 }, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
-        newData, context, state.turn, { isAnnihilation: decayResult.isAnnihilation }
+        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: { ...state.decayStats, [actualMode]: (state.decayStats[actualMode] || 0) + 1 }, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
+        newData, context, nextTurn, { isAnnihilation: decayResult.isAnnihilation }
     );
+
+    const bgResult = processRandomBackgroundEvents(nextState);
+    // Fix: Destructure bgResult to separate GameState updates from the temporary 'assaultingEntity' flag.
+    const { assaultingEntity, ...stateUpdates } = bgResult;
+    nextState = { ...nextState, ...stateUpdates };
+    
+    // Assault Logic: Resolve collision if an enemy moved onto the player after decay
+    if (assaultingEntity) {
+        nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos);
+    }
 
     return nextState;
 };

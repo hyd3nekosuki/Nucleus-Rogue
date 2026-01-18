@@ -11,6 +11,7 @@ export interface BackgroundEventResult {
     messages: string[];
     activeEvent?: { type: string; color: string; timestamp: number };
     emptyTurnCount: number;
+    assaultingEntity: GridEntity | null; // Step 3: Added for Hard Mode assault detection
 }
 
 /**
@@ -42,9 +43,11 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     }
 
     // 2. Behaviors: Movement and Matter Consumption
+    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+
     nextEntities = moveAntiNuclides(nextEntities, state.playerPos);
     nextEntities = consumeMatterWithAntiNuclides(nextEntities);
-    nextEntities = moveAnotherNuclides(nextEntities, state.playerPos, state.turn);
+    nextEntities = moveAnotherNuclides(nextEntities, state.playerPos, state.turn, isDaredevilActive);
     
     // NEW Step 4: Resolve struggles between different camps after movement
     const struggleResult = resolveMatterStruggle(nextEntities);
@@ -54,6 +57,15 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     }
 
     nextEntities = consumeParticlesWithAnotherNuclides(nextEntities);
+
+    // Step 3 Logic: Detect if any predator (enemy) nuclide has moved onto the player position.
+    // This overlap is only possible during Hard Mode (isDaredevilActive) as per Step 1.
+    const assaultingEntity = nextEntities.find(e => 
+        e.type === EntityType.ANOTHER_NUCLIDE && 
+        !e.isFriendly && 
+        e.position.x === state.playerPos.x && 
+        e.position.y === state.playerPos.y
+    ) || null;
 
     // 3. Spawning "Another Nuclide" (Mid-boss) with Linked Spawning Logic
     const hasAnother = nextEntities.some(e => e.type === EntityType.ANOTHER_NUCLIDE);
@@ -171,6 +183,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         gridEntities: nextEntities,
         messages: nextMessages,
         activeEvent,
-        emptyTurnCount: nextEmptyTurnCount
+        emptyTurnCount: nextEmptyTurnCount,
+        assaultingEntity // Return detection result to the handler
     };
 };

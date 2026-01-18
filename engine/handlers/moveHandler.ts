@@ -18,81 +18,41 @@ import { getNuclideDataSync } from '../../services/nuclideService';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
-import { findSpecialReaction } from '../../data/specialReactions';
+import { handleAnotherNuclideCollision } from '../core/collisionService';
 import { processUnlocks } from '../unlockSystem';
-import { registerHistoryEntry } from '../core/historyService';
-
-const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntity, newPos: Position): GameState => {
-    const now = Date.now();
-    const pz = state.currentNuclide.z;
-    const pa = state.currentNuclide.a;
-    const ez = enemy.z || 0;
-    const ea = enemy.a || 0;
-    const reaction = findSpecialReaction(pz, pa, ez, ea);
-
-    if (reaction) {
-        let playerZ = reaction.productZ, playerA = reaction.productA, bossZ = reaction.product2Z, bossA = reaction.product2A;
-        if (bossZ !== undefined && bossA !== undefined && (bossA > playerA || (bossA === playerA && bossZ > playerZ))) {
-            [playerZ, bossZ] = [bossZ, playerZ]; [playerA, bossA] = [bossA, playerA];
-        }
-        const nextNuclide = getNuclideDataSync(playerZ, playerA);
-        if (nextNuclide.exists) {
-            let nextEntities = state.gridEntities.filter(e => e.id !== enemy.id);
-            if (bossZ !== undefined && bossA !== undefined && bossA > 0) {
-                const isSingle = (bossZ === 1 && bossA === 1) || (bossZ === 0 && bossA === 1);
-                if (isSingle) nextEntities = generateEntities(1, nextEntities, newPos, state.turn, bossZ === 1 ? EntityType.PROTON : EntityType.NEUTRON, true);
-                else if (getNuclideDataSync(bossZ, bossA).exists) nextEntities.push({ id: 'product-' + Math.random().toString(36).substr(2, 9), type: EntityType.ANOTHER_NUCLIDE, position: findNearbyFreeCell(newPos, nextEntities, newPos), spawnTurn: state.turn, isHighEnergy: false, z: bossZ, a: bossA, isFriendly: true });
-            }
-            reaction.emissions.forEach(emitType => { nextEntities = generateEntities(1, nextEntities, newPos, state.turn, emitType, true); });
-
-            return applyDiscoveryLogic(
-                { ...state, playerPos: newPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + reaction.energyBonus), gridEntities: nextEntities, messages: [...state.messages, reaction.message].slice(-10), lastEvent: { id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', priorityMessages: ['Nuclear Fusion', 'Experimental Replication'] } },
-                nextNuclide,
-                { method: HISTORY_METHODS.EXP_REPLICATE, pz, pa, addedScore: 500000, chargesUsed: 0, isManualDecay: false },
-                state.turn + 1,
-                { skipComboSettlement: true }
-            );
-        }
-    }
-
-    // Step 5: Conditional penalty based on affiliation
-    const penalty = enemy.isFriendly ? 25 : 50;
-    
-    const dZ_e = Math.max(1, Math.floor(pz / 2 + 0.5)), dA_e = Math.max(1, Math.floor(pa / 2 + 0.5));
-    const nextZ = Math.max(0, ez - dZ_e), nextA = Math.max(0, ea - dA_e);
-    const finalData = getNuclideDataSync(nextZ, nextA);
-    const isDefeated = nextZ <= 0 || nextA <= 0 || !finalData.exists;
-
-    let nextEntities = state.gridEntities.filter(e => e.id !== enemy.id);
-    let rewardMsg: string[] = [];
-    let nextEnergy = state.energyPoints;
-    let nextHistory = state.evolutionHistory;
-
-    if (isDefeated) { 
-        nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + 1); 
-        rewardMsg = [`💥 ANOTHER NUCLIDE DEFEATED! (+1E)`]; 
-        
-        // Register the defeated enemy nuclide identity in history with forced engraving (📍)
-        const enemyData = getNuclideDataSync(ez, ea);
-        if (enemyData.exists) {
-            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, state.turn, true);
-        }
-    }
-    else nextEntities.push({ ...enemy, position: findNearbyFreeCell(newPos, nextEntities, newPos), z: nextZ, a: nextA });
-
-    const campLabel = enemy.isFriendly ? "FRIENDLY" : "ANOTHER";
-    const nextState: GameState = { ...state, playerPos: newPos, hp: Math.max(0, state.hp - penalty), energyPoints: nextEnergy, gridEntities: nextEntities, evolutionHistory: nextHistory, messages: [...state.messages, `⚠️ COLLISION WITH ${campLabel} NUCLIDE! HP -${penalty}`, ...rewardMsg].slice(-10), lastEvent: { id: now, type: 'COLLISION', shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } };
-    if (nextState.hp <= 0) return { ...nextState, ...resolveStabilityCrisis(nextState, REASON.FATAL_CAPTURE) };
-    return { ...nextState, ...processRandomBackgroundEvents(nextState) };
-};
 
 export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number }): GameState => {
     const { dx, dy } = payload;
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
     const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS);
     if (!result.moved || !result.newPos) return state;
-    if (result.targetEntity?.type === EntityType.ANOTHER_NUCLIDE) return handleAnotherNuclideCollision(state, result.targetEntity, result.newPos);
 
+    /**
+     * Step 4: Helper to finalize turn processing.
+     * Advances AI and resolves any resulting overlaps ("Assaults") in Hard Mode.
+     */
+    const finalizeTurn = (currentState: GameState): GameState => {
+        const bgResult = processRandomBackgroundEvents(currentState);
+        // Fix: Destructure bgResult to separate GameState updates from the temporary 'assaultingEntity' flag.
+        // This prevents 'nextState' from being inferred with a type that requires 'assaultingEntity',
+        // which would cause errors upon reassignment from handleAnotherNuclideCollision (which returns GameState).
+        const { assaultingEntity, ...stateUpdates } = bgResult;
+        let nextState: GameState = { ...currentState, ...stateUpdates };
+        
+        // Assault logic: Resolve collision if an enemy moved onto the player position
+        if (assaultingEntity) {
+            nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos);
+        }
+        return nextState;
+    };
+
+    // Scenario 1: Direct player movement into Another Nuclide (Mid-boss/Predator)
+    if (result.targetEntity?.type === EntityType.ANOTHER_NUCLIDE) {
+        const afterCollisionState = handleAnotherNuclideCollision(state, result.targetEntity, result.newPos);
+        return finalizeTurn(afterCollisionState);
+    }
+
+    // Scenario 2: Normal movement or interaction with particles
     let reason: string = REASON.UNKNOWN;
     const nextTurn = state.turn + 1;
     const pZ = state.currentNuclide.z + result.dZ, pA = state.currentNuclide.a + result.dA;
@@ -192,5 +152,6 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
     if (result.inducedDecayMode && result.inducedReactionLabel) nextState.reactionStats = { ...nextState.reactionStats, [result.inducedReactionLabel]: (nextState.reactionStats[result.inducedReactionLabel] || 0) + 1 };
     if (nextState.hp <= 0 && !nextState.gameOver) Object.assign(nextState, resolveStabilityCrisis(nextState, reason, !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine)));
-    return { ...nextState, ...processRandomBackgroundEvents(nextState) };
+    
+    return finalizeTurn(nextState);
 };
