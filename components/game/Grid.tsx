@@ -137,15 +137,17 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                   const ea = entity.a || 0;
                   const ehue = (ez * 10) % 360;
                   const eBgStyle = ez === 0 ? '#ffffff' : `hsl(${ehue}, 80%, 80%)`;
+                  // Distinction by affiliation: Circle for Friend (Round), Soft Square for Enemy (rounded-md)
+                  const shapeClass = entity.isFriendly ? 'rounded-full' : 'rounded-md';
                   content = (
                     <div 
-                        className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold border border-black/20 shadow-[0_0_12px_rgba(0,0,0,0.4)] animate-pulse transition-all duration-300`}
+                        className={`relative w-full h-full ${shapeClass} flex items-center justify-center text-xs font-bold border border-black/20 shadow-[0_0_12px_rgba(0,0,0,0.4)] animate-pulse transition-all duration-300`}
                         style={{ backgroundColor: eBgStyle, color: '#000000' }}
                     >
                         <span className="z-10 relative top-[1px]">{getSymbol(ez)}</span>
                         <div className="absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ea}</div>
                         <div className="absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ez}</div>
-                        <div className={`absolute inset-[-4px] border-2 border-dashed border-black/10 rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_8s_linear_infinite]'}`}></div>
+                        <div className={`absolute inset-[-4px] border-2 border-dashed border-black/10 ${shapeClass} ${gameState.isTimeStopped ? '' : 'animate-[spin_8s_linear_infinite]'}`}></div>
                     </div>
                   );
                   break;

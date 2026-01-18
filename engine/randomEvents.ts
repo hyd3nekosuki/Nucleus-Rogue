@@ -1,8 +1,10 @@
 import { GameState, EntityType, GridEntity, Position } from '../types';
 import { generateEntities } from './moveSimulator';
 import { moveAntiNuclides, consumeMatterWithAntiNuclides } from './behaviors/antiNuclideBehavior';
-import { moveAnotherNuclides, consumeParticlesWithAnotherNuclides } from './behaviors/anotherNuclideBehavior';
+import { moveAnotherNuclides, consumeParticlesWithAnotherNuclides, resolveMatterStruggle } from './behaviors/anotherNuclideBehavior';
 import { TITLES } from '../constants/titles';
+import { getValidAsForZ, getNuclideDataSync } from '../services/nuclideService';
+import { findReactionPartners } from '../data/specialReactions';
 
 export interface BackgroundEventResult {
     gridEntities: GridEntity[];
@@ -13,7 +15,6 @@ export interface BackgroundEventResult {
 
 /**
  * Handles all chance-based background phenomena and periodic entity replenishment.
- * Separating this ensures the core move logic remains predictable and testable.
  */
 export const processRandomBackgroundEvents = (state: GameState): BackgroundEventResult => {
     let nextEntities = [...state.gridEntities];
@@ -33,7 +34,6 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     if (!hasParticles) {
         nextEmptyTurnCount++;
         if (nextEmptyTurnCount >= 20 && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
-            // Spawn Anti-nuclide at a random free position
             nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
             nextMessages = [...nextMessages, "⚠️ WARNING: ANOMALY DETECTED. ANTI-NUCLIDE MATERIALIZED."].slice(-10);
         }
@@ -44,20 +44,59 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     // 2. Behaviors: Movement and Matter Consumption
     nextEntities = moveAntiNuclides(nextEntities, state.playerPos);
     nextEntities = consumeMatterWithAntiNuclides(nextEntities);
-    
-    // Another Nuclide AI Processing
     nextEntities = moveAnotherNuclides(nextEntities, state.playerPos, state.turn);
+    
+    // NEW Step 4: Resolve struggles between different camps after movement
+    const struggleResult = resolveMatterStruggle(nextEntities);
+    nextEntities = struggleResult.nextEntities;
+    if (struggleResult.struggleMessages.length > 0) {
+        nextMessages = [...nextMessages, ...struggleResult.struggleMessages].slice(-10);
+    }
+
     nextEntities = consumeParticlesWithAnotherNuclides(nextEntities);
 
-    // 3. Spawning "Another Nuclide" (Mid-boss)
+    // 3. Spawning "Another Nuclide" (Mid-boss) with Linked Spawning Logic
     const hasAnother = nextEntities.some(e => e.type === EntityType.ANOTHER_NUCLIDE);
     if (!hasAnother && state.turn > 20 && Math.random() < 0.015) {
-        const zLimit = state.currentNuclide.z;
-        const aLimit = state.currentNuclide.a;
+        const curZ = state.currentNuclide.z;
+        const curA = state.currentNuclide.a;
         
-        // Random Z, A less than or equal to machine
-        const enemyZ = Math.floor(Math.random() * zLimit) + 1;
-        const enemyA = Math.floor(Math.random() * (aLimit - enemyZ + 1)) + enemyZ;
+        let enemyZ = 1;
+        let enemyA = 1;
+        let found = false;
+
+        // --- LINKED SPAWNING: Check for Special Reaction Partners ---
+        const partners = findReactionPartners(curZ, curA);
+        
+        // 80% chance to prioritize a compatible partner if one exists
+        if (partners.length > 0 && Math.random() < 0.8) {
+            const partner = partners[Math.floor(Math.random() * partners.length)];
+            // Partners must be actual nuclides (Z > 0) to spawn as Another Nuclide
+            // Particles like neutrons (Z=0) are generated via standard entity spawning
+            if (partner.z > 0) {
+                enemyZ = partner.z;
+                enemyA = partner.a;
+                found = true;
+            }
+        }
+
+        // Fallback to random weighted search if no partner selected
+        if (!found) {
+            const zLimit = curZ;
+            const aLimit = curA;
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const tz = Math.floor(Math.random() * zLimit) + 1;
+                const validAs = getValidAsForZ(tz).filter(a => a <= aLimit);
+                if (validAs.length > 0) {
+                    enemyZ = tz;
+                    enemyA = validAs[Math.floor(Math.random() * validAs.length)];
+                    found = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!found) { enemyZ = 1; enemyA = 1; }
 
         const freeCells: Position[] = [];
         for (let y = 0; y < 15; y++) {
@@ -77,7 +116,8 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 spawnTurn: state.turn,
                 isHighEnergy: false,
                 z: enemyZ,
-                a: enemyA
+                a: enemyA,
+                isFriendly: false // Natural spawns are predators
             });
             nextMessages = [...nextMessages, `⚠️ ANOTHER NUCLIDE DETECTED: Z=${enemyZ}, A=${enemyA} approaching.`].slice(-10);
             activeEvent = { type: "BOSS_SPAWN", color: "#b45309", timestamp: Date.now() };

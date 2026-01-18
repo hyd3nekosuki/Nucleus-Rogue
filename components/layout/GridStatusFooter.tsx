@@ -3,6 +3,7 @@ import { GameState, EntityType } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { getSymbol, TITLES } from '../../constants';
 import { calculateReincarnationTargets } from '../../engine/particleEngine';
+import { findSpecialReaction } from '../../data/specialReactions';
 
 interface Props {
   gameState: GameState;
@@ -39,6 +40,12 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
     gameState.reincarnationPool,
     gameState.evolutionHistory,
     isDaredevilActive
+  );
+
+  // 5. Special Reaction Detection (Hidden Debug Logic)
+  const canInduceSpecial = gameState.gridEntities.some(e => 
+    e.type === EntityType.ANOTHER_NUCLIDE && 
+    findSpecialReaction(gameState.currentNuclide.z, gameState.currentNuclide.a, e.z || 0, e.a || 0)
   );
 
   const toggleDisplay = () => setShowStats(!showStats);
@@ -109,6 +116,11 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
                         {activeStreakType === 'p' ? 'p' : activeStreakType === 'n' ? 'n' : 'e-'}×{activeStreakCount}
                     </span>
                 </>
+            )}
+
+            {/* Special Reaction Indicator (Hidden Debug) */}
+            {canInduceSpecial && (
+                <span className="ml-2 animate-pulse" title="Special Reaction Possible">💡</span>
             )}
         </div>
     </div>

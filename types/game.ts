@@ -3,7 +3,6 @@ import {
   NuclideData, 
   GridEntity, 
   Position, 
-  NuclideState, 
   EntityType 
 } from './physics';
 
@@ -55,14 +54,17 @@ export interface DiscoveryContext {
 
 /**
  * Representation of a transient game event for the effect bridge.
+ * Integrated with the visual engine to trigger sounds, shakes, and flashes.
  */
 export interface GameStateEvent {
   id: number;
   type: 'COLLISION' | 'DECAY' | 'LEVEL_UP' | 'SKILL' | 'SURVIVAL' | 'DEATH' | 'STABILITY_CRISIS' | 'ENGRAVE';
   subType?: string;
-  decayModeTrigger?: DecayMode; // Added: Preserves the physical decay mode even if subType is used for UI signals
+  /** Preserves the physical decay mode even if subType is used for custom UI signals */
+  decayModeTrigger?: DecayMode; 
   message?: string;
-  priorityMessages?: string[]; // New: List of important terms to speak separately
+  /** List of important scientific terms for the TTS system to announce in priority order */
+  priorityMessages?: string[]; 
   shake?: boolean;
   flash?: string;
 }
@@ -111,7 +113,7 @@ export interface GameState {
   hasSeenEngraveTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
   emptyTurnCount: number;
-  lastEvent?: GameStateEvent; // Bridge for UI side-effects
+  lastEvent?: GameStateEvent; 
 }
 
 export type GameAction =
@@ -146,7 +148,7 @@ export interface SavePayload {
   ev: Record<string, string>;
   mc: number;
   mb: number;
-  pp: number; // Pool Protons
-  pn: number; // Pool Neutrons
-  pe: number; // Pool Electrons
+  pp: number; 
+  pn: number; 
+  pe: number; 
 }

@@ -1,4 +1,4 @@
-import { DecayMode, HistoryEntry, NuclideData } from '../types';
+import { DecayMode } from '../types';
 import { MAGIC_NUMBERS } from '../constants/physics';
 
 /**
@@ -32,27 +32,4 @@ export const checkBarrierReplenish = (
     return 3;
   }
   return currentCharges;
-};
-
-/**
- * Pure function to construct a standard history entry object.
- */
-export const createHistoryEntry = (
-  nuclide: NuclideData,
-  method: string,
-  pz: number | null,
-  pa: number | null,
-  turn: number
-): HistoryEntry => {
-  return {
-    firstTurn: turn,
-    lastTurn: turn,
-    name: nuclide.name,
-    symbol: nuclide.symbol,
-    z: nuclide.z,
-    a: nuclide.a,
-    method,
-    pz,
-    pa
-  };
 };

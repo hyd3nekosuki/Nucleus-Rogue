@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -79,11 +78,14 @@ export const useQuantumOverride = (
                 }
             }));
             
+            // Clean up visual effect ghost states (like combos)
+            resetVisualEvents();
+            
             return true;
         }
 
         return false;
-    }, [gameState.playerLevel, gameState.currentNuclide, gameState.gridEntities, gameState.turn, gameState.evolutionHistory, setGameState]);
+    }, [gameState.playerLevel, gameState.currentNuclide, gameState.gridEntities, gameState.turn, gameState.evolutionHistory, setGameState, resetVisualEvents]);
 
     return { executeQuantumOverride };
 };

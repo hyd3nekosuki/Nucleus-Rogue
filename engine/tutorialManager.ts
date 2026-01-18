@@ -1,4 +1,3 @@
-
 import { GameState, NuclideData } from '../types';
 import { TUTORIAL_MESSAGES, TutorialEvent } from '../constants/tutorial';
 
@@ -49,27 +48,33 @@ export const getNextTutorialMessage = (
 
     // --- PRIORITY 3: Record History (Feature Discovery) ---
     const canShowEngrave = (energyPoints >= 1) && !hasSeenEngraveTutorial;
+    
+    // Check timeout for Engrave message: Hide after 10 turns
+    const isEngraveTimedOut = currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY && 
+                             (currentTurn - tutorialStartTurn >= 10);
+    
+    const showEngraveNow = canShowEngrave && !isEngraveTimedOut;
 
     // Special Trigger: If energy increased, re-show the recording hint if not already done
-    if (context.energyIncreased && canShowEngrave && !shouldShowDecayNow && !isAtDripLine) {
+    if (context.energyIncreased && showEngraveNow && !shouldShowDecayNow && !isAtDripLine) {
         return TUTORIAL_MESSAGES.RECORD_HISTORY;
     }
 
     switch (event) {
         case 'GAME_START':
             if (context.randomStart && hasSeenCaptureTutorial) {
-                return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+                return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return TUTORIAL_MESSAGES.CAPTURE;
 
         case 'PARTICLE_CAPTURED':
             if (nextNuclide?.isStable) {
-                return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+                return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return currentMsg;
 
         case 'DECAY_PERFORMED':
-            return canShowEngrave ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+            return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
 
         case 'ENGRAVE_PERFORMED':
             return null;
@@ -84,17 +89,18 @@ export const getNextTutorialMessage = (
             }
             
             // Engrave message display timeout logic:
-            // If shown for 10 turns without action, hide it temporarily.
-            if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY) {
-                const elapsed = currentTurn - tutorialStartTurn;
-                if (elapsed >= 10) {
-                    return null;
-                }
+            // If shown for 10 turns without action, hide permanently (判定をtrueにする)
+            if (isEngraveTimedOut) {
+                return null;
             }
             
             return currentMsg;
 
         default:
+            // Final check to ensure we respect timeout in all events
+            if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY && isEngraveTimedOut) {
+                return null;
+            }
             return currentMsg;
     }
 };
@@ -132,9 +138,14 @@ export const calculateTutorialFlagUpdates = (
         updates.hasSeenDripLineTutorial = true;
     }
 
-    // Engrave Tutorial is mastered if user performs the action
+    // Engrave Tutorial is mastered if user performs the action OR if it was shown and then timed out (10 turns)
     if (event === 'ENGRAVE_PERFORMED') {
         updates.hasSeenEngraveTutorial = true;
+    } else if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY) {
+        const elapsed = currentTurn - state.tutorialStartTurn;
+        if (elapsed >= 10) {
+            updates.hasSeenEngraveTutorial = true;
+        }
     }
     
     return updates;

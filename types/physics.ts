@@ -68,6 +68,7 @@ export interface GridEntity {
   isHighEnergy: boolean;
   z?: number; // Used for ANOTHER_NUCLIDE
   a?: number; // Used for ANOTHER_NUCLIDE
+  isFriendly?: boolean; // Added in Step 1: Affiliation flag (true: player-originated companion, false/undefined: random-spawned predator)
 }
 
 export interface NuclideData {
@@ -108,6 +109,8 @@ export interface AtomicReactionResult {
   newGridEntities?: GridEntity[];
   newPosition?: Position;
   isAnnihilation?: boolean;
+  emissions?: EntityType[]; // Added for unified particle emission handling
+  byproduct?: { z: number, a: number }; // Added for conservation of mass/charge in fission
 }
 
 export type NuclideId = `${number}-${number}`;

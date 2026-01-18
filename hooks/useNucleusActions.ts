@@ -1,11 +1,10 @@
-
 // Fix: Added React import to provide access to React namespace for Dispatch type
 import React, { useCallback } from 'react';
 import { GameState, DecayMode, HistoryEntry, GameAction } from '../types';
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
-import { getNuclideDataSync } from '../services/nuclideService';
+import { getNuclideDataSync } from '../../services/nuclideService';
 import { generateEntities } from '../engine/moveSimulator';
 import { getInitialState } from '../engine/initialState';
 import { pickNuclideWithPriority } from '../engine/particleEngine';
@@ -25,24 +24,30 @@ export const useNucleusActions = (
 
     const handleStabilize = useCallback(() => {
         const isSynth = gameState.energyPoints >= 200 && gameState.playerLevel >= 5 && !gameState.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS);
+        // Reset visual ghost states if a transformation is about to occur
+        if (isSynth) resetVisuals();
         dispatch({
             type: 'USE_SKILL',
             payload: { skillType: isSynth ? 'NUCLEOSYNTHESIS' : 'STABILIZE' }
         });
-    }, [gameState.energyPoints, gameState.playerLevel, gameState.disabledSkills, dispatch]);
+    }, [gameState.energyPoints, gameState.playerLevel, gameState.disabledSkills, dispatch, resetVisuals]);
 
     const handleUltimateSynthesis = useCallback(() => {
+        resetVisuals();
         dispatch({ type: 'USE_SKILL', payload: { skillType: 'R_PROCESS' } });
-    }, [dispatch]);
+    }, [dispatch, resetVisuals]);
 
     const handleToggleTimeStop = useCallback(() => {
         stopAutoMove();
+        // Reset visuals when toggling time stop to prevent stale combo animations from reappearing
+        resetVisuals();
         dispatch({ type: 'USE_SKILL', payload: { skillType: 'TIME_STOP' } });
-    }, [stopAutoMove, dispatch]);
+    }, [stopAutoMove, dispatch, resetVisuals]);
 
     const handleTransmute = useCallback((selectedZ: number) => {
+        resetVisuals();
         dispatch({ type: 'USE_SKILL', payload: { skillType: 'TRANSMUTE', params: { selectedZ } } });
-    }, [dispatch]);
+    }, [dispatch, resetVisuals]);
 
     const handleToggleHiddenSkill = useCallback((skillName: string) => {
         dispatch({ type: 'USE_SKILL', payload: { skillType: 'TOGGLE_SKILL', params: { skillName } } });

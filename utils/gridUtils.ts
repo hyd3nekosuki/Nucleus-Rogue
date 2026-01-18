@@ -1,4 +1,3 @@
-
 import { Position, GridEntity } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 
@@ -44,4 +43,28 @@ export const calculateManhattanPath = (start: Position, end: Position): { dx: nu
     for (let i = 0; i < adx; i++) path.push({ dx: dx > 0 ? 1 : -1, dy: 0 });
     for (let i = 0; i < ady; i++) path.push({ dx: 0, dy: dy > 0 ? 1 : -1 });
     return path;
+};
+
+/**
+ * Identifies all available empty cells on the grid, optionally restricted to a Moore neighborhood radius.
+ */
+export const getFreeCells = (entities: GridEntity[], playerPos: Position, radius?: number): Position[] => {
+    const freeCells: Position[] = [];
+    
+    const startX = radius ? Math.max(0, playerPos.x - radius) : 0;
+    const endX = radius ? Math.min(GRID_WIDTH - 1, playerPos.x + radius) : GRID_WIDTH - 1;
+    const startY = radius ? Math.max(0, playerPos.y - radius) : 0;
+    const endY = radius ? Math.min(GRID_HEIGHT - 1, playerPos.y + radius) : GRID_HEIGHT - 1;
+
+    for (let y = startY; y <= endY; y++) {
+        for (let x = startX; x <= endX; x++) {
+            if (x === playerPos.x && y === playerPos.y) continue;
+            
+            const isOccupied = entities.some(e => e.position.x === x && e.position.y === y);
+            if (!isOccupied) {
+                freeCells.push({ x, y });
+            }
+        }
+    }
+    return freeCells;
 };

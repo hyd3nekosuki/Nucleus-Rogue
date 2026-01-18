@@ -4,18 +4,22 @@ import { getInitialState } from './initialState';
 import { nucleusReducer } from './nucleusReducer';
 
 /**
- * Single Source of Truth hook for the raw game state and discovery history.
- * Uses a Reducer to ensure all complex state transitions are atomic.
+ * Single Source of Truth: Integrated Nucleus State Management.
+ * Uses a Reducer to ensure all complex atomic state transitions are consistent and pure.
  */
 export const useNucleusState = () => {
-    // Initialize integrated state
+    // 1. Initialize State Container
     const initialState: GameState = getInitialState();
 
+    // 2. State Machine Activation
     const [gameState, dispatch] = useReducer(nucleusReducer, initialState);
 
     /**
-     * Helper to allow legacy-style updates while components migrate to specific dispatch actions.
-     * Removed dependency on local gameState to avoid stale closure lags.
+     * State Update Proxy: Maintains backward compatibility for legacy hooks
+     * during the migration to a fully Dispatch-based architecture.
+     * 
+     * Routing updates through 'UPDATE_BASIC_STATE' ensures that even legacy
+     * partial updates respect the Reducer's centralized logic (like combo resets).
      */
     const setGameState = useCallback((updater: Partial<GameState> | ((prev: GameState) => Partial<GameState>)) => {
         dispatch({ type: 'UPDATE_BASIC_STATE', payload: updater });
@@ -23,8 +27,8 @@ export const useNucleusState = () => {
 
     return {
         gameState,
-        setGameState, // Compatibility layer
-        dispatch,     // Native dispatch path
+        setGameState, 
+        dispatch,     
         evolutionHistory: gameState.evolutionHistory
     };
 };

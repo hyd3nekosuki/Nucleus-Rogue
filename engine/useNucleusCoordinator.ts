@@ -12,22 +12,28 @@ import { useVisualEffects } from '../hooks/useVisualEffects';
 import { useNucleusActions } from '../hooks/useNucleusActions';
 import { useDecayController } from '../hooks/useDecayController';
 import { useMovementExecutor } from '../hooks/useMovementExecutor';
-import { useAtomicDispatcher } from '../hooks/useAtomicDispatcher';
 
+/**
+ * Nucleus Rogue Switchboard: Orchestrates all atomic interactions.
+ * This coordinator provides a clean Facade for the App UI to interact with the underlying
+ * state-machine (nucleusReducer) and specialized physics simulation logic.
+ */
 export const useNucleusCoordinator = () => {
+    // 1. Core Integrated State & Reducer Dispatch
     const { gameState, setGameState, dispatch } = useNucleusState();
-    const { dispatchDiscovery } = useAtomicDispatcher(dispatch);
 
+    // 2. Transient Visual State Management (Shakes, Flashes, TTS Trigger)
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
-        triggerShake, triggerFlash, 
-        setLastDecayEvent, setFinalCombo, resetVisuals
+        triggerShake, triggerFlash, setFinalCombo, resetVisuals
     } = useVisualEffects(gameState);
 
+    // 3. Periodic Life-Cycle Timers (Stability Decay, Combo Expiration, Janitorial Cleanup)
     useStabilityTimer(gameState, setGameState);
     useComboTimer(gameState, setGameState, setFinalCombo);
     useVisualCleanup(gameState, setGameState);
 
+    // 4. Movement & Interaction Control Units
     const stopAutoMoveRef = useRef<() => void>(() => {});
 
     const { moveStep } = useMovementExecutor({
@@ -49,12 +55,12 @@ export const useNucleusCoordinator = () => {
         handlePlayerInteract
     );
 
+    // Bridge the internal stopAutoMove to external handlers via Ref
     useEffect(() => {
         stopAutoMoveRef.current = stopAutoMove;
     }, [stopAutoMove]);
 
-    // Renamed hook call from useSkillController to useNucleusActions
-    // Fix: Destructure handleEngraveCurrent from useNucleusActions
+    // 5. User-Initiated Actions & Session Management
     const {
         handleStabilize, handleUltimateSynthesis, handleToggleTimeStop,
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay,
@@ -64,11 +70,12 @@ export const useNucleusCoordinator = () => {
         stopAutoMove, handleDecayAction, resetVisuals
     );
 
+    // 6. Persistence & Advanced Mastery Features (Level 6 Cite Research)
     const { generateSaveCode, loadSaveCode: rawLoadSaveCode } = usePersistence(
         gameState,
         setGameState,
         gameState.evolutionHistory,
-        () => {}, 
+        () => {}, // setEvolutionHistory (Legacy - integrated in state)
         resetVisuals
     );
 
@@ -78,12 +85,17 @@ export const useNucleusCoordinator = () => {
         resetVisuals
     );
 
+    /**
+     * Unified Load Handler: Routes codes to either Quantum Override (Mastery level 6)
+     * or standard binary research persistence.
+     */
     const handleLoad = useCallback(async (code: string) => {
         const isQuantumSuccess = executeQuantumOverride(code);
         if (isQuantumSuccess) return true;
         return await rawLoadSaveCode(code);
     }, [executeQuantumOverride, rawLoadSaveCode]);
 
+    // 7. Initial Nucleogenesis
     useEffect(() => {
         const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
         dispatch({
@@ -93,21 +105,49 @@ export const useNucleusCoordinator = () => {
                 gridEntities: initialEntities,
                 evolutionHistory: {
                     [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {
-                        firstTurn: 0, lastTurn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol, z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN, pz: null, pa: null
+                        firstTurn: 0, lastTurn: 0, name: INITIAL_NUCLIDE.name, symbol: INITIAL_NUCLIDE.symbol, 
+                        z: INITIAL_NUCLIDE.z, a: INITIAL_NUCLIDE.a, method: HISTORY_METHODS.ORIGIN, 
+                        pz: null, pa: null
                     }
                 }
             }
         });
     }, []);
 
-    const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), []);
+    // Helper for manual HP adjustments (Sound Test)
+    const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), [dispatch]);
 
     return {
-        gameState, evolutionHistory: gameState.evolutionHistory, isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
-        triggerShake, triggerFlash, moveStep, handleStabilize, handleDecayAction, handlePlayerInteract, handleToggleTimeStop,
-        handleTransmute, handleToggleHiddenSkill, restartGame, handleCellClick, stopAutoMove,
-        handleUltimateSynthesis, handleForceUnknownDecay, setHP, generateSaveCode, handleLoad,
-        // Fix: Return handleEngraveCurrent to the caller
-        handleEngraveCurrent
+        // Raw Data
+        gameState, 
+        evolutionHistory: gameState.evolutionHistory,
+        
+        // Visual Status
+        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        
+        // Visual Triggers
+        triggerShake, triggerFlash, 
+        
+        // Nucleus Interaction Facade
+        moveStep, 
+        handleCellClick, 
+        stopAutoMove,
+        handleDecayAction, 
+        handlePlayerInteract, 
+        handleEngraveCurrent,
+        
+        // Advanced Mastery Skills
+        handleStabilize, 
+        handleUltimateSynthesis, 
+        handleToggleTimeStop,
+        handleTransmute, 
+        handleToggleHiddenSkill, 
+        handleForceUnknownDecay,
+        
+        // System & Persistence
+        restartGame, 
+        setHP, 
+        generateSaveCode, 
+        handleLoad
     };
 };

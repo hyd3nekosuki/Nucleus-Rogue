@@ -1,8 +1,7 @@
-
 import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
-import { isWithinBounds, findEntityAt } from '../utils/gridUtils';
+import { isWithinBounds, findEntityAt, getFreeCells } from '../utils/gridUtils';
 import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
 import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
@@ -41,31 +40,22 @@ export interface MoveResult {
     consecutiveElectrons: number;
     lastConsumedType: EntityType | null;
     reincarnationPoolIncrement: { p: number; n: number; e: number };
+    // Add chainDecayResult to MoveResult interface to fix type error in handlers
+    chainDecayResult?: any;
+    byproduct?: { z: number, a: number }; // Added for fission fragment handling
 }
 
-export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType): GridEntity[] => {
+export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType, isFriendly?: boolean): GridEntity[] => {
     const newEntities = [...currentEntities];
     
+    // Get all initial free cells once to improve performance
+    let freeCells = getFreeCells(newEntities, playerPos);
+    
     for (let i = 0; i < count; i++) {
-        // Step 1: Identify all available empty cells on the grid
-        const freeCells: Position[] = [];
-        for (let y = 0; y < GRID_HEIGHT; y++) {
-            for (let x = 0; x < GRID_WIDTH; x++) {
-                const isPlayerPos = (x === playerPos.x && y === playerPos.y);
-                const isOccupied = newEntities.some(e => e.position.x === x && e.position.y === y);
-                
-                if (!isPlayerPos && !isOccupied) {
-                    freeCells.push({ x, y });
-                }
-            }
-        }
-
-        // If no space left, stop generation
         if (freeCells.length === 0) break;
 
-        // Step 2: Select a cell using exactly one random roll per entity
         const randomIndex = Math.floor(Math.random() * freeCells.length);
-        const pos = freeCells[randomIndex];
+        const pos = freeCells.splice(randomIndex, 1)[0];
 
         if (forcedType) {
             newEntities.push({
@@ -73,16 +63,18 @@ export const generateEntities = (count: number, currentEntities: GridEntity[], p
                 type: forcedType,
                 position: pos,
                 spawnTurn: currentTurn,
-                isHighEnergy: false
+                isHighEnergy: false,
+                isFriendly: isFriendly // Assign affiliation
             });
         } else {
             const rand = Math.random();
             newEntities.push({
-              id: Math.random().toString(36).substr(2, 9),
-              type: rand > 0.9 ? EntityType.ENEMY_ELECTRON : (rand > 0.5 ? EntityType.PROTON : EntityType.NEUTRON),
-              position: pos,
-              spawnTurn: currentTurn,
-              isHighEnergy: false
+                id: Math.random().toString(36).substr(2, 9),
+                type: rand > 0.9 ? EntityType.ENEMY_ELECTRON : (rand > 0.5 ? EntityType.PROTON : EntityType.NEUTRON),
+                position: pos,
+                spawnTurn: currentTurn,
+                isHighEnergy: false,
+                isFriendly: false // Natural spawns are predators
             });
         }
     }
@@ -230,20 +222,13 @@ export const calculateMoveResult = (
         }
 
         if (interactionResult.isPpFusion) {
-            nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false });
+            nextEntities.push({ id: 'pp-fusion-eplus-' + Math.random().toString(36).substr(2, 9), type: EntityType.ENEMY_POSITRON, position: { ...prev.playerPos }, spawnTurn: prev.turn, isHighEnergy: false, isFriendly: true });
             gluttonyTrigger = false;
         }
 
         if (interactionResult.isCoulombScattered) {
-            // Even during scattering, we use the deterministic empty cell selection for the new proton position
-            const potentialCells: Position[] = [];
-            for (let y = 0; y < GRID_HEIGHT; y++) {
-                for (let x = 0; x < GRID_WIDTH; x++) {
-                    const isNewPos = (x === newPos.x && y === newPos.y);
-                    const isOccupiedByExisting = nextEntities.some(e => e.position.x === x && e.position.y === y);
-                    if (!isNewPos && !isOccupiedByExisting) potentialCells.push({ x, y });
-                }
-            }
+            // Use getFreeCells for scattering respawn
+            const potentialCells = getFreeCells(nextEntities, newPos);
             
             if (potentialCells.length > 0) {
                 const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
@@ -292,6 +277,9 @@ export const calculateMoveResult = (
         consecutiveNeutrons: cN,
         consecutiveElectrons: cE,
         lastConsumedType: lT,
-        reincarnationPoolIncrement: poolInc
+        reincarnationPoolIncrement: poolInc,
+        // Pass chainDecayResult to MoveResult return object
+        chainDecayResult: interactionResult?.chainDecayResult,
+        byproduct: interactionResult?.byproduct // Added for fission fragment propagation
     };
 };

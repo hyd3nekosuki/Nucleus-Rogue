@@ -1,4 +1,3 @@
-
 import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
@@ -6,7 +5,7 @@ import { DECAY_PHYSICS } from '../constants/physics';
 import { BONUS_SCORES } from '../constants/economy';
 import { HISTORY_METHODS } from '../constants/strings';
 
-import { getFissionFragmentOutcome } from './fissionModel';
+import { getFissionFragmentOutcome, getPromptNeutronCount } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
 
 export interface DecayResult {
@@ -23,6 +22,8 @@ export interface DecayResult {
     speechOverride: string | null;
     isAnnihilation?: boolean;
     newPosition?: Position; 
+    emissions?: EntityType[]; // Procedure 2: Abstraction of emitted particles
+    byproduct?: { z: number, a: number }; // Added for fission fragment handling
 }
 
 export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
@@ -145,9 +146,17 @@ const handleBetaPlus = (
 };
 
 const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number): Partial<DecayResult> => {
-    const fragment = getFissionFragmentOutcome(currentNuclide.z, currentNuclide.a);
+    // Determine dynamic neutron emission count first to ensure mass conservation
+    const neutronCount = getPromptNeutronCount(currentNuclide.z, currentNuclide.a);
+    
+    const fragment = getFissionFragmentOutcome(currentNuclide.z, currentNuclide.a, neutronCount);
     const dZ = fragment.z - currentNuclide.z;
     const dA = fragment.a - currentNuclide.a;
+
+    // --- CONSERVATION OF MASS AND CHARGE (Procedure 2) ---
+    // Calculate the secondary fragment (byproduct)
+    const byproductZ = currentNuclide.z - fragment.z;
+    const byproductA = currentNuclide.a - fragment.a - neutronCount;
     
     // Detection before shockwave filters entities
     const antisInBlast = gridEntities.filter(e => 
@@ -155,7 +164,11 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
     );
 
-    const currentEntities = calculateFissionShockwave(playerPos, gridEntities, 2);
+    let currentEntities = calculateFissionShockwave(playerPos, gridEntities, 2);
+
+    // --- EMISSION LOGIC ---
+    // Use the dynamically calculated neutron count
+    const emissions: EntityType[] = new Array(neutronCount).fill(EntityType.NEUTRON);
 
     let energyBonus = 200;
     let score = BONUS_SCORES.FISSION_TITLE;
@@ -167,10 +180,17 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         messages.push(`💥 ANTI-NUCLIDE PURGED: Fission shockwave dissolved anomaly! (+1000 MeV)`);
     }
 
+    // Prepare byproduct data if it is a physically plausible nucleus
+    const byproduct = (byproductZ > 0 && byproductA >= byproductZ) 
+        ? { z: byproductZ, a: byproductA } 
+        : undefined;
+
     return {
         dZ, dA, trigger: HISTORY_METHODS.FISSION_SPONTANEOUS, shouldShake: true, shouldFlash: true,
         speechOverride: "Nuclear Fission", actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
-        extraMessages: messages
+        extraMessages: messages,
+        emissions, // Return list of particles to be spawned by engine
+        byproduct  // Procedure 2: Secondary fragment for conservation
     };
 };
 
@@ -195,7 +215,8 @@ export const calculateDecayEffects = (
         dZ: deltas.dZ, dA: deltas.dA, trigger: HISTORY_METHODS.TRANSMUTATION,
         actionBonusScore: 0, energyBonus: 0, extraMessages: [], additionalEffects: [],
         newGridEntities: [...gridEntities], shouldShake: false, shouldFlash: false,
-        speechOverride: null, isAnnihilation: false, newPosition: undefined
+        speechOverride: null, isAnnihilation: false, newPosition: undefined,
+        emissions: []
     };
 
     switch (effectiveMode) {

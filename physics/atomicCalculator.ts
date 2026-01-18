@@ -197,6 +197,7 @@ export const calculateNeutronReaction = (
         shouldFlash: chosen.label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
         chargesUsed: 0,
         chainDecayResult: decayResult,
-        newGridEntities: decayResult.newGridEntities
+        newGridEntities: decayResult.newGridEntities,
+        byproduct: decayResult.byproduct // Procedure 3: Secondary fragment propagation
     };
 };

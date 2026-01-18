@@ -1,3 +1,30 @@
+/**
+ * Dynamic calculation of prompt neutrons released during fission.
+ * Based on scientific data: U-235 averages ~2.4, heavier nuclides tend to emit more.
+ */
+export const getPromptNeutronCount = (z: number, a: number): number => {
+    // 1. Determine mean (mu) based on mass number A.
+    // Base: U-235 (Z=92, A=235) has a mean of ~2.4.
+    // Trend: Average neutron count increases with A.
+    let mean = 2.4 + (a - 235) * 0.05;
+    
+    // 2. Determine max trials (n) for binomial distribution.
+    // For U-235, max is 5. We scale this with A as well.
+    let n = 5 + Math.floor((a - 235) / 10);
+    n = Math.max(2, Math.min(8, n)); // Safe bounds for grid constraints
+    
+    // Ensure mean doesn't exceed n
+    mean = Math.max(1.0, Math.min(n - 0.1, mean));
+
+    // 3. Binomial Distribution B(n, p) where p = mean / n
+    const p = mean / n;
+    let count = 0;
+    for (let i = 0; i < n; i++) {
+        if (Math.random() < p) count++;
+    }
+    
+    return count;
+};
 
 /**
  * Box-Muller transform for generating Gaussian random numbers.
@@ -12,10 +39,10 @@ export const gaussianRandom = (mean: number, std: number): number => {
 /**
  * Calculates a fission fragment using a Double-Gaussian model.
  * As parents get heavier (A > 240), fission becomes more symmetric.
+ * Takes the pre-calculated neutronCount to ensure mass conservation.
  */
-export const getFissionFragmentOutcome = (parentZ: number, parentA: number): { z: number, a: number } => {
-    const promptNeutrons = 2; // Prompt neutrons typically emitted
-    const totalA = parentA - promptNeutrons;
+export const getFissionFragmentOutcome = (parentZ: number, parentA: number, neutronCount: number): { z: number, a: number } => {
+    const totalA = parentA - neutronCount;
     const midPointA = totalA / 2;
     
     // Standard asymmetric heavy peak is around A=140 (nuclear shell effect)
