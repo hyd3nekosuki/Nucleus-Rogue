@@ -26,7 +26,8 @@ export const finalizeAction = (state: GameState): GameState => {
     // 4. Collision Resolution: In Hard Mode, if an enemy moved onto the player position,
     // we must trigger the collision logic immediately as an "assault".
     if (assaultingEntity) {
-        nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos);
+        // Fix: Pass nextState.turn as the fourth argument required by handleAnotherNuclideCollision
+        nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos, nextState.turn);
     }
     
     return nextState;

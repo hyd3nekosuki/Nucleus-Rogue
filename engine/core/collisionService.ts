@@ -13,7 +13,12 @@ import { registerHistoryEntry } from './historyService';
  * Core Service: Resolves a collision between the player nucleus and an "Another Nuclide" entity.
  * Handles special reactions (fusion), combat (damage/defeat), and status updates.
  */
-export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntity, collisionPos: Position): GameState => {
+export const handleAnotherNuclideCollision = (
+    state: GameState, 
+    enemy: GridEntity, 
+    collisionPos: Position,
+    targetTurn: number
+): GameState => {
     const now = Date.now();
     const pz = state.currentNuclide.z;
     const pa = state.currentNuclide.a;
@@ -28,21 +33,54 @@ export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntit
         if (bossZ !== undefined && bossA !== undefined && (bossA > playerA || (bossA === playerA && bossZ > playerZ))) {
             [playerZ, bossZ] = [bossZ, playerZ]; [playerA, bossA] = [bossA, playerA];
         }
+        
         const nextNuclide = getNuclideDataSync(playerZ, playerA);
         if (nextNuclide.exists) {
             let nextEntities = state.gridEntities.filter(e => e.id !== enemy.id);
+            let nextHistory = state.evolutionHistory;
+
+            // Step 3 Enhancement: Register byproduct nuclide as a scientific discovery (isolated dot)
             if (bossZ !== undefined && bossA !== undefined && bossA > 0) {
                 const isSingle = (bossZ === 1 && bossA === 1) || (bossZ === 0 && bossA === 1);
-                if (isSingle) nextEntities = generateEntities(1, nextEntities, collisionPos, state.turn, bossZ === 1 ? EntityType.PROTON : EntityType.NEUTRON, true);
-                else if (getNuclideDataSync(bossZ, bossA).exists) nextEntities.push({ id: 'product-' + Math.random().toString(36).substr(2, 9), type: EntityType.ANOTHER_NUCLIDE, position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), spawnTurn: state.turn, isHighEnergy: false, z: bossZ, a: bossA, isFriendly: true });
+                if (isSingle) {
+                    nextEntities = generateEntities(1, nextEntities, collisionPos, state.turn, bossZ === 1 ? EntityType.PROTON : EntityType.NEUTRON, true);
+                } else {
+                    const bossData = getNuclideDataSync(bossZ, bossA);
+                    if (bossData.exists) {
+                        // Register byproduct as "Unknown" pedigree to show as isolated dot on the map
+                        nextHistory = registerHistoryEntry(nextHistory, bossData, "Unknown", null, null, targetTurn, true);
+                        nextEntities.push({ 
+                            id: 'product-' + Math.random().toString(36).substr(2, 9), 
+                            type: EntityType.ANOTHER_NUCLIDE, 
+                            position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), 
+                            spawnTurn: state.turn, 
+                            isHighEnergy: false, 
+                            z: bossZ, 
+                            a: bossA, 
+                            isFriendly: true 
+                        });
+                    }
+                }
             }
             reaction.emissions.forEach(emitType => { nextEntities = generateEntities(1, nextEntities, collisionPos, state.turn, emitType, true); });
 
             return applyDiscoveryLogic(
-                { ...state, playerPos: collisionPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + reaction.energyBonus), gridEntities: nextEntities, messages: [...state.messages, reaction.message].slice(-10), lastEvent: { id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', priorityMessages: ['Nuclear Fusion', 'Experimental Replication'] } },
+                { 
+                    ...state, 
+                    playerPos: collisionPos, 
+                    energyPoints: Math.min(MAX_ENERGY, state.energyPoints + reaction.energyBonus), 
+                    gridEntities: nextEntities, 
+                    evolutionHistory: nextHistory,
+                    messages: [...state.messages, reaction.message].slice(-10), 
+                    lastEvent: { 
+                        id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, 
+                        flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', 
+                        priorityMessages: ['Nuclear Fusion', 'Experimental Replication'] 
+                    } 
+                },
                 nextNuclide,
                 { method: HISTORY_METHODS.EXP_REPLICATE, pz, pa, addedScore: 500000, chargesUsed: 0, isManualDecay: false },
-                state.turn + 1,
+                targetTurn,
                 { skipComboSettlement: true }
             );
         }
@@ -65,13 +103,10 @@ export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntit
         nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + 1); 
         rewardMsg = [`💥 ANOTHER NUCLIDE DEFEATED! (+1E)`]; 
         
-        // Register the defeated enemy nuclide identity in history with forced engraving (📍)
-        // registerHistoryEntry will now handle the logic: 
-        // IF exists: updates isEngraved=true but preserves method (e.g. "Fusion")
-        // IF not exists: creates new with "Unknown" and isEngraved=true
+        // Register defeated enemy in history as isolated dot
         const enemyData = getNuclideDataSync(ez, ea);
         if (enemyData.exists) {
-            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, state.turn, true);
+            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
         }
     }
     else {
@@ -85,7 +120,8 @@ export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntit
         hp: Math.max(0, state.hp - penalty), 
         energyPoints: nextEnergy, 
         gridEntities: nextEntities, 
-        evolutionHistory: nextHistory, 
+        evolutionHistory: nextHistory,
+        turn: targetTurn, 
         messages: [...state.messages, `⚠️ COLLISION WITH ${campLabel} NUCLIDE! HP -${penalty}`, ...rewardMsg].slice(-10), 
         lastEvent: { id: now, type: 'COLLISION', shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
     };

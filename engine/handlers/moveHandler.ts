@@ -24,18 +24,20 @@ import { processUnlocks } from '../unlockSystem';
 export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number }): GameState => {
     const { dx, dy } = payload;
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
+    
+    const nextTurn = state.turn + 1;
     const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS);
     if (!result.moved || !result.newPos) return state;
 
     // Scenario 1: Direct player movement into Another Nuclide (Mid-boss/Predator)
     if (result.targetEntity?.type === EntityType.ANOTHER_NUCLIDE) {
-        const afterCollisionState = handleAnotherNuclideCollision(state, result.targetEntity, result.newPos);
+        // ボスとの衝突も1ターンとしてカウントし、最新のターン数を渡す
+        const afterCollisionState = handleAnotherNuclideCollision(state, result.targetEntity, result.newPos, nextTurn);
         return finalizeAction(afterCollisionState);
     }
 
     // Scenario 2: Normal movement or interaction with particles
     let reason: string = REASON.UNKNOWN;
-    const nextTurn = state.turn + 1;
     const pZ = state.currentNuclide.z + result.dZ, pA = state.currentNuclide.a + result.dA;
     const isAnti = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
 

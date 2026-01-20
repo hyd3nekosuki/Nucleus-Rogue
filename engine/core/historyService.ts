@@ -26,17 +26,27 @@ export const registerHistoryEntry = (
     const existing = history[key];
 
     if (existing) {
-        // Update existing entry: 
-        // Preserve original discovery method and parents if they already exist (not null/Origin)
-        // This ensures a "Nuclear Fusion" record isn't downgraded to "Unknown" when defeated later.
+        /**
+         * Update Logic:
+         * 1. If the new method is scientific (not "Unknown"), always overwrite the lineage.
+         *    This allows the Evolution Map to reflect the LATEST path taken by the player.
+         * 2. If the new method is "Unknown" (from defeating an enemy), only update lineage 
+         *    if the existing record is also "Unknown". This protects existing scientific 
+         *    pedigrees from being downgraded to "Unknown".
+         * 3. lastTurn and isEngraved are always updated to the latest session state.
+         */
+        const isNewScientificAction = method !== "Unknown";
+        const isExistingRecordUnknown = existing.method === "Unknown" || !existing.method;
+        const shouldUpdateLineage = isNewScientificAction || isExistingRecordUnknown;
+
         return {
             ...history,
             [key]: {
                 ...existing,
                 lastTurn: turn,
-                method: (existing.method && existing.method !== "Unknown") ? existing.method : method,
-                pz: existing.pz !== null ? existing.pz : pz,
-                pa: existing.pa !== null ? existing.pa : pa,
+                method: shouldUpdateLineage ? method : existing.method,
+                pz: shouldUpdateLineage ? pz : existing.pz,
+                pa: shouldUpdateLineage ? pa : existing.pa,
                 isEngraved: forceEngraved || !!existing.isEngraved
             }
         };
