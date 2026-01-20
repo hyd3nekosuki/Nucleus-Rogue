@@ -131,8 +131,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
 
   return (
     <div 
-      onClick={() => hasDOI && window.open(`https://doi.org/${doi}`, '_blank')}
-      className={`bg-black/60 mx-2 min-h-[75px] md:min-h-[85px] flex flex-col relative overflow-hidden p-2 font-mono select-none touch-none rounded-lg border border-gray-800 transition-all ${hasDOI ? 'cursor-pointer hover:bg-white/5 group active:bg-white/10' : ''}`}
+      className="bg-black/60 mx-2 min-h-[75px] md:min-h-[85px] flex flex-col relative overflow-hidden p-2 font-mono select-none touch-none rounded-lg border border-gray-800 transition-all"
     >
       
       {/* BACKGROUND PULSING BORDER LAYER - Synchronized to 4-beat cycle and event colors */}
@@ -194,9 +193,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
             style={{ color: signalColor }}
           >
              <span className="opacity-60 mr-2 select-none font-bold mt-0.5">&gt;</span>
-             <span>
+             <span className="flex-1">
                {description || "Accessing IAEA database..."}
-               {hasDOI && <span className="ml-1 opacity-80 group-hover:opacity-100 transition-opacity">🔗</span>}
+               {hasDOI && (
+                 <button 
+                    type="button"
+                    className="ml-1.5 p-1 -m-1 opacity-70 hover:opacity-100 hover:scale-125 hover:text-white transition-all cursor-pointer inline-block pointer-events-auto align-middle outline-none focus:ring-1 focus:ring-neon-blue rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(`https://doi.org/${doi}`, '_blank', 'noopener,noreferrer');
+                    }}
+                    title="Open scientific paper (DOI)"
+                    aria-label="Scientific paper link"
+                 >
+                   🔗
+                 </button>
+               )}
                <span 
                   className="inline-block w-1.5 h-3 ml-1 align-middle"
                   style={{ 

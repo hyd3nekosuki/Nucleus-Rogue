@@ -1,6 +1,3 @@
-import { DecayMode, NuclideCategory, NuclideRecord, NuclideId } from "../types";
-import { NUCLIDE_REPOSITORY } from "./nuclideRepository";
-
 /**
  * IAEA RAW DATABASE (Z=0 to Z=118)
  * Format: "A:Mode:HalfLifeSeconds"
@@ -128,46 +125,4 @@ export const DATABASE_RAW: Record<number, string> = {
   116: "290:A:8.300e-3,291:A:1.900e-2,292:A:1.280e-2,293:A:9.500e-2,294:?:?",
   117: "293:A:2.100e-2,294:A:5.100e-2",
   118: "294:A:5.800e-4"
-};
-
-export const KNOWN_Z_LIMIT = 118;
-
-/**
- * Accesses pre-parsed and validated data from the repository.
- * If data is missing or physically contradictory, returns null.
- */
-export const getKnownNuclide = (z: number, a: number): NuclideRecord | null => {
-  const id: NuclideId = `${z}-${a}`;
-  return NUCLIDE_REPOSITORY.get(id) || null;
-};
-
-export const getCategoryName = (cat: NuclideCategory): string => {
-    switch(cat) {
-        case NuclideCategory.STABLE: return "Stable Nuclide";
-        case NuclideCategory.ALPHA: return "Unstable (Alpha Decay)";
-        case NuclideCategory.BETA_MINUS: return "Unstable (Beta- Decay)";
-        case NuclideCategory.BETA_PLUS: return "Unstable (Beta+ / EC)";
-        case NuclideCategory.NON_EXISTENT: return "Theoretical / Unknown";
-        default: return "Unknown";
-    }
-}
-
-/**
- * Retrieves all nuclide records for visualization.
- * Uses the pre-parsed repository as the Single Source of Truth.
- */
-export const getAllNuclides = (): { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] => {
-  const nuclides: { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] = [];
-  
-  for (const record of NUCLIDE_REPOSITORY.values()) {
-      nuclides.push({
-          z: record.z,
-          n: record.a - record.z,
-          a: record.a,
-          mode: record.mode,
-          halflife: record.halflife,
-          cat: record.category
-      });
-  }
-  return nuclides;
 };

@@ -10,6 +10,7 @@ export const HISTORY_METHODS = {
   NUCLEOSYNTHESIS: "Nucleosynthesis",
   R_PROCESS: "r-process nucleosynthesis",
   EXP_REPLICATE: "Experimental replicate",
+  QUANTUM_OVERRIDE: "Quantum Override Transmutation",
   GAMMA_DECAY: "γ decay",
   ALPHA_DECAY: "α decay",
   BETA_MINUS: "β- decay",

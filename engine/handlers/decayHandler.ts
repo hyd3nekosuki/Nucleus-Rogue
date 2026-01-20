@@ -14,12 +14,12 @@ import { resolveStabilityCrisis } from '../stabilityManager';
 import { getDecayDeltas, calculateDecayEffects } from '../../physics/decaySystem';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { processUnlocks } from '../unlockSystem';
-import { processRandomBackgroundEvents } from '../randomEvents';
+import { finalizeAction } from '../core/turnService';
 import { handleAnotherNuclideCollision } from '../core/collisionService';
 
 /**
  * Handler for manual radioactive decay actions.
- * Step 4 Update: Now advances the global turn and triggers AI movement/assault resolution.
+ * Now advances the global turn and triggers AI movement/assault resolution via turnService.
  */
 export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }): GameState => {
     const { mode } = payload;
@@ -132,15 +132,5 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         newData, context, nextTurn, { isAnnihilation: decayResult.isAnnihilation }
     );
 
-    const bgResult = processRandomBackgroundEvents(nextState);
-    // Fix: Destructure bgResult to separate GameState updates from the temporary 'assaultingEntity' flag.
-    const { assaultingEntity, ...stateUpdates } = bgResult;
-    nextState = { ...nextState, ...stateUpdates };
-    
-    // Assault Logic: Resolve collision if an enemy moved onto the player after decay
-    if (assaultingEntity) {
-        nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos);
-    }
-
-    return nextState;
+    return finalizeAction(nextState);
 };

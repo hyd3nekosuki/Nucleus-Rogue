@@ -12,13 +12,13 @@ import { REASON } from '../../constants/gameOverReason';
 import { TITLES } from '../../constants/titles';
 import { HISTORY_METHODS } from '../../constants/strings';
 import { calculateMoveResult, generateEntities } from '../moveSimulator';
-import { processRandomBackgroundEvents } from '../randomEvents';
 import { getHistoryMethod } from '../../utils/historyLogic';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { handleAnotherNuclideCollision } from '../core/collisionService';
+import { finalizeAction } from '../core/turnService';
 import { processUnlocks } from '../unlockSystem';
 
 export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number }): GameState => {
@@ -27,29 +27,10 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS);
     if (!result.moved || !result.newPos) return state;
 
-    /**
-     * Step 4: Helper to finalize turn processing.
-     * Advances AI and resolves any resulting overlaps ("Assaults") in Hard Mode.
-     */
-    const finalizeTurn = (currentState: GameState): GameState => {
-        const bgResult = processRandomBackgroundEvents(currentState);
-        // Fix: Destructure bgResult to separate GameState updates from the temporary 'assaultingEntity' flag.
-        // This prevents 'nextState' from being inferred with a type that requires 'assaultingEntity',
-        // which would cause errors upon reassignment from handleAnotherNuclideCollision (which returns GameState).
-        const { assaultingEntity, ...stateUpdates } = bgResult;
-        let nextState: GameState = { ...currentState, ...stateUpdates };
-        
-        // Assault logic: Resolve collision if an enemy moved onto the player position
-        if (assaultingEntity) {
-            nextState = handleAnotherNuclideCollision(nextState, assaultingEntity, nextState.playerPos);
-        }
-        return nextState;
-    };
-
     // Scenario 1: Direct player movement into Another Nuclide (Mid-boss/Predator)
     if (result.targetEntity?.type === EntityType.ANOTHER_NUCLIDE) {
         const afterCollisionState = handleAnotherNuclideCollision(state, result.targetEntity, result.newPos);
-        return finalizeTurn(afterCollisionState);
+        return finalizeAction(afterCollisionState);
     }
 
     // Scenario 2: Normal movement or interaction with particles
@@ -153,5 +134,5 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     if (result.inducedDecayMode && result.inducedReactionLabel) nextState.reactionStats = { ...nextState.reactionStats, [result.inducedReactionLabel]: (nextState.reactionStats[result.inducedReactionLabel] || 0) + 1 };
     if (nextState.hp <= 0 && !nextState.gameOver) Object.assign(nextState, resolveStabilityCrisis(nextState, reason, !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine)));
     
-    return finalizeTurn(nextState);
+    return finalizeAction(nextState);
 };

@@ -26,15 +26,17 @@ export const registerHistoryEntry = (
     const existing = history[key];
 
     if (existing) {
-        // Update existing entry: preserve firstTurn, but allow forcing isEngraved to true
+        // Update existing entry: 
+        // Preserve original discovery method and parents if they already exist (not null/Origin)
+        // This ensures a "Nuclear Fusion" record isn't downgraded to "Unknown" when defeated later.
         return {
             ...history,
             [key]: {
                 ...existing,
                 lastTurn: turn,
-                method,
-                pz,
-                pa,
+                method: (existing.method && existing.method !== "Unknown") ? existing.method : method,
+                pz: existing.pz !== null ? existing.pz : pz,
+                pa: existing.pa !== null ? existing.pa : pa,
                 isEngraved: forceEngraved || !!existing.isEngraved
             }
         };

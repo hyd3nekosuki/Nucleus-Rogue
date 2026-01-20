@@ -81,7 +81,7 @@ export const useNucleusCoordinator = () => {
 
     const { executeQuantumOverride } = useQuantumOverride(
         gameState,
-        setGameState,
+        dispatch,
         resetVisuals
     );
 

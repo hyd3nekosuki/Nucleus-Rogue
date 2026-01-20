@@ -1,4 +1,4 @@
-import { DATABASE_RAW } from './staticNuclides';
+import { DATABASE_RAW } from './nuclideDatabaseRaw';
 import { NuclideRecord, NuclideId } from '../types';
 import { parseNuclideRecord } from '../utils/nuclideParser';
 
@@ -46,7 +46,6 @@ export const getRepositoryValidAsForZ = (z: number): number[] => {
     const validAs: number[] = [];
     const prefix = `${z}-`;
     
-    // We iterate through entries to find matching Z
     for (const id of NUCLIDE_REPOSITORY.keys()) {
         if (id.startsWith(prefix)) {
             const a = parseInt(id.substring(prefix.length));

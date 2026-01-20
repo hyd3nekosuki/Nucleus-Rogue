@@ -1,4 +1,4 @@
-import { NuclideData, DecayMode, NuclideCategory } from "../types";
+import { NuclideData, DecayMode, NuclideCategory, NuclideRecord, NuclideId } from "../types";
 import { getSymbol, getName } from "../constants/atomicData";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
@@ -118,4 +118,44 @@ export const getNuclideDataSync = (z: number, a: number): NuclideData => {
  */
 export const getValidAsForZ = (z: number): number[] => {
     return getRepositoryValidAsForZ(z);
+};
+
+/**
+ * Accesses pre-parsed and validated data from the repository.
+ * If data is missing or physically contradictory, returns null.
+ */
+export const getKnownNuclide = (z: number, a: number): NuclideRecord | null => {
+  const id: NuclideId = `${z}-${a}`;
+  return NUCLIDE_REPOSITORY.get(id) || null;
+};
+
+export const getCategoryName = (cat: NuclideCategory): string => {
+    switch(cat) {
+        case NuclideCategory.STABLE: return "Stable Nuclide";
+        case NuclideCategory.ALPHA: return "Unstable (Alpha Decay)";
+        case NuclideCategory.BETA_MINUS: return "Unstable (Beta- Decay)";
+        case NuclideCategory.BETA_PLUS: return "Unstable (Beta+ / EC)";
+        case NuclideCategory.NON_EXISTENT: return "Theoretical / Unknown";
+        default: return "Unknown";
+    }
+}
+
+/**
+ * Retrieves all nuclide records for visualization.
+ * Uses the pre-parsed repository as the Single Source of Truth.
+ */
+export const getAllNuclides = (): { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] => {
+  const nuclides: { z: number, n: number, a: number, mode: DecayMode, halflife: number, cat: NuclideCategory }[] = [];
+  
+  for (const record of NUCLIDE_REPOSITORY.values()) {
+      nuclides.push({
+          z: record.z,
+          n: record.a - record.z,
+          a: record.a,
+          mode: record.mode,
+          halflife: record.halflife,
+          cat: record.category
+      });
+  }
+  return nuclides;
 };

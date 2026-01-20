@@ -49,7 +49,6 @@ export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntit
     }
 
     // Scenario B: Combat / Physical Collision
-    // Conditional penalty based on affiliation (Friendly vs Predator)
     const penalty = enemy.isFriendly ? 25 : 50;
     
     const dZ_e = Math.max(1, Math.floor(pz / 2 + 0.5)), dA_e = Math.max(1, Math.floor(pa / 2 + 0.5));
@@ -67,13 +66,15 @@ export const handleAnotherNuclideCollision = (state: GameState, enemy: GridEntit
         rewardMsg = [`💥 ANOTHER NUCLIDE DEFEATED! (+1E)`]; 
         
         // Register the defeated enemy nuclide identity in history with forced engraving (📍)
+        // registerHistoryEntry will now handle the logic: 
+        // IF exists: updates isEngraved=true but preserves method (e.g. "Fusion")
+        // IF not exists: creates new with "Unknown" and isEngraved=true
         const enemyData = getNuclideDataSync(ez, ea);
         if (enemyData.exists) {
             nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, state.turn, true);
         }
     }
     else {
-        // Bounce the damaged nuclide to a nearby free cell
         nextEntities.push({ ...enemy, position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), z: nextZ, a: nextA });
     }
 

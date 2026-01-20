@@ -1,5 +1,6 @@
 import { GameState } from '../../types';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
+import { registerHistoryEntry } from '../core/historyService';
 
 /**
  * Handler for engraving the current nuclide into history.
@@ -15,10 +16,16 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
     const entry = state.evolutionHistory[key];
     if (!entry || entry.isEngraved) return state;
 
-    const nextHistory = {
-        ...state.evolutionHistory,
-        [key]: { ...entry, isEngraved: true }
-    };
+    // Use common history service for consistency
+    const nextHistory = registerHistoryEntry(
+        state.evolutionHistory,
+        state.currentNuclide,
+        entry.method,
+        entry.pz,
+        entry.pa,
+        state.turn,
+        true // forceEngraved
+    );
 
     const nextMsg = getNextTutorialMessage(state, 'ENGRAVE_PERFORMED');
     const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'ENGRAVE_PERFORMED');

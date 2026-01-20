@@ -3,7 +3,8 @@ import {
     EntityType, 
     GameStateEvent, 
     DecayMode, 
-    DiscoveryContext 
+    DiscoveryContext,
+    HistoryEntry
 } from '../../types';
 import { 
     STABILIZE_COST, 
@@ -17,6 +18,8 @@ import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync, getValidAsForZ } from '../../services/nuclideService';
 import { generateEntities } from '../moveSimulator';
 import { applyDiscoveryLogic } from '../core/discoveryEngine';
+import { finalizeAction } from '../core/turnService';
+import { parseNuclideCommand, solveParticleRequirements } from '../particleEngine';
 
 /**
  * Handler for all skill-based state transitions.
@@ -30,7 +33,17 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
         case 'STABILIZE': {
             const cost = STABILIZE_COST;
             if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
-            return { ...state, turn: state.turn + 1, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), messages: [...state.messages, `🔬 Stabilization: HP Recovered.`].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green' } };
+            
+            const nextState: GameState = { 
+                ...state, 
+                turn: state.turn + 1, 
+                hp: state.maxHp, 
+                energyPoints: Math.max(0, state.energyPoints - cost), 
+                messages: [...state.messages, `🔬 Stabilization: HP Recovered.`].slice(-10), 
+                lastEvent: { id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green' } 
+            };
+            
+            return finalizeAction(nextState);
         }
 
         case 'NUCLEOSYNTHESIS': {
@@ -43,13 +56,15 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const newData = getNuclideDataSync(nextZ, randomA);
             if (!newData.exists) return state;
 
-            return applyDiscoveryLogic(
+            const nextState = applyDiscoveryLogic(
                 { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}!`].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] } },
                 newData,
                 { method: HISTORY_METHODS.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
+
+            return finalizeAction(nextState);
         }
 
         case 'R_PROCESS': {
@@ -62,13 +77,15 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const newData = getNuclideDataSync(nextZ, nextA);
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...state, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, lastEvent: { id: now, type: 'DEATH' } };
             
-            return applyDiscoveryLogic(
+            const nextState = applyDiscoveryLogic(
                 { ...state, hp: state.maxHp, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles!`, "⚠️ MASTERY CONSUMED: Level reset to 0."].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] } },
                 newData,
                 { method: HISTORY_METHODS.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
+
+            return finalizeAction(nextState);
         }
 
         case 'TIME_STOP': {
@@ -83,13 +100,52 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const newData = getNuclideDataSync(selectedZ, randomA);
             if (!newData.exists) return state;
 
-            return applyDiscoveryLogic(
+            const nextState = applyDiscoveryLogic(
                 { ...state, messages: [...state.messages, `🔮 EXP. REPLICATE: ${newData.name}!`].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: ['Experimental Replication'] } },
                 newData,
                 { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
-                { skipComboSettlement: true, isExplicitReplication: true } // Explicit flag to unlock title
+                { skipComboSettlement: true, isExplicitReplication: true }
             );
+
+            return finalizeAction(nextState);
+        }
+
+        case 'QUANTUM_OVERRIDE': {
+            const { code } = params;
+            if (state.playerLevel < 6) return state;
+            const coords = parseNuclideCommand(code);
+            if (!coords) return state;
+
+            const requirements = solveParticleRequirements(
+                state.currentNuclide.z, state.currentNuclide.a, 
+                coords.z, coords.a, state.gridEntities
+            );
+
+            if (!requirements) return state;
+
+            const targetData = getNuclideDataSync(coords.z, coords.a);
+            const nextTurn = state.turn + 1;
+            
+            // Execute transformation through discoveryEngine to handle all side-effects (history, level, unlock)
+            const nextState = applyDiscoveryLogic(
+                { 
+                    ...state, 
+                    gridEntities: state.gridEntities.filter(e => !requirements.idsToConsume.includes(e.id)),
+                    energyPoints: 0, // High-dimensional interference resets local energy
+                    messages: [...state.messages, `🌌 SYSTEM OVERRIDE: Reachable configuration established for ${targetData.name}!`].slice(-10),
+                    lastEvent: {
+                        id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-yellow-400', shake: true,
+                        priorityMessages: ['Quantum Override Transmutation']
+                    }
+                },
+                targetData,
+                { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                nextTurn,
+                { isExplicitReplication: true }
+            );
+
+            return finalizeAction(nextState);
         }
 
         case 'TOGGLE_SKILL': {
