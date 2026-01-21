@@ -1,17 +1,20 @@
 import { SpecialReaction } from '../types';
-import { SPECIAL_REACTIONS as LEGACY } from './legacyReactions';
-import { STABLE_NUCLIDE_REACTIONS } from './stableNuclideInteractions';
+import { SPECIAL_REACTIONS as HISTORICAL } from './historicalAndNeutronReactions';
+import { LIGHT_ION_REACTIONS } from './lightIonReactions';
+import { ALPHA_INDUCED_REACTIONS } from './alphaInducedReactions';
+import { HEAVY_ION_FUSION_REACTIONS } from './heavyIonFusionReactions';
 
 /**
  * UNIFIED REACTION REGISTRY (BARREL)
- * This file serves as the Single Source of Truth for all specialized nuclear reactions.
- * It combines hand-balanced legacy data with the scientifically comprehensive stable nuclide database.
+ * Single Source of Truth for all specialized nuclear reactions.
+ * Categorized by physical projectile type for maintainability.
  */
 
-// Combine both lists. LEGACY comes first to ensure balanced presets take priority.
 export const SPECIAL_REACTIONS: SpecialReaction[] = [
-    ...LEGACY,
-    ...STABLE_NUCLIDE_REACTIONS
+    ...HISTORICAL,
+    ...LIGHT_ION_REACTIONS,
+    ...ALPHA_INDUCED_REACTIONS,
+    ...HEAVY_ION_FUSION_REACTIONS
 ];
 
 /**
@@ -28,8 +31,7 @@ export const findSpecialReaction = (z1: number, a1: number, z2: number, a2: numb
 
 /**
  * Finds all potential reaction partners for a specific nuclide (z, a).
- * Used by the spawning engine to determine which mid-bosses should appear
- * to encourage specific scientific breakthroughs.
+ * Used by the spawning engine to determine which mid-bosses should appear.
  */
 export const findReactionPartners = (z: number, a: number): { z: number, a: number }[] => {
     const partners: { z: number, a: number }[] = [];
