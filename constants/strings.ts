@@ -18,6 +18,7 @@ export const HISTORY_METHODS = {
   ELECTRON_CAPTURE: "Electron capture",
   FISSION_SPONTANEOUS: "Spontaneous fission",
   PROTON_EMISSION: "Proton emission",
+  TWO_PROTON_EMISSION: "2p Decay",
   NEUTRON_EMISSION: "Neutron emission",
   // Reaction labels used directly in History and Stats
   REACTION_NG: "(n,γ)",

@@ -184,7 +184,9 @@ export const calculateMoveResult = (
             !prev.disabledSkills.includes(TITLES.FISSION),
             prev.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !prev.disabledSkills.includes(TITLES.NEUTRONIZATION),
             isZeroBarnActive,
-            isDaredevilActive
+            isDaredevilActive,
+            prev.unlockedGroups,
+            prev.disabledSkills
         );
 
         if (neutronReaction) {

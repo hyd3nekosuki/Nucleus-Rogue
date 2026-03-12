@@ -239,6 +239,10 @@ export const calculateDecayEffects = (
         case DecayMode.PROTON_EMISSION: 
             result.trigger = HISTORY_METHODS.PROTON_EMISSION; 
             break;
+        case DecayMode.TWO_PROTON_EMISSION:
+            result.trigger = HISTORY_METHODS.TWO_PROTON_EMISSION;
+            result.emissions = [EntityType.PROTON, EntityType.PROTON];
+            break;
         case DecayMode.NEUTRON_EMISSION: 
             result.trigger = HISTORY_METHODS.NEUTRON_EMISSION; 
             break;

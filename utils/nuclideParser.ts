@@ -40,6 +40,10 @@ export const parseNuclideMode = (modeStr: string): { mode: DecayMode; category: 
             mode = DecayMode.PROTON_EMISSION;
             category = NuclideCategory.BETA_PLUS;
             break;
+        case '2P':
+            mode = DecayMode.TWO_PROTON_EMISSION;
+            category = NuclideCategory.BETA_PLUS;
+            break;
         case 'SF':
             mode = DecayMode.SPONTANEOUS_FISSION;
             category = NuclideCategory.ALPHA;

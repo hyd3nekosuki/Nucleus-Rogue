@@ -96,7 +96,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
 
     view.setFloat64(offset, state.score); offset += 8;
     view.setUint32(offset, state.energyPoints); offset += 4;
-    view.setUint8(offset++, state.hp);
+    view.setUint8(offset++, state.gameOver ? 0 : state.hp);
     view.setUint8(offset++, state.playerLevel);
     view.setUint16(offset, state.reincarnations); offset += 2;
     view.setUint32(offset, state.turn); offset += 4;

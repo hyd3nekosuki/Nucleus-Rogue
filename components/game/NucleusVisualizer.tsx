@@ -118,6 +118,10 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
           case DecayMode.PROTON_EMISSION:
               newParticles.push({ id: `p-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
               break;
+          case DecayMode.TWO_PROTON_EMISSION:
+              newParticles.push({ id: `p1-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
+              newParticles.push({ id: `p2-${idBase}`, type: 'PROTON', angle: randomAngle + Math.PI, startDist: r });
+              break;
           case DecayMode.GAMMA:
                newParticles.push({ id: `g-${idBase}`, type: 'PHOTON', angle: randomAngle, startDist: 0 });
               break;
@@ -235,6 +239,8 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
               return { color: '#ff4500', fill: 'url(#gradFlare)', shape: 'saw', className: 'animate-[spin_3s_linear_infinite]', stroke: '#ffca28', strokeWidth: 2, strokeDasharray: 'none' };
           case DecayMode.UNKNOWN:
               return { color: '#a855f7', fill: 'rgba(168, 85, 247, 0.15)', shape: 'question', className: 'animate-pulse', stroke: '#d8b4fe', strokeWidth: 2, strokeDasharray: '4 4' };
+          case DecayMode.PROTON_EMISSION:
+          case DecayMode.TWO_PROTON_EMISSION:
           default: 
               return { color: '#ef4444', fill: 'rgba(255, 255, 255, 0.2)', shape: 'circle', className: 'animate-pulse', stroke: '#ffffff', strokeWidth: 1 };
       }

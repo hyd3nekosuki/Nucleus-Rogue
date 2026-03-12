@@ -69,7 +69,29 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         });
     }
 
-    let nextState: GameState = { ...state, playerPos: result.newPos, gridEntities: nextEntities, consecutiveProtons: result.consecutiveProtons, consecutiveNeutrons: result.consecutiveNeutrons, consecutiveElectrons: result.consecutiveElectrons, lastConsumedType: result.lastConsumedType, reincarnationPool: { p: state.reincarnationPool.p + result.reincarnationPoolIncrement.p, n: state.reincarnationPool.n + result.reincarnationPoolIncrement.n, e: state.reincarnationPool.e + result.reincarnationPoolIncrement.e }, turn: nextTurn, lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion) ? { id: Date.now(), type: 'COLLISION', shake: result.shouldShake, flash: result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined, priorityMessages: result.isPpFusion ? ['Nuclear Fusion'] : [] } : undefined };
+    let nextState: GameState = { 
+        ...state, 
+        playerPos: result.newPos, 
+        gridEntities: nextEntities, 
+        consecutiveProtons: result.consecutiveProtons, 
+        consecutiveNeutrons: result.consecutiveNeutrons, 
+        consecutiveElectrons: result.consecutiveElectrons, 
+        lastConsumedType: result.lastConsumedType, 
+        reincarnationPool: { 
+            p: state.reincarnationPool.p + result.reincarnationPoolIncrement.p, 
+            n: state.reincarnationPool.n + result.reincarnationPoolIncrement.n, 
+            e: state.reincarnationPool.e + result.reincarnationPoolIncrement.e 
+        }, 
+        turn: nextTurn, 
+        lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion || result.inducedDecayMode) ? { 
+            id: Date.now(), 
+            type: 'COLLISION', 
+            shake: result.shouldShake, 
+            flash: result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined, 
+            priorityMessages: result.isPpFusion ? ['Nuclear Fusion'] : [],
+            decayModeTrigger: result.inducedDecayMode
+        } : undefined 
+    };
 
     if (result.dZ !== 0 || result.dA !== 0 || result.isPpFusion || result.isPositronAbsorption) {
         const newData = (result.dZ === 0 && result.dA === 0 && !result.isPpFusion && !result.isPositronAbsorption) ? state.currentNuclide : getNuclideDataSync(pZ, pA);

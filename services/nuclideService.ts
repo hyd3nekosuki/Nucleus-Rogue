@@ -13,6 +13,7 @@ const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
         case DecayMode.ELECTRON_CAPTURE: return 'Radioactive nuclide: EC';
         case DecayMode.SPONTANEOUS_FISSION: return 'Radioactive nuclide: SF';
         case DecayMode.PROTON_EMISSION: return 'Unstable nuclide: p';
+        case DecayMode.TWO_PROTON_EMISSION: return 'Unstable nuclide: 2p';
         case DecayMode.NEUTRON_EMISSION: return 'Unstable nuclide: n';
         case DecayMode.GAMMA: return 'Radioactive nuclide: γ';
         default: return 'Radioactive nuclide';
@@ -31,6 +32,7 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
         case DecayMode.ELECTRON_CAPTURE: return "EC";
         case DecayMode.SPONTANEOUS_FISSION: return "SF";
         case DecayMode.PROTON_EMISSION: return "p";
+        case DecayMode.TWO_PROTON_EMISSION: return "2p";
         case DecayMode.NEUTRON_EMISSION: return "n";
         case DecayMode.GAMMA: return "γ";
         default: return "Unknown";

@@ -12,6 +12,7 @@ export const DECAY_PHYSICS: Record<string, DecayDelta> = {
     [DecayMode.BETA_PLUS]: { dZ: -1, dA: 0 },
     [DecayMode.ELECTRON_CAPTURE]: { dZ: -1, dA: 0 },
     [DecayMode.PROTON_EMISSION]: { dZ: -1, dA: -1 },
+    [DecayMode.TWO_PROTON_EMISSION]: { dZ: -2, dA: -2 },
     [DecayMode.NEUTRON_EMISSION]: { dZ: 0, dA: -1 },
     [DecayMode.SPONTANEOUS_FISSION]: { dZ: -38, dA: -96 }, // Representative average
     [DecayMode.STABLE]: { dZ: 0, dA: 0 },

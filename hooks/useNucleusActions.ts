@@ -4,7 +4,7 @@ import { GameState, DecayMode, HistoryEntry, GameAction } from '../types';
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
-import { getNuclideDataSync } from '../../services/nuclideService';
+import { getNuclideDataSync } from '../services/nuclideService';
 import { generateEntities } from '../engine/moveSimulator';
 import { getInitialState } from '../engine/initialState';
 import { pickNuclideWithPriority } from '../engine/particleEngine';

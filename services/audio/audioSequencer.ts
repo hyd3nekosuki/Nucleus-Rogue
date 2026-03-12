@@ -84,6 +84,7 @@ export const playRhythm = (
             if (Math.random() > 0.6) createHat(ctx, dest, time, oP, 1.7);
             break;
         case DecayMode.PROTON_EMISSION:
+        case DecayMode.TWO_PROTON_EMISSION:
             if (step % 4 === 0) { createKick(ctx, dest, time, 0.95 * fP, 'dnb-punch'); onKickTrigger?.(time); }
             if (step % 4 === 2) createHat(ctx, dest, time, oP * 1.4, 1.3);
             if (step % 2 === 1) createHat(ctx, dest, time, oP * 0.7, 0.9);

@@ -188,6 +188,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                     case DecayMode.BETA_PLUS: typeClass = "effect-base effect-beta-plus"; break;
                     case DecayMode.SPONTANEOUS_FISSION: typeClass = "effect-base effect-fission"; break;
                     case DecayMode.PROTON_EMISSION: typeClass = "effect-base effect-beta-plus"; break;
+                    case DecayMode.TWO_PROTON_EMISSION: typeClass = "effect-base effect-2p"; break;
                     case DecayMode.NEUTRON_EMISSION: typeClass = "effect-base effect-generic"; break;
                     case DecayMode.ELECTRON_CAPTURE: typeClass = "effect-base effect-capture"; break;
                     case DecayMode.GAMMA_RAY_H: typeClass = "effect-base effect-gamma-h"; break;

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { GameState, HistoryEntry } from '../types';
-import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT } from '../constants';
+import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, REASON } from '../constants';
 import { packBinary, unpackBinary } from '../services/serializationService';
 import { getNuclideDataSync } from '../services/nuclideService';
 import { generateEntities } from '../engine/moveSimulator';
@@ -76,12 +76,15 @@ export const usePersistence = (
                 };
             });
 
+            const isDead = payload.h! <= 0;
             // Atomic update of the entire game state including history and reincarnation pool
             setGameState({ 
                 ...getInitialState(), 
                 score: payload.s!, 
                 energyPoints: Math.min(MAX_ENERGY, payload.e!), 
                 hp: payload.h!, 
+                gameOver: isDead,
+                gameOverReason: isDead ? REASON.RADIOACTIVE_DECAY : undefined,
                 playerLevel: payload.l!, 
                 reincarnations: payload.r!, 
                 turn: payload.t || 0, 

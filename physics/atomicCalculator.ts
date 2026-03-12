@@ -5,9 +5,9 @@ import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
 
-
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
+import { NEUTRON_CROSS_SECTIONS } from '../src/data/neutronReactions';
 
 /**
  * Pure function to calculate the outcome of a collision with an entity.
@@ -108,11 +108,15 @@ export const calculateNeutronReaction = (
     fissionEnabled: boolean,
     neutronStarEnabled: boolean,
     zeroBarnActive: boolean,
-    isDaredevilActive: boolean = false
+    isDaredevilActive: boolean = false,
+    unlockedGroups: string[] = [],
+    disabledSkills: string[] = []
 ): AtomicReactionResult | null => {
-    if (target.type !== EntityType.NEUTRON || !target.isHighEnergy) return null;
+    if (target.type !== EntityType.NEUTRON) return null;
 
-    // If zero barn is active, high energy neutrons are also ignored (no reaction)
+    const isUnknownActive = unlockedGroups.includes(TITLES.UNKNOWN) && !disabledSkills.includes(TITLES.UNKNOWN);
+
+    // If zero barn is active, neutrons are ignored (no reaction)
     if (zeroBarnActive) {
         return {
             dZ: 0,
@@ -121,83 +125,168 @@ export const calculateNeutronReaction = (
             energyBonus: 0,
             actionBonusScore: 0,
             messages: [],
-            scatteredMessage: "High energy neutron was not absorbed due to 0 barn",
+            scatteredMessage: `${target.isHighEnergy ? "High energy neutron" : "Neutron"} was not absorbed due to 0 barn`,
             chargesUsed: 0,
             newGridEntities: currentEntities,
             shouldFlash: false
         };
     }
 
-    // Absorption phase
-    const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);
-    
-    // Daredevil check for initial absorption existence
-    if (!isDaredevilActive && !intermediateData.exists) return null;
+    if (isUnknownActive) {
+        // Unknown skill is ON: Use current random algorithm
+        if (!target.isHighEnergy) return null; // Let calculateInteraction handle normal neutrons (dA=1)
 
-    const options = [];
+        // Absorption phase
+        const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);
+        
+        // Daredevil check for initial absorption existence
+        if (!isDaredevilActive && !intermediateData.exists) return null;
 
-    // (n,γ) is valid if player can exist at currentZ, currentA + 1
-    if (isDaredevilActive || intermediateData.exists) {
-        options.push({ mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG });
-    }
+        const options = [];
 
-    // (n,p) validation -> Resulting state is (Z-1, A)
-    if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 1, currentNuclide.a).exists) {
-        options.push({ mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP });
-    }
+        // (n,γ) is valid if player can exist at currentZ, currentA + 1
+        if (isDaredevilActive || intermediateData.exists) {
+            options.push({ mode: DecayMode.GAMMA, label: HISTORY_METHODS.REACTION_NG });
+        }
 
-    // (n,2n) validation -> Resulting state is (Z, A-1)
-    if (isDaredevilActive || getNuclideDataSync(currentNuclide.z, currentNuclide.a - 1).exists) {
-        options.push({ mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N });
-    }
-    
-    // Fission condition: Normally Z >= 92, but Daredevil allows it for all elements
-    if (isDaredevilActive || intermediateData.z >= 92) {
-        if (!fissionEnabled) {
-            // (n,α) validation -> Resulting state is (Z-2, A-3)
-            if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 2, currentNuclide.a - 3).exists) {
-                options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
+        // (n,p) validation -> Resulting state is (Z-1, A)
+        if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 1, currentNuclide.a).exists) {
+            options.push({ mode: DecayMode.PROTON_EMISSION, label: HISTORY_METHODS.REACTION_NP });
+        }
+
+        // (n,2n) validation -> Resulting state is (Z, A-1)
+        if (isDaredevilActive || getNuclideDataSync(currentNuclide.z, currentNuclide.a - 1).exists) {
+            options.push({ mode: DecayMode.NEUTRON_EMISSION, label: HISTORY_METHODS.REACTION_N2N });
+        }
+        
+        // Fission condition: Normally Z >= 92, but Daredevil allows it for all elements
+        if (isDaredevilActive || intermediateData.z >= 92) {
+            if (!fissionEnabled) {
+                // (n,α) validation -> Resulting state is (Z-2, A-3)
+                if (isDaredevilActive || getNuclideDataSync(currentNuclide.z - 2, currentNuclide.a - 3).exists) {
+                    options.push({ mode: DecayMode.ALPHA, label: HISTORY_METHODS.REACTION_NA });
+                }
+            }
+            else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: HISTORY_METHODS.REACTION_NF });
+        }
+
+        if (options.length === 0) return null;
+        
+        const chosen = options[Math.floor(Math.random() * options.length)];
+        
+        // Decay phase (triggered by absorption energy)
+        const decayResult = calculateDecayEffects(
+            chosen.mode, 
+            intermediateData, 
+            playerPos, 
+            currentEntities, 
+            currentTime, 
+            annihilationEnabled, 
+            fissionEnabled,
+            neutronStarEnabled
+        );
+        
+        // Stacking logic: 
+        // If (n,2n) label is used, we ensure total net dA is -1 relative to current nuclide.
+        let stackedDA = 1 + decayResult.dA;
+        if (chosen.label === HISTORY_METHODS.REACTION_N2N) stackedDA = -1;
+
+        return {
+            dZ: decayResult.dZ,
+            dA: stackedDA,
+            hpPenalty: 0,
+            energyBonus: decayResult.energyBonus,
+            actionBonusScore: decayResult.actionBonusScore,
+            messages: decayResult.extraMessages,
+            inducedDecayMode: chosen.mode,
+            inducedReactionLabel: chosen.label,
+            shouldShake: decayResult.shouldShake,
+            shouldFlash: chosen.label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
+            chargesUsed: 0,
+            chainDecayResult: decayResult,
+            newGridEntities: decayResult.newGridEntities,
+            byproduct: decayResult.byproduct
+        };
+    } else {
+        // Unknown skill is OFF: Use realistic neutron nuclear reaction data
+        const data = NEUTRON_CROSS_SECTIONS[`${currentNuclide.z}-${currentNuclide.a}`];
+        if (data) {
+            const energyIdx = target.isHighEnergy ? 1 : 0;
+            const reactions = Object.entries(data.reactions);
+            const totalXS = reactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
+
+            if (totalXS > 0) {
+                let r = Math.random() * totalXS;
+                let chosenKey = reactions[0][0];
+                for (const [key, xs] of reactions) {
+                    r -= xs[energyIdx];
+                    if (r <= 0) {
+                        chosenKey = key;
+                        break;
+                    }
+                }
+
+                let mode: DecayMode;
+                let label: string;
+                switch (chosenKey) {
+                    case "n,g": mode = DecayMode.GAMMA; label = HISTORY_METHODS.REACTION_NG; break;
+                    case "n,p": mode = DecayMode.PROTON_EMISSION; label = HISTORY_METHODS.REACTION_NP; break;
+                    case "n,2n": mode = DecayMode.NEUTRON_EMISSION; label = HISTORY_METHODS.REACTION_N2N; break;
+                    case "n,a": mode = DecayMode.ALPHA; label = HISTORY_METHODS.REACTION_NA; break;
+                    case "n,f": mode = DecayMode.SPONTANEOUS_FISSION; label = HISTORY_METHODS.REACTION_NF; break;
+                    default: mode = DecayMode.GAMMA; label = HISTORY_METHODS.REACTION_NG;
+                }
+
+                // If fission is disabled, replace (n,f) with (n,a)
+                if (chosenKey === "n,f" && !fissionEnabled) {
+                    mode = DecayMode.ALPHA;
+                    label = HISTORY_METHODS.REACTION_NA;
+                }
+
+                const intermediateData = getNuclideDataSync(currentNuclide.z, currentNuclide.a + 1);
+                const decayResult = calculateDecayEffects(
+                    mode, 
+                    intermediateData, 
+                    playerPos, 
+                    currentEntities, 
+                    currentTime, 
+                    annihilationEnabled, 
+                    fissionEnabled,
+                    neutronStarEnabled
+                );
+
+                let stackedDA = 1 + decayResult.dA;
+                if (label === HISTORY_METHODS.REACTION_N2N) stackedDA = -1;
+
+                return {
+                    dZ: decayResult.dZ,
+                    dA: stackedDA,
+                    hpPenalty: 0,
+                    energyBonus: decayResult.energyBonus,
+                    actionBonusScore: decayResult.actionBonusScore,
+                    messages: decayResult.extraMessages,
+                    inducedDecayMode: mode,
+                    inducedReactionLabel: label,
+                    shouldShake: decayResult.shouldShake,
+                    shouldFlash: label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
+                    chargesUsed: 0,
+                    chainDecayResult: decayResult,
+                    newGridEntities: decayResult.newGridEntities,
+                    byproduct: decayResult.byproduct
+                };
             }
         }
-        else options.push({ mode: DecayMode.SPONTANEOUS_FISSION, label: HISTORY_METHODS.REACTION_NF });
+
+        // Default behavior: N increases by 1, Mass increases by 1
+        return {
+            dZ: 0,
+            dA: 1,
+            hpPenalty: 0,
+            energyBonus: 0,
+            actionBonusScore: 0,
+            messages: [],
+            inducedReactionLabel: HISTORY_METHODS.NEUTRON_CAPTURE,
+            chargesUsed: 0
+        };
     }
-
-    if (options.length === 0) return null;
-    
-    const chosen = options[Math.floor(Math.random() * options.length)];
-    
-    // Decay phase (triggered by absorption energy)
-    const decayResult = calculateDecayEffects(
-        chosen.mode, 
-        intermediateData, 
-        playerPos, 
-        currentEntities, 
-        currentTime, 
-        annihilationEnabled, 
-        fissionEnabled,
-        neutronStarEnabled
-    );
-    
-    // Stacking logic: 
-    // If (n,2n) label is used, we ensure total net dA is -1 relative to current nuclide.
-    let stackedDA = 1 + decayResult.dA;
-    if (chosen.label === HISTORY_METHODS.REACTION_N2N) stackedDA = -1;
-
-    return {
-        dZ: decayResult.dZ,
-        dA: stackedDA,
-        hpPenalty: 0,
-        energyBonus: decayResult.energyBonus,
-        actionBonusScore: decayResult.actionBonusScore,
-        messages: decayResult.extraMessages,
-        inducedDecayMode: chosen.mode,
-        inducedReactionLabel: chosen.label,
-        shouldShake: decayResult.shouldShake,
-        // (n,2n)反応時は明示的にフラッシュを無効化
-        shouldFlash: chosen.label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
-        chargesUsed: 0,
-        chainDecayResult: decayResult,
-        newGridEntities: decayResult.newGridEntities,
-        byproduct: decayResult.byproduct // Procedure 3: Secondary fragment propagation
-    };
 };
