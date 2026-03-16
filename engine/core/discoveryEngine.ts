@@ -15,6 +15,7 @@ import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutoria
 import { TITLES } from '../../constants/titles';
 import { generateEntities } from '../moveSimulator';
 import { registerHistoryEntry } from './historyService';
+import { decomposeDecayMode } from '../../utils/masteryUtils';
 
 /**
  * Internal helper to find a nearby empty cell for byproduct placement.
@@ -64,10 +65,14 @@ export const applyDiscoveryLogic = (
     const now = Date.now();
 
     // 1. Level & Mastery
+    const masteryModes = isManualDecay && inducedDecayMode 
+        ? decomposeDecayMode(inducedDecayMode) 
+        : [];
+
     const { nextLevel, nextMastered } = calculateNextLevel(
         state.playerLevel,
         state.masteredDecays,
-        isManualDecay ? (inducedDecayMode || DecayMode.STABLE) : DecayMode.STABLE
+        masteryModes
     );
 
     // 2. Barrier Check

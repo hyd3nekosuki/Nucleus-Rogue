@@ -1,6 +1,7 @@
 import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
 import { HISTORY_METHODS } from '../constants';
 import { TITLES } from '../constants/titles';
+import { BASE_MASTERY_MODES } from '../utils/masteryUtils';
 
 // ID mapping for binary serialization
 // CAUTION: Index order must be preserved to maintain save code compatibility.
@@ -134,7 +135,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
 
     let masteredBits = 0;
     state.masteredDecays.forEach(m => {
-        const idx = DECAY_MODE_MAP.indexOf(m);
+        const idx = BASE_MASTERY_MODES.indexOf(m);
         if (idx !== -1) masteredBits |= (1 << idx);
     });
     view.setUint32(offset, masteredBits); offset += 4;
@@ -230,7 +231,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         });
 
         const mdBits = view.getUint32(offset); offset += 4;
-        const md = DECAY_MODE_MAP.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
+        const md = BASE_MASTERY_MODES.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
 
         // --- Reincarnation Pool counts ---
         const pp = view.getUint16(offset); offset += 2;

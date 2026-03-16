@@ -48,6 +48,23 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
         case 'SET_HP': 
             return { ...state, hp: action.payload };
 
+        case 'RESET_VISUALS':
+            return { ...state, effects: [], activeEvent: undefined, lastEvent: undefined };
+
+        case 'MARK_EVENT_PLAYED':
+            if (state.lastEvent && state.lastEvent.id === action.payload.eventId) {
+                return { ...state, lastEvent: { ...state.lastEvent, isPlayed: true } };
+            }
+            return state;
+
+        case 'MARK_EFFECTS_PLAYED':
+            return {
+                ...state,
+                effects: state.effects.map(e => 
+                    action.payload.effectIds.includes(e.id) ? { ...e, isPlayed: true } : e
+                )
+            };
+
         case 'CLEANUP_VISUALS': {
             const { effects, activeEventExpired } = action.payload;
             return { ...state, effects, activeEvent: activeEventExpired ? undefined : state.activeEvent };

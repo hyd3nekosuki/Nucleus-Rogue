@@ -96,7 +96,25 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const totalBaseActionPoints = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS) + decayResult.actionBonusScore;
     const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
     
-    const decayDescMsg = actualMode === DecayMode.ALPHA ? `α decay into ${newData.name}` : actualMode === DecayMode.BETA_MINUS ? `β- decay into ${newData.name}` : actualMode === DecayMode.BETA_PLUS ? `β+ decay into ${newData.name}` : actualMode === DecayMode.ELECTRON_CAPTURE ? `Electron capture into ${newData.name}` : actualMode === DecayMode.NEUTRON_EMISSION ? `n emission into ${newData.name}` : actualMode === DecayMode.PROTON_EMISSION ? `p emission into ${newData.name}` : actualMode === DecayMode.TWO_PROTON_EMISSION ? `2p emission into ${newData.name}` : actualMode === DecayMode.SPONTANEOUS_FISSION ? `Spontaneous fission into ${newData.name}` : actualMode === DecayMode.GAMMA ? `γ decay` : "";
+    const decayDescMsg = 
+          actualMode === DecayMode.ALPHA ? `α decay into ${newData.name}` 
+        : actualMode === DecayMode.BETA_MINUS ? `β- decay into ${newData.name}` 
+        : actualMode === DecayMode.DOUBLE_BETA_MINUS ? `2β- decay into ${newData.name}`
+        : actualMode === DecayMode.BETA_PLUS ? `β+ decay into ${newData.name}` 
+        : actualMode === DecayMode.DOUBLE_BETA_PLUS ? `2β+ decay into ${newData.name}`
+        : actualMode === DecayMode.ELECTRON_CAPTURE ? `Electron capture into ${newData.name}` 
+        : actualMode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? `Double electron capture into ${newData.name}`
+        : actualMode === DecayMode.NEUTRON_EMISSION ? `n emission into ${newData.name}` 
+        : actualMode === DecayMode.TWO_NEUTRON_EMISSION ? `2n emission into ${newData.name}`
+        : actualMode === DecayMode.PROTON_EMISSION ? `p emission into ${newData.name}` 
+        : actualMode === DecayMode.TWO_PROTON_EMISSION ? `2p emission into ${newData.name}` 
+        : actualMode === DecayMode.SPONTANEOUS_FISSION ? `Spontaneous fission into ${newData.name}` 
+        : actualMode === DecayMode.IT ? `Isomeric transition`
+        : actualMode === DecayMode.GAMMA ? `γ decay`
+        : actualMode.startsWith('B-') ? `β- delayed emission into ${newData.name}`
+        : actualMode.startsWith('B+') ? `β+ delayed emission into ${newData.name}`
+        : actualMode === DecayMode.EC_ALPHA || actualMode === DecayMode.EC_PROTON || actualMode === DecayMode.EC_2PROTON || actualMode === DecayMode.EC_SF ? `EC delayed emission into ${newData.name}`
+        : "";
     const decayEvent: GameStateEvent = { id: now, type: 'DECAY', subType: actualMode, decayModeTrigger: actualMode, shake: decayResult.shouldShake, flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined, priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] };
 
     let nextEntities = decayResult.newGridEntities;
@@ -125,10 +143,56 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         });
     }
 
+    // Update decay stats based on emitted particles for composite modes
+    const nextDecayStats = { ...state.decayStats };
+    const updateStats = (mode: DecayMode) => {
+        switch (mode) {
+            case DecayMode.ALPHA: nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.BETA_MINUS: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; break;
+            case DecayMode.BETA_PLUS: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; break;
+            case DecayMode.ELECTRON_CAPTURE: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; break;
+            case DecayMode.SPONTANEOUS_FISSION: nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;
+            case DecayMode.PROTON_EMISSION: nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
+            case DecayMode.TWO_PROTON_EMISSION: nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 2; break;
+            case DecayMode.NEUTRON_EMISSION: nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 1; break;
+            case DecayMode.TWO_NEUTRON_EMISSION: nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 2; break;
+            case DecayMode.GAMMA: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
+            case DecayMode.IT: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
+            case DecayMode.DOUBLE_BETA_MINUS: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 2; break;
+            case DecayMode.DOUBLE_BETA_PLUS: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 2; break;
+            case DecayMode.DOUBLE_ELECTRON_CAPTURE: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 2; break;
+            
+            case DecayMode.B_MINUS_N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 1; break;
+            case DecayMode.B_MINUS_2N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 2; break;
+            case DecayMode.B_MINUS_3N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 3; break;
+            case DecayMode.B_MINUS_4N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 4; break;
+            case DecayMode.B_MINUS_5N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 5; break;
+            case DecayMode.B_MINUS_6N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 6; break;
+            case DecayMode.B_MINUS_7N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 7; break;
+            case DecayMode.B_MINUS_ALPHA: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.B_MINUS_PROTON: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
+            case DecayMode.B_MINUS_SF: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;
+            
+            case DecayMode.B_PLUS_ALPHA: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.B_PLUS_PROTON: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
+            case DecayMode.B_PLUS_2PROTON: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 2; break;
+            
+            case DecayMode.EC_ALPHA: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.EC_PROTON: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
+            case DecayMode.EC_2PROTON: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 2; break;
+            case DecayMode.EC_SF: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;
+            
+            default: 
+                nextDecayStats[mode] = (nextDecayStats[mode] || 0) + 1;
+                break;
+        }
+    };
+    updateStats(actualMode);
+
     // Advance turn and trigger background AI/assault processing
     const nextTurn = state.turn + 1;
     let nextState = applyDiscoveryLogic(
-        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: { ...state.decayStats, [actualMode]: (state.decayStats[actualMode] || 0) + 1 }, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
+        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: nextDecayStats, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
         newData, context, nextTurn, { isAnnihilation: decayResult.isAnnihilation }
     );
 

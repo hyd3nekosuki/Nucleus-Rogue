@@ -3,7 +3,7 @@ import { DecayMode, NuclideData, NuclideCategory } from '../types';
 export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
-export const APP_VERSION = "1.3.9.0";
+export const APP_VERSION = "1.3.9.1";
 
 // --- Game Balance/Pacing Constants ---
 export const COMBO_WINDOW_MS = 8000;
@@ -21,6 +21,7 @@ export const INITIAL_NUCLIDE: NuclideData = {
   isStable: true,
   exists: true,
   description: 'The most abundant element in the universe, making up 75% of baryonic mass.',
+  branches: [{ mode: DecayMode.STABLE, ratio: 100 }],
   // Fix: Added missing properties from NuclideData interface
   isProtonDripLine: false,
   isNeutronDripLine: false

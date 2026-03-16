@@ -17,6 +17,7 @@ interface GridProps {
 
 const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, finalCombo, overrideResult }) => {
   const cells = [];
+  const componentStartTime = React.useRef<number>(Date.now());
 
   // Determine if Daredevil (Hard Mode) is active
   const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
@@ -38,7 +39,14 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
         }
       }
       
-      const activeEffects = gameState.effects.filter(e => e.position.x === x && e.position.y === y);
+      const now = Date.now();
+      const activeEffects = gameState.effects.filter(e => 
+        e.position.x === x && 
+        e.position.y === y && 
+        // Show effect if it hasn't been played yet, OR if it was created in this specific mount session
+        (!e.isPlayed || e.timestamp >= componentStartTime.current) && 
+        (now - e.timestamp < 1000)
+      );
 
       let content = null;
       let bgClass = "bg-gray-900/50";

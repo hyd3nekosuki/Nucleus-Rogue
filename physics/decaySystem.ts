@@ -226,14 +226,41 @@ export const calculateDecayEffects = (
         case DecayMode.BETA_MINUS: 
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
             break;
+        case DecayMode.DOUBLE_BETA_MINUS:
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            result.trigger = "Double Beta Minus Decay";
+            break;
         case DecayMode.BETA_PLUS: 
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            break;
+        case DecayMode.EC_B_PLUS:
+            // EC/B+ combined mode - should have been resolved by controller, but handle here as fallback
+            if (Math.random() < 0.5) {
+                result.trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
+                result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
+                result.shouldShake = true;
+                result.extraMessages.push("✨ Uncertainty principle for position!");
+                result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
+            } else {
+                Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            }
+            break;
+        case DecayMode.DOUBLE_BETA_PLUS:
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            result.trigger = "Double Beta Plus Decay";
             break;
         case DecayMode.ELECTRON_CAPTURE: 
              result.trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
              result.extraMessages.push("✨ Uncertainty principle for position!");
+             result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
+             break;
+        case DecayMode.DOUBLE_ELECTRON_CAPTURE:
+             result.trigger = "Double Electron Capture";
+             result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
+             result.shouldShake = true;
+             result.extraMessages.push("✨ Double uncertainty principle!");
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 
@@ -245,6 +272,75 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.NEUTRON_EMISSION: 
             result.trigger = HISTORY_METHODS.NEUTRON_EMISSION; 
+            break;
+        case DecayMode.TWO_NEUTRON_EMISSION:
+            result.trigger = "Two Neutron Emission";
+            result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
+            break;
+        case DecayMode.IT:
+            result.trigger = "Isomeric Transition";
+            result.actionBonusScore = BONUS_SCORES.GAMMA_ACTION;
+            result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.GAMMA_RAY_UP, position: { ...playerPos }, timestamp: currentTime });
+            break;
+        case DecayMode.B_MINUS_N:
+        case DecayMode.B_MINUS_2N:
+        case DecayMode.B_MINUS_3N:
+        case DecayMode.B_MINUS_4N:
+        case DecayMode.B_MINUS_5N:
+        case DecayMode.B_MINUS_6N:
+        case DecayMode.B_MINUS_7N:
+            const nMatch = mode.match(/(\d)N/);
+            const nCount = nMatch ? parseInt(nMatch[1]) : 1;
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            result.trigger = `Beta-delayed ${nCount}n emission`;
+            result.emissions = new Array(nCount).fill(EntityType.NEUTRON);
+            break;
+        case DecayMode.B_MINUS_ALPHA:
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            result.trigger = "Beta-delayed alpha emission";
+            break;
+        case DecayMode.B_MINUS_PROTON:
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            result.trigger = "Beta-delayed proton emission";
+            result.emissions = [EntityType.PROTON];
+            break;
+        case DecayMode.B_MINUS_SF:
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            result.trigger = "Beta-delayed fission";
+            result.shouldShake = true;
+            result.shouldFlash = true;
+            result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
+            break;
+        case DecayMode.B_PLUS_ALPHA:
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            result.trigger = "Beta-delayed alpha emission";
+            break;
+        case DecayMode.B_PLUS_PROTON:
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            result.trigger = "Beta-delayed proton emission";
+            result.emissions = [EntityType.PROTON];
+            break;
+        case DecayMode.B_PLUS_2PROTON:
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            result.trigger = "Beta-delayed 2p emission";
+            result.emissions = [EntityType.PROTON, EntityType.PROTON];
+            break;
+        case DecayMode.EC_ALPHA:
+            result.trigger = "EC-delayed alpha emission";
+            break;
+        case DecayMode.EC_PROTON:
+            result.trigger = "EC-delayed proton emission";
+            result.emissions = [EntityType.PROTON];
+            break;
+        case DecayMode.EC_2PROTON:
+            result.trigger = "EC-delayed 2p emission";
+            result.emissions = [EntityType.PROTON, EntityType.PROTON];
+            break;
+        case DecayMode.EC_SF:
+            result.trigger = "EC-delayed fission";
+            result.shouldShake = true;
+            result.shouldFlash = true;
+            result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.GAMMA:
              result.trigger = HISTORY_METHODS.GAMMA_DECAY;

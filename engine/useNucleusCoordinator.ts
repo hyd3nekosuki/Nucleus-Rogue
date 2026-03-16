@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 import { generateEntities } from './moveSimulator';
+import { getInitialState } from './initialState';
 import { useNucleusState } from './useNucleusState';
 import { useStabilityTimer } from './useStabilityTimer';
 import { useComboTimer } from './useComboTimer';
@@ -26,7 +27,7 @@ export const useNucleusCoordinator = () => {
     const {
         isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         triggerShake, triggerFlash, setFinalCombo, resetVisuals
-    } = useVisualEffects(gameState);
+    } = useVisualEffects(gameState, dispatch);
 
     // 3. Periodic Life-Cycle Timers (Stability Decay, Combo Expiration, Janitorial Cleanup)
     useStabilityTimer(gameState, setGameState);
@@ -95,13 +96,17 @@ export const useNucleusCoordinator = () => {
         return await rawLoadSaveCode(code);
     }, [executeQuantumOverride, rawLoadSaveCode]);
 
-    // 7. Initial Nucleogenesis
+    // 7. Initial Nucleogenesis & Visual Reset
     useEffect(() => {
-        const initialEntities = generateEntities(5, [], gameState.playerPos, 0);
+        // Clear any stale visual effects from the state on mount (fixes tab-switch ghosting)
+        // We use getInitialState() directly to ensure no old events or effects leak in
+        const initialState = getInitialState();
+        const initialEntities = generateEntities(5, [], initialState.playerPos, 0);
+        
         dispatch({
             type: 'RESET_STATE',
             payload: {
-                ...gameState,
+                ...initialState,
                 gridEntities: initialEntities,
                 evolutionHistory: {
                     [`${INITIAL_NUCLIDE.z}-${INITIAL_NUCLIDE.a}`]: {

@@ -11,6 +11,31 @@ export const useVisualCleanup = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>
 ) => {
+    // Immediate cleanup on mount to prevent old effects from replaying
+    useEffect(() => {
+        const now = Date.now();
+        const hasStaleEffects = gameState.effects.some(e => now - e.timestamp >= 1000);
+        const isEventExpired = gameState.activeEvent && (now - gameState.activeEvent.timestamp >= 1000);
+
+        if (hasStaleEffects || isEventExpired) {
+            setGameState(prev => {
+                const currentTime = Date.now();
+                const remainingEffects = prev.effects.filter(e => currentTime - e.timestamp < 1000);
+                const eventStillActive = prev.activeEvent && (currentTime - prev.activeEvent.timestamp < 1000);
+                
+                if (remainingEffects.length === prev.effects.length && (!!eventStillActive === !!prev.activeEvent)) {
+                    return prev;
+                }
+                
+                return {
+                    ...prev,
+                    effects: remainingEffects,
+                    activeEvent: eventStillActive ? prev.activeEvent : undefined
+                };
+            });
+        }
+    }, []); // Run once on mount
+
     useEffect(() => {
         // Guard: If time is stopped, or nothing to clean up, do nothing
         if (gameState.isTimeStopped || (gameState.effects.length === 0 && !gameState.activeEvent)) return;

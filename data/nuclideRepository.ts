@@ -1,4 +1,4 @@
-import { DATABASE_RAW } from './nuclideDatabaseRaw';
+import { nuclideDatabaseExtended } from './nuclideDatabaseExtended';
 import { NuclideRecord, NuclideId } from '../types';
 import { parseNuclideRecord } from '../utils/nuclideParser';
 
@@ -12,9 +12,9 @@ const buildRepository = (): Map<NuclideId, NuclideRecord> => {
     const repo = new Map<NuclideId, NuclideRecord>();
     let corruptCount = 0;
 
-    for (const zStr in DATABASE_RAW) {
+    for (const zStr in nuclideDatabaseExtended) {
         const z = parseInt(zStr);
-        const zData = DATABASE_RAW[z];
+        const zData = nuclideDatabaseExtended[z];
         if (!zData) continue;
 
         const segments = zData.split(',');

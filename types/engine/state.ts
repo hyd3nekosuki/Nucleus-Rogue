@@ -65,6 +65,9 @@ export type GameAction =
   | { type: 'RESET_STATE'; payload: GameState }
   | { type: 'APPLY_STABILITY_DECAY'; payload: { hp: number; energyPoints?: number; messages?: string[]; effects?: VisualEffect[]; gameOver?: boolean; gameOverReason?: string } }
   | { type: 'SET_HP'; payload: number }
+  | { type: 'RESET_VISUALS' }
+  | { type: 'MARK_EVENT_PLAYED'; payload: { eventId: number } }
+  | { type: 'MARK_EFFECTS_PLAYED'; payload: { effectIds: string[] } }
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
   | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } };

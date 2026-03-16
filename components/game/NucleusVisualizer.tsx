@@ -33,8 +33,9 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
   const [emissionParticles, setEmissionParticles] = useState<EmissionParticle[]>([]);
   
   // FIX: Initialize with the timestamp of the event that exists at mount time
-  // This prevents the animation from replaying when switching tabs.
-  const lastProcessedTimestamp = useRef<number>(lastDecayEvent?.timestamp || 0);
+  // If no event exists, use current time to prevent old events from replaying when switching tabs.
+  const mountTime = useRef<number>(Date.now());
+  const lastProcessedTimestamp = useRef<number>(lastDecayEvent?.timestamp && lastDecayEvent.timestamp > mountTime.current ? lastDecayEvent.timestamp : mountTime.current);
 
   // Magic Number Check
   const isMagicZ = MAGIC_NUMBERS.includes(z);
@@ -93,52 +94,106 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
   // Handle Decay Events (Trigger Animations)
   useEffect(() => {
       // Only trigger if we have a valid event AND its timestamp is strictly newer than what we've processed
-      if (!lastDecayEvent || isTimeStopped || lastDecayEvent.timestamp <= lastProcessedTimestamp.current) return;
+      // Also ensure the event is "fresh" (not older than 1 second from mount or current time)
+      // CRITICAL: Skip if the event is already marked as played
+      if (!lastDecayEvent || isTimeStopped || lastDecayEvent.isPlayed) return;
+      
+      const isNew = lastDecayEvent.timestamp > lastProcessedTimestamp.current;
+      const isFresh = (Date.now() - lastDecayEvent.timestamp) < 1000;
+
+      if (!isNew || !isFresh) return;
       
       lastProcessedTimestamp.current = lastDecayEvent.timestamp;
       
-      const newParticles: EmissionParticle[] = [];
+      const mode = lastDecayEvent.mode;
       const idBase = `${lastDecayEvent.timestamp}`;
       const randomAngle = Math.random() * Math.PI * 2;
       const r = Math.max(10, Math.sqrt(z + n) * 6); // Surface radius approx
+      const newParticles: EmissionParticle[] = [];
 
-      switch (lastDecayEvent.mode) {
-          case DecayMode.ALPHA:
-              newParticles.push({ id: `alpha-${idBase}`, type: 'ALPHA', angle: randomAngle, startDist: r });
-              break;
-          case DecayMode.BETA_PLUS:
-              newParticles.push({ id: `pos-${idBase}`, type: 'BETA_PLUS', angle: randomAngle, startDist: r * 0.5 });
-              break;
-          case DecayMode.BETA_MINUS:
-              newParticles.push({ id: `elec-${idBase}`, type: 'BETA_MINUS', angle: randomAngle, startDist: r * 0.5 });
-              break;
-          case DecayMode.ELECTRON_CAPTURE:
-              newParticles.push({ id: `ec-${idBase}`, type: 'ELECTRON', angle: randomAngle, startDist: 150 });
-              break;
-          case DecayMode.PROTON_EMISSION:
-              newParticles.push({ id: `p-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
-              break;
-          case DecayMode.TWO_PROTON_EMISSION:
-              newParticles.push({ id: `p1-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
-              newParticles.push({ id: `p2-${idBase}`, type: 'PROTON', angle: randomAngle + Math.PI, startDist: r });
-              break;
-          case DecayMode.GAMMA:
-               newParticles.push({ id: `g-${idBase}`, type: 'PHOTON', angle: randomAngle, startDist: 0 });
-              break;
-          case DecayMode.SPONTANEOUS_FISSION:
-          case DecayMode.NEUTRON_EMISSION:
-              const count = lastDecayEvent.mode === DecayMode.SPONTANEOUS_FISSION ? 2 : 1;
-              for(let i=0; i<count; i++) {
-                 newParticles.push({
-                    id: `n-${idBase}-${i}`,
-                    type: 'NEUTRON',
-                    angle: randomAngle + (i * Math.PI),
-                    startDist: r
-                 });
-              }
-              break;
+      // Primary Beta Minus
+      if (mode === DecayMode.BETA_MINUS || mode === DecayMode.DOUBLE_BETA_MINUS || mode.startsWith('B-')) {
+          const count = mode === DecayMode.DOUBLE_BETA_MINUS ? 2 : 1;
+          for (let i = 0; i < count; i++) {
+              newParticles.push({ id: `elec-${idBase}-${i}`, type: 'BETA_MINUS', angle: randomAngle + (i * Math.PI), startDist: r * 0.5 });
+          }
       }
       
+      // Primary Beta Plus
+      if (mode === DecayMode.BETA_PLUS || mode === DecayMode.DOUBLE_BETA_PLUS || mode.startsWith('B+')) {
+          const count = mode === DecayMode.DOUBLE_BETA_PLUS ? 2 : 1;
+          for (let i = 0; i < count; i++) {
+              newParticles.push({ id: `pos-${idBase}-${i}`, type: 'BETA_PLUS', angle: randomAngle + (i * Math.PI), startDist: r * 0.5 });
+          }
+      }
+      
+      // Primary EC
+      if (mode === DecayMode.ELECTRON_CAPTURE || mode === DecayMode.DOUBLE_ELECTRON_CAPTURE || mode === DecayMode.EC_ALPHA || mode === DecayMode.EC_PROTON || mode === DecayMode.EC_2PROTON || mode === DecayMode.EC_SF) {
+          const count = mode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? 2 : 1;
+          for (let i = 0; i < count; i++) {
+              newParticles.push({ id: `ec-${idBase}-${i}`, type: 'ELECTRON', angle: randomAngle + (i * Math.PI), startDist: 150 });
+          }
+      }
+
+      // Primary Alpha
+      if (mode === DecayMode.ALPHA) {
+          newParticles.push({ id: `alpha-${idBase}`, type: 'ALPHA', angle: randomAngle, startDist: r });
+      }
+
+      // Primary Gamma / IT
+      if (mode === DecayMode.GAMMA || mode === DecayMode.IT) {
+          newParticles.push({ id: `g-${idBase}`, type: 'PHOTON', angle: randomAngle, startDist: 0 });
+      }
+
+      // Primary Proton / 2P
+      if (mode === DecayMode.PROTON_EMISSION) {
+          newParticles.push({ id: `p-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
+      }
+      if (mode === DecayMode.TWO_PROTON_EMISSION) {
+          newParticles.push({ id: `p1-${idBase}`, type: 'PROTON', angle: randomAngle, startDist: r });
+          newParticles.push({ id: `p2-${idBase}`, type: 'PROTON', angle: randomAngle + Math.PI, startDist: r });
+      }
+
+      // Primary Neutron / 2N / SF
+      if (mode === DecayMode.NEUTRON_EMISSION || mode === DecayMode.TWO_NEUTRON_EMISSION || mode === DecayMode.SPONTANEOUS_FISSION) {
+          const count = (mode === DecayMode.TWO_NEUTRON_EMISSION || mode === DecayMode.SPONTANEOUS_FISSION) ? 2 : 1;
+          for (let i = 0; i < count; i++) {
+              newParticles.push({ id: `n-${idBase}-${i}`, type: 'NEUTRON', angle: randomAngle + (i * Math.PI), startDist: r });
+          }
+      }
+
+      // Secondary Neutrons
+      const neutronMap: Record<string, number> = {
+          [DecayMode.B_MINUS_N]: 1,
+          [DecayMode.B_MINUS_2N]: 2,
+          [DecayMode.B_MINUS_3N]: 3,
+          [DecayMode.B_MINUS_4N]: 4,
+          [DecayMode.B_MINUS_5N]: 5,
+          [DecayMode.B_MINUS_6N]: 6,
+          [DecayMode.B_MINUS_7N]: 7,
+          [DecayMode.B_MINUS_SF]: 2,
+          [DecayMode.EC_SF]: 2,
+      };
+      if (neutronMap[mode]) {
+          for (let i = 0; i < neutronMap[mode]; i++) {
+              newParticles.push({ id: `sn-${idBase}-${i}`, type: 'NEUTRON', angle: randomAngle + (i * 0.5) + Math.PI/2, startDist: r });
+          }
+      }
+
+      // Secondary Alpha
+      if (mode === DecayMode.B_MINUS_ALPHA || mode === DecayMode.B_PLUS_ALPHA || mode === DecayMode.EC_ALPHA) {
+          newParticles.push({ id: `sa-${idBase}`, type: 'ALPHA', angle: randomAngle + Math.PI/2, startDist: r });
+      }
+
+      // Secondary Protons
+      if (mode === DecayMode.B_MINUS_PROTON || mode === DecayMode.B_PLUS_PROTON || mode === DecayMode.EC_PROTON) {
+          newParticles.push({ id: `sp-${idBase}`, type: 'PROTON', angle: randomAngle + Math.PI/2, startDist: r });
+      }
+      if (mode === DecayMode.B_PLUS_2PROTON || mode === DecayMode.EC_2PROTON) {
+          newParticles.push({ id: `sp1-${idBase}`, type: 'PROTON', angle: randomAngle + Math.PI/2, startDist: r });
+          newParticles.push({ id: `sp2-${idBase}`, type: 'PROTON', angle: randomAngle - Math.PI/2, startDist: r });
+      }
+
       setEmissionParticles(prev => [...prev, ...newParticles]);
 
       const timer = setTimeout(() => {
@@ -228,11 +283,33 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
           case DecayMode.ALPHA:
               return { color: '#fbbf24', fill: '#fbbf24', shape: 'blob', className: 'animate-[pulse_1s_cubic-bezier(0.4,0,0.6,1)_infinite]', stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '4 4' };
           case DecayMode.BETA_MINUS:
+          case DecayMode.DOUBLE_BETA_MINUS:
+          case DecayMode.B_MINUS_N:
+          case DecayMode.B_MINUS_2N:
+          case DecayMode.B_MINUS_3N:
+          case DecayMode.B_MINUS_4N:
+          case DecayMode.B_MINUS_5N:
+          case DecayMode.B_MINUS_6N:
+          case DecayMode.B_MINUS_7N:
+          case DecayMode.B_MINUS_ALPHA:
+          case DecayMode.B_MINUS_PROTON:
+          case DecayMode.B_MINUS_SF:
               return { color: '#00f3ff', fill: 'rgba(0, 243, 255, 0.3)', shape: 'spiky', className: 'animate-[spin_4s_linear_infinite]', stroke: '#00f3ff', strokeWidth: 2, strokeDasharray: '2 2' };
           case DecayMode.BETA_PLUS:
+          case DecayMode.DOUBLE_BETA_PLUS:
+          case DecayMode.B_PLUS_ALPHA:
+          case DecayMode.B_PLUS_PROTON:
+          case DecayMode.B_PLUS_2PROTON:
+          case DecayMode.EC_B_PLUS:
               return { color: '#bc13fe', fill: 'rgba(188, 19, 254, 0.3)', shape: 'spiky', className: 'animate-[spin_4s_linear_infinite_reverse]', stroke: '#bc13fe', strokeWidth: 2, strokeDasharray: '2 2' };
           case DecayMode.ELECTRON_CAPTURE:
+          case DecayMode.DOUBLE_ELECTRON_CAPTURE:
+          case DecayMode.EC_ALPHA:
+          case DecayMode.EC_PROTON:
+          case DecayMode.EC_2PROTON:
+          case DecayMode.EC_SF:
               return { color: '#14b8a6', fill: 'none', shape: 'spiral', className: 'animate-[spin_2s_linear_infinite_reverse]', stroke: '#14b8a6', strokeWidth: 2, strokeDasharray: 'none' };
+          case DecayMode.IT:
           case DecayMode.GAMMA:
               return { color: '#bc13fe', fill: 'none', shape: 'atom', className: 'animate-[spin_10s_linear_infinite]', stroke: '#e0e7ff', strokeWidth: 1.5, strokeDasharray: 'none' };
           case DecayMode.SPONTANEOUS_FISSION:

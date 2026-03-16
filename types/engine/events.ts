@@ -11,6 +11,7 @@ export interface VisualEffect {
   type: DecayMode;
   position: Position;
   timestamp: number;
+  isPlayed?: boolean;
 }
 
 export interface GameStateEvent {
@@ -22,4 +23,5 @@ export interface GameStateEvent {
   priorityMessages?: string[]; 
   shake?: boolean;
   flash?: string;
+  isPlayed?: boolean;
 }

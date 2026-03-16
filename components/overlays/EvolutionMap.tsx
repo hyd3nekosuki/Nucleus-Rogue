@@ -29,8 +29,20 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
             return { color: "bg-white", textColor: "text-black", glow: "shadow-[#ffffff]" };
         }
         
-        const mainMode = data.decayModes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) || DecayMode.UNKNOWN;
+        // Use the primary decay mode (decay1)
+        let mainMode = data.decayModes.length > 0 ? data.decayModes[0] : DecayMode.UNKNOWN;
         
+        // Map modes to primary categories for coloring (matching BGM logic)
+        if (mainMode === DecayMode.TWO_NEUTRON_EMISSION) mainMode = DecayMode.NEUTRON_EMISSION;
+        if (mainMode === DecayMode.DOUBLE_ELECTRON_CAPTURE) mainMode = DecayMode.ELECTRON_CAPTURE;
+        if (mainMode === DecayMode.DOUBLE_BETA_MINUS) mainMode = DecayMode.BETA_MINUS;
+        if (mainMode === DecayMode.DOUBLE_BETA_PLUS) mainMode = DecayMode.BETA_PLUS;
+        if (mainMode === DecayMode.IT) mainMode = DecayMode.GAMMA;
+        if (mainMode === DecayMode.EC_B_PLUS) mainMode = DecayMode.BETA_PLUS; // User request: EC/B+ same as B+
+        if (mainMode.startsWith('B-')) mainMode = DecayMode.BETA_MINUS;
+        if (mainMode.startsWith('B+')) mainMode = DecayMode.BETA_PLUS;
+        if (mainMode === DecayMode.EC_ALPHA || mainMode === DecayMode.EC_PROTON || mainMode === DecayMode.EC_2PROTON || mainMode === DecayMode.EC_SF) mainMode = DecayMode.ELECTRON_CAPTURE;
+
         switch (mainMode) {
             case DecayMode.ALPHA:
                 return { color: "bg-yellow-400", textColor: "text-black", glow: "shadow-[#facc15]" };
@@ -42,6 +54,13 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
                 return { color: "bg-teal-500", textColor: "text-white", glow: "shadow-[#14b8a6]" };
             case DecayMode.SPONTANEOUS_FISSION:
                 return { color: "bg-neon-red", textColor: "text-white", glow: "shadow-[#ff0055]" };
+            case DecayMode.GAMMA:
+                return { color: "bg-indigo-400", textColor: "text-white", glow: "shadow-[#818cf8]" };
+            case DecayMode.PROTON_EMISSION:
+            case DecayMode.TWO_PROTON_EMISSION:
+                return { color: "bg-rose-500", textColor: "text-white", glow: "shadow-[#f43f5e]" };
+            case DecayMode.NEUTRON_EMISSION:
+                return { color: "bg-sky-300", textColor: "text-black", glow: "shadow-[#7dd3fc]" };
             default:
                 return { color: "bg-gray-500", textColor: "text-white", glow: "shadow-[#9ca3af]" };
         }

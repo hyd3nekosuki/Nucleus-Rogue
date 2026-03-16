@@ -9,7 +9,7 @@ const AUDIO_CONFIG = {
     BASE_BPM: 132,
     BPM_RANGE: 32,
     SCHEDULER_INTERVAL_MS: 25,
-    LOOKAHEAD_SECONDS: 0.1, // How far ahead to schedule sounds (100ms)
+    LOOKAHEAD_SECONDS: 0.2, // Increased from 0.1 to handle main thread lag during rapid movement
     
     // BPM Control
     BPM_SMOOTHING_FACTOR: 0.08, // Higher = faster BPM adjustment (0.0 to 1.0)
@@ -22,10 +22,31 @@ const AUDIO_CONFIG = {
 
 /**
  * Pure utility to determine the most significant decay mode for the BGM pattern.
+ * Based on user request, this should prioritize the primary decay mode (decay1).
  */
 const getPrimaryMode = (modes: DecayMode[]) => {
-    return modes.find(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN) 
-           || (modes.includes(DecayMode.UNKNOWN) ? DecayMode.UNKNOWN : DecayMode.STABLE);
+    if (modes.length === 0) return DecayMode.STABLE;
+    
+    // The first mode in the array corresponds to decay1 from the database
+    let mode = modes[0];
+    
+    if (mode === DecayMode.STABLE) return DecayMode.STABLE;
+    if (mode === DecayMode.UNKNOWN) return DecayMode.UNKNOWN;
+    
+    // Map double modes to single modes for audio patterns
+    if (mode === DecayMode.TWO_NEUTRON_EMISSION) return DecayMode.NEUTRON_EMISSION;
+    if (mode === DecayMode.DOUBLE_ELECTRON_CAPTURE) return DecayMode.ELECTRON_CAPTURE;
+    if (mode === DecayMode.DOUBLE_BETA_MINUS) return DecayMode.BETA_MINUS;
+    if (mode === DecayMode.DOUBLE_BETA_PLUS) return DecayMode.BETA_PLUS;
+    
+    // Composite modes
+    if (mode === DecayMode.IT) return DecayMode.GAMMA;
+    if (mode === DecayMode.EC_B_PLUS) return DecayMode.BETA_PLUS;
+    if (mode.startsWith('B-')) return DecayMode.BETA_MINUS;
+    if (mode.startsWith('B+')) return DecayMode.BETA_PLUS;
+    if (mode === DecayMode.EC_ALPHA || mode === DecayMode.EC_PROTON || mode === DecayMode.EC_2PROTON || mode === DecayMode.EC_SF) return DecayMode.ELECTRON_CAPTURE;
+    
+    return mode;
 };
 
 export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: DecayMode[], isSoundTestActive: boolean = false, onKick?: () => void, lastEvent?: any) => {
@@ -60,12 +81,17 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
     const hpRef = useRef(hp);
     const decayModesRef = useRef(decayModes);
-    const lastProcessedEventId = useRef<number>(0);
+    const onKickRef = useRef(onKick);
+    const lastProcessedEventId = useRef<number>(lastEvent?.id || 0);
 
-    // Synchronize HP in real-time for BPM updates
+    // Synchronize HP and callbacks in real-time
     useEffect(() => {
         hpRef.current = hp;
     }, [hp]);
+
+    useEffect(() => {
+        onKickRef.current = onKick;
+    }, [onKick]);
 
     // Handle one-shot sound effects (Engrave shutter)
     useEffect(() => {
@@ -106,11 +132,12 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
     // --- UI Bridge ---
     const triggerKickUI = useCallback((time: number) => {
-        if (onKick && audioCtxRef.current) {
+        if (onKickRef.current && audioCtxRef.current) {
             const delay = (time - audioCtxRef.current.currentTime) * 1000;
-            setTimeout(onKick, Math.max(0, delay));
+            // Use a small buffer to ensure the UI update happens after the sound
+            setTimeout(() => onKickRef.current?.(), Math.max(0, delay));
         }
-    }, [onKick]);
+    }, []); // Stable reference to prevent scheduler re-creation
 
     const scheduler = useCallback(() => {
         if (!audioCtxRef.current || !masterEntryRef.current) return;

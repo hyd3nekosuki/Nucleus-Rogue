@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { DecayMode, GameState } from '../types';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { DecayMode, GameState, GameAction } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 
 // Define the priority order for vocalization (Lower index = Higher priority)
@@ -19,14 +19,32 @@ const SPEECH_PRIORITY = [
 /**
  * Custom hook to manage transient visual effect states and bridge engine events.
  */
-export const useVisualEffects = (gameState?: GameState) => {
+export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatch<GameAction>) => {
     const [isScreenShaking, setIsScreenShaking] = useState(false);
     const [isFlashBang, setIsFlashBang] = useState(false);
     const [flashColor, setFlashColor] = useState('bg-neon-blue');
-    const [lastDecayEvent, setLastDecayEvent] = useState<{ mode: DecayMode; timestamp: number } | null>(null);
+    const [lastDecayEvent, setLastDecayEvent] = useState<{ mode: DecayMode; timestamp: number; isPlayed?: boolean } | null>(null);
     const [finalCombo, setFinalCombo] = useState<{ count: number; id: number } | null>(null);
 
-    const lastProcessedEventId = useRef<number>(0);
+    const lastProcessedEventId = useRef<number>(gameState?.lastEvent?.id || 0);
+
+    // CRITICAL: On mount, mark any existing event or effects as "played" 
+    // to prevent ghosting when switching tabs in AI Studio.
+    useEffect(() => {
+        if (!dispatch) return;
+        
+        if (gameState?.lastEvent && !gameState.lastEvent.isPlayed) {
+            dispatch({ type: 'MARK_EVENT_PLAYED', payload: { eventId: gameState.lastEvent.id } });
+        }
+        
+        const unplayedEffectIds = gameState?.effects
+            ?.filter(e => !e.isPlayed)
+            ?.map(e => e.id) || [];
+            
+        if (unplayedEffectIds.length > 0) {
+            dispatch({ type: 'MARK_EFFECTS_PLAYED', payload: { effectIds: unplayedEffectIds } });
+        }
+    }, []); // Run once on mount
 
     const triggerShake = useCallback((duration: number = 300) => {
         setIsScreenShaking(true);
@@ -52,11 +70,19 @@ export const useVisualEffects = (gameState?: GameState) => {
         if (!gameState?.lastEvent) return;
 
         const event = gameState.lastEvent;
+        
+        // CRITICAL: Skip if event is already marked as played in the state
+        if (event.isPlayed) return;
+        
         if (event.id <= lastProcessedEventId.current) return;
         lastProcessedEventId.current = event.id;
 
         // Skip all logic for time stop/restore events to fix animation replay side-effects and TTS suppression
-        if (event.subType === 'TIME_STOP') return;
+        if (event.subType === 'TIME_STOP') {
+            // Still mark it as played so we don't keep checking it
+            if (dispatch) dispatch({ type: 'MARK_EVENT_PLAYED', payload: { eventId: event.id } });
+            return;
+        }
 
         // 1. Physical Feedback (Shake)
         if (event.shake) {
@@ -99,7 +125,8 @@ export const useVisualEffects = (gameState?: GameState) => {
         if (decayToVisualise) {
             setLastDecayEvent({
                 mode: decayToVisualise as DecayMode,
-                timestamp: event.id
+                timestamp: event.id,
+                isPlayed: event.isPlayed
             });
         }
 
@@ -116,7 +143,28 @@ export const useVisualEffects = (gameState?: GameState) => {
             emitTTS("Reincarnation");
         }
 
-    }, [gameState?.lastEvent, triggerShake, triggerFlash]);
+        // 7. Mark event as played in the global state
+        if (dispatch) {
+            dispatch({ type: 'MARK_EVENT_PLAYED', payload: { eventId: event.id } });
+        }
+
+    }, [gameState?.lastEvent, triggerShake, triggerFlash, dispatch]);
+
+    /**
+     * Effect Bridge: Monitors gameState.effects to mark them as played.
+     * This ensures that on tab-switch, we don't re-process effects that were already handled.
+     */
+    useEffect(() => {
+        if (!gameState?.effects || gameState.effects.length === 0 || !dispatch) return;
+
+        const unplayedIds = gameState.effects
+            .filter(e => !e.isPlayed)
+            .map(e => e.id);
+
+        if (unplayedIds.length > 0) {
+            dispatch({ type: 'MARK_EFFECTS_PLAYED', payload: { effectIds: unplayedIds } });
+        }
+    }, [gameState?.effects, dispatch]);
 
     return {
         isScreenShaking,

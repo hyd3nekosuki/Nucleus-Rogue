@@ -3,20 +3,25 @@ import { MAGIC_NUMBERS } from '../constants/physics';
 
 /**
  * Pure function to calculate the next mastery level based on newly performed decay modes.
+ * Supports multiple modes (e.g., from composite decays like B-N).
  */
 export const calculateNextLevel = (
   currentLevel: number,
   masteredDecays: DecayMode[],
-  mode: DecayMode
+  modes: DecayMode[]
 ): { nextLevel: number; nextMastered: DecayMode[] } => {
-  // Only increment level if the decay mode is new and we haven't reached the cap (Level 6)
-  if (mode !== DecayMode.STABLE && mode !== DecayMode.UNKNOWN && !masteredDecays.includes(mode) && currentLevel < 6) {
-    return {
-      nextLevel: currentLevel + 1,
-      nextMastered: [...masteredDecays, mode]
-    };
+  let nextLevel = currentLevel;
+  let nextMastered = [...masteredDecays];
+
+  for (const mode of modes) {
+    // Only increment level if the decay mode is new and we haven't reached the cap (Level 6)
+    if (mode !== DecayMode.STABLE && mode !== DecayMode.UNKNOWN && !nextMastered.includes(mode) && nextLevel < 6) {
+      nextLevel += 1;
+      nextMastered.push(mode);
+    }
   }
-  return { nextLevel: currentLevel, nextMastered: masteredDecays };
+
+  return { nextLevel, nextMastered };
 };
 
 /**

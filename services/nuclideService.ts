@@ -1,4 +1,4 @@
-import { NuclideData, DecayMode, NuclideCategory, NuclideRecord, NuclideId } from "../types";
+import { NuclideData, DecayMode, NuclideCategory, NuclideRecord, NuclideId, BranchingRatio } from "../types";
 import { getSymbol, getName } from "../constants/atomicData";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
@@ -30,11 +30,34 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
         case DecayMode.BETA_MINUS: return "β-";
         case DecayMode.BETA_PLUS: return "β+";
         case DecayMode.ELECTRON_CAPTURE: return "EC";
+        case DecayMode.EC_B_PLUS: return "EC/β+";
         case DecayMode.SPONTANEOUS_FISSION: return "SF";
         case DecayMode.PROTON_EMISSION: return "p";
         case DecayMode.TWO_PROTON_EMISSION: return "2p";
         case DecayMode.NEUTRON_EMISSION: return "n";
+        case DecayMode.TWO_NEUTRON_EMISSION: return "2n";
         case DecayMode.GAMMA: return "γ";
+        case DecayMode.IT: return "IT";
+        case DecayMode.DOUBLE_BETA_MINUS: return "2β-";
+        case DecayMode.DOUBLE_BETA_PLUS: return "2β+";
+        case DecayMode.DOUBLE_ELECTRON_CAPTURE: return "2EC";
+        case DecayMode.B_MINUS_N: return "β-n";
+        case DecayMode.B_MINUS_2N: return "β-2n";
+        case DecayMode.B_MINUS_3N: return "β-3n";
+        case DecayMode.B_MINUS_4N: return "β-4n";
+        case DecayMode.B_MINUS_5N: return "β-5n";
+        case DecayMode.B_MINUS_6N: return "β-6n";
+        case DecayMode.B_MINUS_7N: return "β-7n";
+        case DecayMode.B_MINUS_ALPHA: return "β-α";
+        case DecayMode.B_MINUS_PROTON: return "β-p";
+        case DecayMode.B_MINUS_SF: return "β-SF";
+        case DecayMode.B_PLUS_ALPHA: return "β+α";
+        case DecayMode.B_PLUS_PROTON: return "β+p";
+        case DecayMode.B_PLUS_2PROTON: return "β+2p";
+        case DecayMode.EC_ALPHA: return "ECα";
+        case DecayMode.EC_PROTON: return "ECp";
+        case DecayMode.EC_2PROTON: return "EC2p";
+        case DecayMode.EC_SF: return "ECSF";
         default: return "Unknown";
     }
 };
@@ -54,13 +77,44 @@ export const formatDecayModes = (nuclide: NuclideData): string => {
 };
 
 /**
+ * Randomly selects a decay mode based on branching ratios.
+ * Handles the special case of EC+B+ with 50/50 split.
+ */
+export const selectDecayMode = (branches: BranchingRatio[]): DecayMode => {
+    if (!branches || branches.length === 0) return DecayMode.UNKNOWN;
+    
+    // Filter out very small ratios if not already done by parser
+    const validBranches = branches.filter(b => b.ratio >= 0.00001);
+    if (validBranches.length === 0) return branches[0].mode;
+
+    const totalRatio = validBranches.reduce((sum, b) => sum + b.ratio, 0);
+    let random = Math.random() * totalRatio;
+    
+    let selectedMode = validBranches[0].mode;
+    for (const branch of validBranches) {
+        if (random < branch.ratio) {
+            selectedMode = branch.mode;
+            break;
+        }
+        random -= branch.ratio;
+    }
+
+    // Special handling for EC+B+
+    if (selectedMode === DecayMode.EC_B_PLUS) {
+        return Math.random() < 0.5 ? DecayMode.ELECTRON_CAPTURE : DecayMode.BETA_PLUS;
+    }
+    
+    return selectedMode;
+};
+
+/**
  * Rich factory to create the UI-facing NuclideData structure.
  */
 const createNuclide = (
     z: number, 
     a: number, 
     category: NuclideCategory, 
-    mainMode: DecayMode, 
+    branches: BranchingRatio[], 
     halfLife: number, 
     isStable: boolean,
     isDatabaseEntry: boolean = false
@@ -86,6 +140,7 @@ const createNuclide = (
     else if (halfLife < 31536000) hlText = `${Math.round(halfLife/86400)} d`;
     else hlText = `${(halfLife/31536000).toExponential(2)} y`;
 
+    const mainMode = branches.length > 0 ? branches[0].mode : DecayMode.UNKNOWN;
     let description = NUCLIDE_FACTS[`${z}-${a}`] || getDecayDescription(mainMode, isStable);
     if (z === 0 && a === 4) description = '⚠ ANOMALY DETECTED: Tetraneutron.';
 
@@ -96,7 +151,8 @@ const createNuclide = (
     return {
         z, a, symbol, name: baseName, halfLifeText: hlText,
         halfLifeSeconds: halfLife === 0 ? 0.00000001 : halfLife,
-        decayModes: isStable ? [DecayMode.STABLE] : [mainMode],
+        decayModes: isStable ? [DecayMode.STABLE] : branches.map(b => b.mode),
+        branches,
         category, isStable, exists: isDatabaseEntry || category !== NuclideCategory.NON_EXISTENT,
         description,
         isProtonDripLine,
@@ -110,9 +166,9 @@ const createNuclide = (
 export const getNuclideDataSync = (z: number, a: number): NuclideData => {
     const record = NUCLIDE_REPOSITORY.get(`${z}-${a}`);
     if (record) {
-        return createNuclide(z, a, record.category, record.mode, record.halflife, record.category === NuclideCategory.STABLE, true);
+        return createNuclide(z, a, record.category, record.branches, record.halflife, record.category === NuclideCategory.STABLE, true);
     }
-    return createNuclide(z, a, NuclideCategory.NON_EXISTENT, DecayMode.UNKNOWN, 0, false, false);
+    return createNuclide(z, a, NuclideCategory.NON_EXISTENT, [], 0, false, false);
 };
 
 /**
@@ -154,7 +210,7 @@ export const getAllNuclides = (): { z: number, n: number, a: number, mode: Decay
           z: record.z,
           n: record.a - record.z,
           a: record.a,
-          mode: record.mode,
+          mode: record.branches.length > 0 ? record.branches[0].mode : DecayMode.UNKNOWN,
           halflife: record.halflife,
           cat: record.category
       });
