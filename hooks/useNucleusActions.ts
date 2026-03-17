@@ -23,7 +23,7 @@ export const useNucleusActions = (
 ) => {
 
     const handleStabilize = useCallback(() => {
-        const isSynth = gameState.energyPoints >= 200 && gameState.playerLevel >= 5 && !gameState.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS);
+        const isSynth = gameState.energyPoints >= 200 && gameState.playerLevel >= 6 && !gameState.disabledSkills.includes(TITLES.NUCLEOSYNTHESIS);
         // Reset visual ghost states if a transformation is about to occur
         if (isSynth) resetVisuals();
         dispatch({
@@ -137,9 +137,10 @@ export const useNucleusActions = (
     }, [gameState, resetVisuals, dispatch]);
 
     const handleForceUnknownDecay = useCallback(() => {
-        if (gameState.playerLevel < 6 || !gameState.currentNuclide.isStable || gameState.energyPoints < 5) return;
+        if (gameState.playerLevel < 5 || !gameState.currentNuclide.isStable || gameState.energyPoints < 5) return;
+        resetVisuals();
         handleDecayAction(DecayMode.UNKNOWN);
-    }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, handleDecayAction]);
+    }, [gameState.playerLevel, gameState.currentNuclide.isStable, gameState.energyPoints, handleDecayAction, resetVisuals]);
 
     return { 
         handleStabilize, 

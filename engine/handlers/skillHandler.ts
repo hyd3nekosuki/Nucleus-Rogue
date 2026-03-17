@@ -113,7 +113,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
 
         case 'QUANTUM_OVERRIDE': {
             const { code } = params;
-            if (state.playerLevel < 6) return state;
+            if (state.playerLevel < 8) return state;
             const coords = parseNuclideCommand(code);
             if (!coords) return state;
 

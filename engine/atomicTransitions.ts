@@ -1,5 +1,6 @@
 import { DecayMode } from '../types';
 import { MAGIC_NUMBERS } from '../constants/physics';
+import { MAX_MASTERY_LEVEL } from '../constants/gameConfig';
 
 /**
  * Pure function to calculate the next mastery level based on newly performed decay modes.
@@ -14,8 +15,8 @@ export const calculateNextLevel = (
   let nextMastered = [...masteredDecays];
 
   for (const mode of modes) {
-    // Only increment level if the decay mode is new and we haven't reached the cap (Level 6)
-    if (mode !== DecayMode.STABLE && mode !== DecayMode.UNKNOWN && !nextMastered.includes(mode) && nextLevel < 6) {
+    // Only increment level if the decay mode is new and we haven't reached the cap
+    if (mode !== DecayMode.STABLE && mode !== DecayMode.UNKNOWN && !nextMastered.includes(mode) && nextLevel < MAX_MASTERY_LEVEL) {
       nextLevel += 1;
       nextMastered.push(mode);
     }

@@ -5,7 +5,7 @@ import { DecayMode } from '../domain/nuclide';
  * Defines the player's advancement and unlocked capabilities.
  */
 
-export type MasteryLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type MasteryLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export type SkillActionType = 
   | 'STABILIZE' 

@@ -89,7 +89,7 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
       });
     }
     return items;
-  }, [z, a]);
+  }, [z, a, lastDecayEvent?.timestamp]);
 
   // Handle Decay Events (Trigger Animations)
   useEffect(() => {

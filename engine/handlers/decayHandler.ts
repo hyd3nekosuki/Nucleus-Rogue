@@ -9,7 +9,7 @@ import { MAX_ENERGY, SCORE_FACTORS } from '../../constants/economy';
 import { REASON } from '../../constants/gameOverReason';
 import { TITLES } from '../../constants/titles';
 import { generateEntities } from '../moveSimulator';
-import { getNuclideDataSync } from '../../services/nuclideService';
+import { getNuclideDataSync, getDecayModeLabel } from '../../services/nuclideService';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { getDecayDeltas, calculateDecayEffects } from '../../physics/decaySystem';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
@@ -28,20 +28,66 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     
     let actualMode = mode;
     const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+    const isForced = state.currentNuclide.isStable;
 
     if (mode === DecayMode.UNKNOWN) {
-        const candidates = [DecayMode.GAMMA];
-        const checkModes = [DecayMode.ALPHA, DecayMode.BETA_MINUS, DecayMode.BETA_PLUS, DecayMode.PROTON_EMISSION, DecayMode.NEUTRON_EMISSION, DecayMode.SPONTANEOUS_FISSION];
-        checkModes.forEach(m => {
+        const allModes = [
+            DecayMode.ALPHA, 
+            DecayMode.BETA_MINUS, 
+            DecayMode.BETA_PLUS, 
+            DecayMode.ELECTRON_CAPTURE,
+            DecayMode.SPONTANEOUS_FISSION,
+            DecayMode.PROTON_EMISSION, 
+            DecayMode.NEUTRON_EMISSION, 
+            DecayMode.GAMMA
+        ];
+        
+        const candidates: DecayMode[] = [];
+
+        allModes.forEach(m => {
             const deltas = getDecayDeltas(m);
-            if (isDaredevilActive || getNuclideDataSync(state.currentNuclide.z + deltas.dZ, state.currentNuclide.a + deltas.dA).exists) candidates.push(m);
+            const targetZ = state.currentNuclide.z + deltas.dZ;
+            const targetA = state.currentNuclide.a + deltas.dA;
+            
+            // Physical constraint: Z >= 0 and A >= Z
+            if (targetZ < 0 || targetA < targetZ) return;
+
+            if (isDaredevilActive) {
+                // Demon core ON: All physically possible modes are candidates (even if game over)
+                candidates.push(m);
+            } else {
+                // Demon core OFF
+                if (m === DecayMode.SPONTANEOUS_FISSION) {
+                    // SF is always a candidate if physically possible
+                    candidates.push(m);
+                } else if (getNuclideDataSync(targetZ, targetA).exists) {
+                    // Others must exist in the database to avoid game over
+                    candidates.push(m);
+                }
+            }
         });
-        actualMode = candidates[Math.floor(Math.random() * candidates.length)];
+
+        // Randomly select from candidates
+        if (candidates.length > 0) {
+            actualMode = candidates[Math.floor(Math.random() * candidates.length)];
+        } else {
+            actualMode = DecayMode.GAMMA; // Absolute fallback
+        }
     }
 
     const decayResult = calculateDecayEffects(actualMode, state.currentNuclide, state.playerPos, state.gridEntities, now, state.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !state.disabledSkills.includes(TITLES.PAIR_ANNIHILATION), !state.disabledSkills.includes(TITLES.FISSION), state.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !state.disabledSkills.includes(TITLES.NEUTRONIZATION));
     const newData = getNuclideDataSync(state.currentNuclide.z + decayResult.dZ, state.currentNuclide.a + decayResult.dA);
     
+    const decayEvent: GameStateEvent = { 
+        id: now, 
+        type: 'DECAY', 
+        subType: actualMode, 
+        decayModeTrigger: actualMode, 
+        shake: isForced || decayResult.shouldShake, 
+        flash: isForced ? undefined : (decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined), 
+        priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] 
+    };
+
     if (!newData.exists) {
         const isDare = !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine);
         
@@ -59,6 +105,8 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
                 ...state, 
                 unlockedGroups: unlockResult.updatedGroups,
                 score: state.score + unlockResult.scoreBonus,
+                energyPoints: isForced ? Math.max(0, state.energyPoints - 5) : state.energyPoints,
+                lastEvent: decayEvent,
                 ...resolveStabilityCrisis(state, REASON.DECAY_FAILED, isDare, false) 
             };
         }
@@ -79,6 +127,8 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
                 unlockedGroups: unlockResult.updatedGroups,
                 gridEntities: finalEntities,
                 score: state.score + unlockResult.scoreBonus,
+                energyPoints: isForced ? Math.max(0, state.energyPoints - 5) : state.energyPoints,
+                lastEvent: decayEvent,
                 messages: [...state.messages, failMsg, ...unlockResult.messages].slice(-10) 
             };
         }
@@ -89,6 +139,8 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             unlockedGroups: unlockResult.updatedGroups,
             gridEntities: finalEntities,
             score: state.score + unlockResult.scoreBonus,
+            energyPoints: isForced ? Math.max(0, state.energyPoints - 5) : state.energyPoints,
+            lastEvent: decayEvent,
             messages: [...state.messages, failMsg, ...unlockResult.messages].slice(-10) 
         };
     }
@@ -96,6 +148,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const totalBaseActionPoints = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS) + decayResult.actionBonusScore;
     const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
     
+    const forcedMsg = isForced ? `☢️ FORCED DECAY: ${getDecayModeLabel(actualMode)} selected! (-5 MeV)` : "";
     const decayDescMsg = 
           actualMode === DecayMode.ALPHA ? `α decay into ${newData.name}` 
         : actualMode === DecayMode.BETA_MINUS ? `β- decay into ${newData.name}` 
@@ -115,8 +168,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         : actualMode.startsWith('B+') ? `β+ delayed emission into ${newData.name}`
         : actualMode === DecayMode.EC_ALPHA || actualMode === DecayMode.EC_PROTON || actualMode === DecayMode.EC_2PROTON || actualMode === DecayMode.EC_SF ? `EC delayed emission into ${newData.name}`
         : "";
-    const decayEvent: GameStateEvent = { id: now, type: 'DECAY', subType: actualMode, decayModeTrigger: actualMode, shake: decayResult.shouldShake, flash: decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined, priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] };
-
+    
     let nextEntities = decayResult.newGridEntities;
     if (decayResult.emissions && decayResult.emissions.length > 0) {
         decayResult.emissions.forEach(emitType => {
@@ -191,8 +243,9 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
 
     // Advance turn and trigger background AI/assault processing
     const nextTurn = state.turn + 1;
+    const baseEnergy = isForced ? Math.max(0, state.energyPoints - 5) : state.energyPoints;
     let nextState = applyDiscoveryLogic(
-        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, state.energyPoints + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: nextDecayStats, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
+        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, baseEnergy + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(forcedMsg ? [forcedMsg] : []), ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: nextDecayStats, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
         newData, context, nextTurn, { isAnnihilation: decayResult.isAnnihilation }
     );
 

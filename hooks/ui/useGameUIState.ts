@@ -32,7 +32,7 @@ export const useGameUIState = (
   const isTransmutationEnabled = !gameState.disabledSkills.includes("Exp. Replicate");
   
   const isNucleosynthesisReady = gameState.energyPoints >= NUCLEOSYNTHESIS_COST && 
-                                gameState.playerLevel >= 5 && 
+                                gameState.playerLevel >= 6 && 
                                 isNucleosynthesisEnabled;
 
   const transmutationReady = MAGIC_NUMBERS.includes(gameState.currentNuclide.z) && 

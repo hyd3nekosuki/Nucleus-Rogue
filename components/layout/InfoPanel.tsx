@@ -50,20 +50,23 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   };
 
   // Subtle check for the forced decay hidden mechanic
-  const isForceDecayAvailable = playerLevel >= 6 && nuclide.isStable && energyPoints >= 5 && !disabled;
+  const isForcedDecayUnlocked = playerLevel >= 5 && nuclide.isStable;
+  const isForceDecayAvailable = isForcedDecayUnlocked && energyPoints >= 5 && !disabled;
   
   return (
     <div className="px-6 pb-2 pt-0.5 border-b border-gray-800">
       
       <div className="flex justify-between items-end mb-4 gap-2">
-          {/* Score Area - Subtle hidden interaction for Level 6 */}
+          {/* Score Area - Subtle hidden interaction for Level 5 */}
           <div 
             onClick={isForceDecayAvailable ? onForceDecay : undefined}
             className={`flex-[2] min-w-0 rounded p-1 transition-all duration-300 select-none
                 ${isForceDecayAvailable 
                     ? 'cursor-pointer hover:bg-neon-purple/5 ring-1 ring-transparent hover:ring-neon-purple/20' 
-                    : 'cursor-default'}`}
-            title={isForceDecayAvailable ? "Forced Decapsulation (Costs 5E)" : undefined}
+                    : isForcedDecayUnlocked
+                        ? 'opacity-40 grayscale cursor-not-allowed'
+                        : 'cursor-default'}`}
+            title={isForceDecayAvailable ? "Forced Decay (Costs 5 MeV)" : isForcedDecayUnlocked ? "Insufficient Energy (5 MeV required)" : undefined}
           >
             <div className="text-gray-500 text-[10px] md:text-xs uppercase tracking-widest truncate">
                 Score

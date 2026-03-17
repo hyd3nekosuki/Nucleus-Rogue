@@ -3,7 +3,7 @@ import { GameState, GameAction } from '../types';
 import { parseNuclideCommand, solveParticleRequirements } from '../engine/particleEngine';
 
 /**
- * Custom hook for the 'Quantum Override Transmutation' mechanic (Mastery Level 6).
+ * Custom hook for the 'Quantum Override Transmutation' mechanic (Mastery Level 8).
  * Refactored in Step 4 to rely on the centralized Reducer logic for state transitions.
  */
 export const useQuantumOverride = (
@@ -16,7 +16,7 @@ export const useQuantumOverride = (
      * Used for real-time UI highlighting via useOverrideValidator.
      */
     const validateOverridePotential = useCallback((code: string) => {
-        if (gameState.playerLevel < 6 || !code.trim()) return null;
+        if (gameState.playerLevel < 8 || !code.trim()) return null;
         
         const coords = parseNuclideCommand(code);
         if (!coords) return null;
@@ -34,7 +34,7 @@ export const useQuantumOverride = (
      * Dispatches a Reducer action to ensure consistent turn progression and finalization.
      */
     const executeQuantumOverride = useCallback((code: string): boolean => {
-        if (!code || code.trim().length === 0 || gameState.playerLevel < 6) return false;
+        if (!code || code.trim().length === 0 || gameState.playerLevel < 8) return false;
         
         const requirements = validateOverridePotential(code);
         if (requirements) {

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { MAX_MASTERY_LEVEL } from '../../constants/gameConfig';
 
 interface Props {
   level: number;
@@ -11,13 +12,13 @@ const TrefoilIndicator: React.FC<Props> = ({ level, enabled = true, onClick }) =
   if (level <= 0) return null;
 
   const color = "#facc15"; // Neon Yellow
-  const glowClass = (level >= 5 && enabled) ? "drop-shadow-[0_0_10px_rgba(250,204,21,1)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]";
-  const isInteractive = level >= 5 && enabled;
+  const glowClass = (level >= 7 && enabled) ? "drop-shadow-[0_0_10px_rgba(250,204,21,1)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]";
+  const isInteractive = level >= 7 && enabled;
 
   const getTitle = () => {
-    if (level < 5) return `Nuclear Mastery: Level ${level}/5`;
+    if (level < 7) return `Nuclear Mastery: Level ${level}/${MAX_MASTERY_LEVEL}`;
     if (!enabled) return `r-process Disabled (Toggle in Skills)`;
-    return `r-process nucleosynthesis Available (Level 5/5)`;
+    return `r-process nucleosynthesis Available (Level ${level}/${MAX_MASTERY_LEVEL})`;
   };
 
   /**
@@ -54,13 +55,13 @@ const TrefoilIndicator: React.FC<Props> = ({ level, enabled = true, onClick }) =
 
   return (
     <div 
-      className={`flex items-center justify-center transition-all duration-700 hover:scale-110 ${glowClass} ${isInteractive ? 'cursor-pointer' : 'cursor-default'} ${!enabled && level >= 5 ? 'opacity-50 grayscale-[0.5]' : ''}`} 
+      className={`flex items-center justify-center transition-all duration-700 hover:scale-110 ${glowClass} ${isInteractive ? 'cursor-pointer' : 'cursor-default'} ${!enabled && level >= 7 ? 'opacity-50 grayscale-[0.5]' : ''}`} 
       title={getTitle()}
       onClick={isInteractive ? onClick : undefined}
     >
       <svg width="32" height="32" viewBox="0 0 100 100" className="w-6 h-6 md:w-8 md:h-8 overflow-visible">
-        {/* Level 5: Outer Ring (Warning Boundary) - Fixed without animation */}
-        {level >= 5 && (
+        {/* Level 7: Outer Ring (Warning Boundary) - Fixed without animation */}
+        {level >= 7 && (
           <circle 
             cx="50" cy="50" r="47" 
             fill="none" 

@@ -14,7 +14,11 @@ export const useDecayController = (
         
         let actualMode = mode;
         // If the mode is UNKNOWN or we want to use the nuclide's natural branching ratios
-        if (mode === DecayMode.UNKNOWN || mode === (gameState.currentNuclide.decayModes[0] || DecayMode.UNKNOWN)) {
+        // CRITICAL: For Forced Decay (Stable nuclide + UNKNOWN), we MUST skip selectDecayMode
+        // to allow the reducer/handler to perform the random selection logic (Demon Core, etc.).
+        const isForcedDecay = mode === DecayMode.UNKNOWN && gameState.currentNuclide.isStable;
+
+        if (!isForcedDecay && (mode === DecayMode.UNKNOWN || mode === (gameState.currentNuclide.decayModes[0] || DecayMode.UNKNOWN))) {
             actualMode = selectDecayMode(gameState.currentNuclide.branches);
         }
 

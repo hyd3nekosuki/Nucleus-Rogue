@@ -13,12 +13,12 @@ export interface OverrideValidationResult {
 /**
  * Quantum Override Validation Engine
  * ユーザーが入力した核種コマンドを解析し、盤面上の粒子資源で到達可能か（方程式の解があるか）をリアルタイムで検証します。
- * この機能はマスタリーレベル 6（論文引用）の到達時にのみ有効化されます。
+ * この機能はマスタリーレベル 8（論文引用）の到達時にのみ有効化されます。
  */
 export const useOverrideValidator = (inputValue: string, gameState: GameState): OverrideValidationResult | null => {
     return useMemo(() => {
-        // レベルチェック: マスタリーレベル 6 未満の場合はバリデーションを行わない
-        if (gameState.playerLevel < 6) return null;
+        // レベルチェック: マスタリーレベル 8 未満の場合はバリデーションを行わない
+        if (gameState.playerLevel < 8) return null;
 
         const trimmedInput = inputValue.trim();
         if (!trimmedInput) return null;

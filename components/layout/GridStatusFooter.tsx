@@ -73,8 +73,8 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
 
         {/* State B: Dynamic Statistics Overlay - Tightened layout for fit */}
         <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 whitespace-nowrap px-1 text-[10px] md:text-xs font-mono ${!showStats ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
-            {/* Predictive Analysis (Level 6+) */}
-            {gameState.playerLevel >= 6 && (
+            {/* Predictive Analysis (Level 7+) */}
+            {gameState.playerLevel >= 7 && (
                 <>
                     <span className={`font-black ${predictionStr === 'Fail' ? 'text-neon-red' : 'text-neon-green'} drop-shadow-[0_0_5px_currentColor]`}>→{predictionStr === 'Fail' ? 'fail' : predictionStr}</span>
                     <span className="mx-1.5 text-gray-800 font-black">|</span>

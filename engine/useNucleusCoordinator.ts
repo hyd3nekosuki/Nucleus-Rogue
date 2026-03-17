@@ -71,7 +71,7 @@ export const useNucleusCoordinator = () => {
         stopAutoMove, handleDecayAction, resetVisuals
     );
 
-    // 6. Persistence & Advanced Mastery Features (Level 6 Cite Research)
+    // 6. Persistence & Advanced Mastery Features (Level 8 Cite Research)
     const { generateSaveCode, loadSaveCode: rawLoadSaveCode } = usePersistence(
         gameState,
         setGameState,
@@ -87,7 +87,7 @@ export const useNucleusCoordinator = () => {
     );
 
     /**
-     * Unified Load Handler: Routes codes to either Quantum Override (Mastery level 6)
+     * Unified Load Handler: Routes codes to either Quantum Override (Mastery level 8)
      * or standard binary research persistence.
      */
     const handleLoad = useCallback(async (code: string) => {
