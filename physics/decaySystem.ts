@@ -24,6 +24,7 @@ export interface DecayResult {
     newPosition?: Position; 
     emissions?: EntityType[]; // Procedure 2: Abstraction of emitted particles
     byproduct?: { z: number, a: number }; // Added for fission fragment handling
+    defeatedNuclides?: GridEntity[]; // Added to track enemies defeated by reaction
 }
 
 export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
@@ -56,13 +57,22 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
         messages.push(`✨ ANTI-NUCLIDE NEUTRALIZED: Alpha pulse purged anomaly! (+1000 MeV)`);
     }
 
+    // Find non-friendly Another Nuclides in Moore neighborhood
+    const nearbyEnemies = currentEntities.filter(e => 
+        e.type === EntityType.ANOTHER_NUCLIDE && 
+        !e.isFriendly &&
+        Math.abs(e.position.x - playerPos.x) <= 1 && 
+        Math.abs(e.position.y - playerPos.y) <= 1
+    );
+
     return { 
         trigger: HISTORY_METHODS.ALPHA_DECAY, 
         newGridEntities: currentEntities, 
         energyBonus, 
         actionBonusScore: score, 
         extraMessages: messages,
-        shouldFlash: false 
+        shouldFlash: false,
+        defeatedNuclides: nearbyEnemies
     };
 };
 
@@ -164,6 +174,13 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
     );
 
+    // Find non-friendly Another Nuclides in blast radius
+    const enemiesInBlast = gridEntities.filter(e => 
+        e.type === EntityType.ANOTHER_NUCLIDE &&
+        !e.isFriendly &&
+        Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
+    );
+
     let currentEntities = calculateFissionShockwave(playerPos, gridEntities, 2);
 
     // --- EMISSION LOGIC ---
@@ -190,7 +207,8 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         speechOverride: "Nuclear Fission", actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
         extraMessages: messages,
         emissions, // Return list of particles to be spawned by engine
-        byproduct  // Procedure 2: Secondary fragment for conservation
+        byproduct,  // Procedure 2: Secondary fragment for conservation
+        defeatedNuclides: enemiesInBlast
     };
 };
 
@@ -205,8 +223,14 @@ export const calculateDecayEffects = (
     neutronStarEnabled: boolean = false
 ): DecayResult => {
     let effectiveMode = mode;
-    if (mode === DecayMode.SPONTANEOUS_FISSION && !fissionEnabled) {
-        effectiveMode = DecayMode.ALPHA;
+    if (!fissionEnabled) {
+        if (mode === DecayMode.SPONTANEOUS_FISSION) {
+            effectiveMode = DecayMode.ALPHA;
+        } else if (mode === DecayMode.B_MINUS_SF) {
+            effectiveMode = DecayMode.B_MINUS_ALPHA;
+        } else if (mode === DecayMode.EC_SF) {
+            effectiveMode = DecayMode.EC_ALPHA;
+        }
     }
 
     const deltas = getDecayDeltas(effectiveMode);

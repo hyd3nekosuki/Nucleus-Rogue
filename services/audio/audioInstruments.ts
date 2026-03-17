@@ -3,6 +3,37 @@
  * Extracted from useAudioEngine to separate sound generation from sequencing logic.
  */
 
+// --- Shared Audio Resources (Cached to prevent CPU spikes) ---
+let cachedNoiseBuffer: AudioBuffer | null = null;
+let cachedGabberCurveHeavy: Float32Array | null = null;
+let cachedGabberCurveSharp: Float32Array | null = null;
+
+const getNoiseBuffer = (ctx: AudioContext) => {
+    if (cachedNoiseBuffer) return cachedNoiseBuffer;
+    const bufferSize = ctx.sampleRate * 0.5; // 0.5s of noise
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    cachedNoiseBuffer = buffer;
+    return buffer;
+};
+
+const getDistortionCurve = (dist: number) => {
+    if (dist === 25 && cachedGabberCurveHeavy) return cachedGabberCurveHeavy;
+    if (dist === 15 && cachedGabberCurveSharp) return cachedGabberCurveSharp;
+    
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    for (let i = 0; i < n_samples; i++) {
+        const x = (i / n_samples) * 2 - 1;
+        curve[i] = (Math.PI + dist) * x / (Math.PI + dist * Math.abs(x));
+    }
+    
+    if (dist === 25) cachedGabberCurveHeavy = curve;
+    else if (dist === 15) cachedGabberCurveSharp = curve;
+    return curve;
+};
+
 export const createKick = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, mode: 'standard' | 'heavy-gabber' | 'sharp-gabber' | 'sub-thud' | 'dnb-punch' = 'standard') => {
     if (power <= 0.001) return;
     const osc = ctx.createOscillator();
@@ -33,13 +64,7 @@ export const createKick = (ctx: AudioContext, dest: AudioNode, time: number, pow
 
     if (isGabber) {
         const shaper = ctx.createWaveShaper();
-        const curve = new Float32Array(44100);
-        const dist = mode === 'heavy-gabber' ? 25 : 15;
-        for (let i = 0; i < 44100; i++) {
-            const x = (i / 44100) * 2 - 1;
-            curve[i] = (Math.PI + dist) * x / (Math.PI + dist * Math.abs(x));
-        }
-        shaper.curve = curve;
+        shaper.curve = getDistortionCurve(mode === 'heavy-gabber' ? 25 : 15);
         osc.connect(shaper); shaper.connect(gain);
     } else {
         osc.connect(gain);
@@ -55,11 +80,7 @@ export const createKick = (ctx: AudioContext, dest: AudioNode, time: number, pow
 export const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, color: 'sharp' | 'heavy' | 'industrial' | 'dnb-crack' = 'sharp') => {
     if (power <= 0.001) return;
     const noise = ctx.createBufferSource();
-    const bufferSize = ctx.sampleRate * 0.15;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    noise.buffer = buffer;
+    noise.buffer = getNoiseBuffer(ctx);
 
     const filter = ctx.createBiquadFilter();
     filter.type = (color === 'industrial' || color === 'dnb-crack') ? 'highpass' : 'bandpass';
@@ -79,11 +100,7 @@ export const createSnare = (ctx: AudioContext, dest: AudioNode, time: number, po
 export const createHat = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0, weight: number = 1.0) => {
     if (power <= 0.001) return;
     const noise = ctx.createBufferSource();
-    const bufferSize = ctx.sampleRate * 0.08;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    noise.buffer = buffer;
+    noise.buffer = getNoiseBuffer(ctx);
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'highpass';
@@ -104,13 +121,8 @@ export const createHat = (ctx: AudioContext, dest: AudioNode, time: number, powe
  * Mimics a mechanical shutter click using high-pass filtered white noise pulses.
  */
 export const createShutterSound = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
-    const bufferSize = ctx.sampleRate * 0.2;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-
     const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
+    noise.buffer = getNoiseBuffer(ctx);
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'highpass';

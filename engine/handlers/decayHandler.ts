@@ -15,7 +15,7 @@ import { getDecayDeltas, calculateDecayEffects } from '../../physics/decaySystem
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { processUnlocks } from '../unlockSystem';
 import { finalizeAction } from '../core/turnService';
-import { handleAnotherNuclideCollision } from '../core/collisionService';
+import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/collisionService';
 
 /**
  * Handler for manual radioactive decay actions.
@@ -75,7 +75,29 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         }
     }
 
-    const decayResult = calculateDecayEffects(actualMode, state.currentNuclide, state.playerPos, state.gridEntities, now, state.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !state.disabledSkills.includes(TITLES.PAIR_ANNIHILATION), !state.disabledSkills.includes(TITLES.FISSION), state.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !state.disabledSkills.includes(TITLES.NEUTRONIZATION));
+    const fissionEnabled = !state.disabledSkills.includes(TITLES.FISSION);
+    
+    // Redirect fission modes to alpha if fission skill is disabled (Physical outcome alignment)
+    if (!fissionEnabled) {
+        if (actualMode === DecayMode.SPONTANEOUS_FISSION) {
+            actualMode = DecayMode.ALPHA;
+        } else if (actualMode === DecayMode.B_MINUS_SF) {
+            actualMode = DecayMode.B_MINUS_ALPHA;
+        } else if (actualMode === DecayMode.EC_SF) {
+            actualMode = DecayMode.EC_ALPHA;
+        }
+    }
+
+    const decayResult = calculateDecayEffects(
+        actualMode, 
+        state.currentNuclide, 
+        state.playerPos, 
+        state.gridEntities, 
+        now, 
+        state.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !state.disabledSkills.includes(TITLES.PAIR_ANNIHILATION), 
+        fissionEnabled, 
+        state.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !state.disabledSkills.includes(TITLES.NEUTRONIZATION)
+    );
     const newData = getNuclideDataSync(state.currentNuclide.z + decayResult.dZ, state.currentNuclide.a + decayResult.dA);
     
     const decayEvent: GameStateEvent = { 
@@ -244,8 +266,39 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     // Advance turn and trigger background AI/assault processing
     const nextTurn = state.turn + 1;
     const baseEnergy = isForced ? Math.max(0, state.energyPoints - 5) : state.energyPoints;
+
+    // Process enemies defeated by reaction (Alpha, SF, etc.)
+    let currentEntities = nextEntities;
+    let currentHistory = state.evolutionHistory;
+    let reactionEnergyBonus = 0;
+    let reactionMessages: string[] = [];
+
+    if (decayResult.defeatedNuclides && decayResult.defeatedNuclides.length > 0) {
+        const defeatResult = handleDefeatByReaction(state, decayResult.defeatedNuclides, nextTurn);
+        currentEntities = defeatResult.nextEntities;
+        currentHistory = defeatResult.nextHistory;
+        reactionEnergyBonus = defeatResult.energyBonus;
+        reactionMessages = defeatResult.messages;
+    }
+
     let nextState = applyDiscoveryLogic(
-        { ...state, turn: nextTurn, playerPos: decayResult.newPosition || state.playerPos, energyPoints: Math.min(MAX_ENERGY, baseEnergy + (decayResult.energyBonus || 0)), gridEntities: nextEntities, effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), messages: [...state.messages, ...(forcedMsg ? [forcedMsg] : []), ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages].slice(-10), decayStats: nextDecayStats, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: decayEvent },
+        { 
+            ...state, 
+            turn: nextTurn, 
+            playerPos: decayResult.newPosition || state.playerPos, 
+            energyPoints: Math.min(MAX_ENERGY, baseEnergy + (decayResult.energyBonus || 0) + reactionEnergyBonus), 
+            gridEntities: currentEntities, 
+            evolutionHistory: currentHistory,
+            effects: [...state.effects, { id: Math.random().toString(36).substr(2, 9), type: actualMode, position: { ...state.playerPos }, timestamp: now }, ...decayResult.additionalEffects], 
+            hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), 
+            messages: [...state.messages, ...(forcedMsg ? [forcedMsg] : []), ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages, ...reactionMessages].slice(-10), 
+            decayStats: nextDecayStats, 
+            consecutiveProtons: 0, 
+            consecutiveNeutrons: 0, 
+            consecutiveElectrons: 0, 
+            lastConsumedType: null, 
+            lastEvent: decayEvent 
+        },
         newData, context, nextTurn, { isAnnihilation: decayResult.isAnnihilation }
     );
 

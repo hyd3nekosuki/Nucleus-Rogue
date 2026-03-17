@@ -8,16 +8,16 @@ import { createShutterSound } from './audioInstruments';
 const AUDIO_CONFIG = {
     BASE_BPM: 132,
     BPM_RANGE: 32,
-    SCHEDULER_INTERVAL_MS: 25,
-    LOOKAHEAD_SECONDS: 0.2, // Increased from 0.1 to handle main thread lag during rapid movement
+    SCHEDULER_INTERVAL_MS: 40, // Slightly longer interval to reduce main thread pressure
+    LOOKAHEAD_SECONDS: 0.35,   // Increased from 0.2 to handle main thread lag during rapid movement
     
     // BPM Control
-    BPM_SMOOTHING_FACTOR: 0.08, // Higher = faster BPM adjustment (0.0 to 1.0)
+    BPM_SMOOTHING_FACTOR: 0.05, // Lower = smoother BPM adjustment (gliding feel)
     
     // Transition Speed Settings (Number of 16th steps for full fade)
-    FADE_STEPS_FOUNDATION: 4,     // Very fast
-    FADE_STEPS_ORNAMENTAL_IN: 8,  // Fast
-    FADE_STEPS_ORNAMENTAL_OUT: 16 // Slow/Steady
+    FADE_STEPS_FOUNDATION: 6,     // Slightly slower for smoothness
+    FADE_STEPS_ORNAMENTAL_IN: 10, 
+    FADE_STEPS_ORNAMENTAL_OUT: 20 
 };
 
 /**

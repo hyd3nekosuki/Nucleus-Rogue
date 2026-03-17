@@ -1,4 +1,4 @@
-import { GameState, GridEntity, Position, EntityType, DiscoveryContext, DecayMode } from '../../types';
+import { GameState, GridEntity, Position, EntityType, DiscoveryContext, DecayMode, HistoryEntry } from '../../types';
 import { MAX_ENERGY } from '../../constants/economy';
 import { HISTORY_METHODS } from '../../constants/strings';
 import { REASON } from '../../constants/gameOverReason';
@@ -131,4 +131,38 @@ export const handleAnotherNuclideCollision = (
     }
     
     return nextState;
+};
+
+/**
+ * Helper Service: Processes a list of "Another Nuclide" entities defeated by a decay reaction (Alpha, SF, etc.).
+ * Grants energy, score, and registers them in the history log.
+ */
+export const handleDefeatByReaction = (
+    state: GameState,
+    defeatedEntities: GridEntity[],
+    targetTurn: number
+): { nextEntities: GridEntity[], nextHistory: Record<string, HistoryEntry>, energyBonus: number, messages: string[] } => {
+    let nextEntities = [...state.gridEntities];
+    let nextHistory = { ...state.evolutionHistory };
+    let energyBonus = 0;
+    let messages: string[] = [];
+
+    defeatedEntities.forEach(enemy => {
+        // Remove from entities
+        nextEntities = nextEntities.filter(e => e.id !== enemy.id);
+        
+        // Apply rewards
+        energyBonus += 1;
+        messages.push(`💥 ANOTHER NUCLIDE DEFEATED BY REACTION! (+1E)`);
+        
+        // Register in history as scientific discovery
+        const ez = enemy.z || 0;
+        const ea = enemy.a || 0;
+        const enemyData = getNuclideDataSync(ez, ea);
+        if (enemyData.exists) {
+            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
+        }
+    });
+
+    return { nextEntities, nextHistory, energyBonus, messages };
 };

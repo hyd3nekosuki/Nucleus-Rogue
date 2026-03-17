@@ -17,7 +17,7 @@ import { getNuclideDataSync } from '../../services/nuclideService';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
-import { handleAnotherNuclideCollision } from '../core/collisionService';
+import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/collisionService';
 import { finalizeAction } from '../core/turnService';
 import { processUnlocks } from '../unlockSystem';
 
@@ -42,6 +42,10 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     const isAnti = result.targetEntity?.type === EntityType.ANTI_NUCLIDE;
 
     let nextEntities = result.evolvedEntities;
+    let currentHistory = state.evolutionHistory;
+    let reactionEnergyBonus = 0;
+    let reactionMessages: string[] = [];
+
     // Procedure 3: Handle emissions from neutron reactions or other collisions
     if (result.chainDecayResult?.emissions && result.chainDecayResult.emissions.length > 0) {
         result.chainDecayResult.emissions.forEach((emitType: EntityType) => {
@@ -52,6 +56,15 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
                 if (last.type === EntityType.NEUTRON) last.isHighEnergy = true;
             }
         });
+    }
+
+    // Process enemies defeated by reaction (Alpha, SF, etc.) from chainDecayResult
+    if (result.chainDecayResult?.defeatedNuclides && result.chainDecayResult.defeatedNuclides.length > 0) {
+        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: nextEntities }, result.chainDecayResult.defeatedNuclides, nextTurn);
+        nextEntities = defeatResult.nextEntities;
+        currentHistory = defeatResult.nextHistory;
+        reactionEnergyBonus = defeatResult.energyBonus;
+        reactionMessages = defeatResult.messages;
     }
 
     // Procedure 4: Byproduct realization
@@ -73,6 +86,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         ...state, 
         playerPos: result.newPos, 
         gridEntities: nextEntities, 
+        evolutionHistory: currentHistory,
         consecutiveProtons: result.consecutiveProtons, 
         consecutiveNeutrons: result.consecutiveNeutrons, 
         consecutiveElectrons: result.consecutiveElectrons, 
@@ -117,7 +131,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
 
             if (result.hpPenalty >= 20) { coreMsg = `⚠️ ENFORCED CAPTURE! ${coreMsg}`; reason = REASON.FATAL_CAPTURE; }
 
-            nextState = applyDiscoveryLogic({ ...nextState, messages: [...nextState.messages, coreMsg].slice(-10), hp: Math.min(state.maxHp, Math.max(0, state.hp + (newData.isStable ? 10 : 0) - result.hpPenalty)), energyPoints: Math.min(MAX_ENERGY, state.energyPoints + result.energyBonus) }, newData, context, nextTurn, { isCoulombScattered: result.isCoulombScattered, isFusionAchieved: result.isPpFusion, isFissionAchieved: result.isFissionAchieved, isZeroBarnAchieved: result.isZeroBarnAchieved, isBremsAchieved: result.isBremsAchieved, gluttonyTrigger: result.gluttonyTrigger });
+            nextState = applyDiscoveryLogic({ ...nextState, messages: [...nextState.messages, coreMsg, ...reactionMessages].slice(-10), hp: Math.min(state.maxHp, Math.max(0, state.hp + (newData.isStable ? 10 : 0) - result.hpPenalty)), energyPoints: Math.min(MAX_ENERGY, state.energyPoints + result.energyBonus + reactionEnergyBonus) }, newData, context, nextTurn, { isCoulombScattered: result.isCoulombScattered, isFusionAchieved: result.isPpFusion, isFissionAchieved: result.isFissionAchieved, isZeroBarnAchieved: result.isZeroBarnAchieved, isBremsAchieved: result.isBremsAchieved, gluttonyTrigger: result.gluttonyTrigger });
         } else {
             const isDare = !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine);
             const isDareActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
