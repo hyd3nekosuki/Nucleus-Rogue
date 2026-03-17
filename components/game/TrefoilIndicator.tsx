@@ -11,8 +11,13 @@ interface Props {
 const TrefoilIndicator: React.FC<Props> = ({ level, enabled = true, onClick }) => {
   if (level <= 0) return null;
 
-  const color = "#facc15"; // Neon Yellow
-  const glowClass = (level >= 7 && enabled) ? "drop-shadow-[0_0_10px_rgba(250,204,21,1)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]";
+  const yellow = "#facc15"; // Neon Yellow
+  const vermilion = "#ff4e00"; // Vermilion (Advanced Mastery)
+  
+  const glowClass = (level >= 7 && enabled) 
+    ? (level >= 5 ? "drop-shadow-[0_0_10px_rgba(255,78,0,1)]" : "drop-shadow-[0_0_10px_rgba(250,204,21,1)]")
+    : (level >= 5 ? "drop-shadow-[0_0_4px_rgba(255,78,0,0.6)]" : "drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]");
+    
   const isInteractive = level >= 7 && enabled;
 
   const getTitle = () => {
@@ -60,45 +65,47 @@ const TrefoilIndicator: React.FC<Props> = ({ level, enabled = true, onClick }) =
       onClick={isInteractive ? onClick : undefined}
     >
       <svg width="32" height="32" viewBox="0 0 100 100" className="w-6 h-6 md:w-8 md:h-8 overflow-visible">
-        {/* Level 7: Outer Ring (Warning Boundary) - Fixed without animation */}
+        {/* Level 7: Outer Ring (Warning Boundary) - Commented out as requested */}
+        {/* 
         {level >= 7 && (
           <circle 
             cx="50" cy="50" r="47" 
             fill="none" 
-            stroke={color} 
+            stroke={level >= 7 ? vermilion : yellow} 
             strokeWidth="2" 
             strokeDasharray="4 2"
           />
         )}
+        */}
 
-        {/* Level 1: Center Core (The Atomic Nucleus) */}
+        {/* Level 1: Center Core (The Atomic Nucleus) - Vermilion at Level 8 */}
         {level >= 1 && (
-          <circle cx="50" cy="50" r="10" fill={color} />
+          <circle cx="50" cy="50" r="10" fill={level >= 8 ? vermilion : yellow} />
         )}
 
-        {/* Level 2: Top Blade (60 degrees wide) */}
+        {/* Level 2: Top Blade - Vermilion at Level 5 */}
         {level >= 2 && (
           <path 
             d={describeArc(330, 390, innerR, outerR)} 
-            fill={color}
+            fill={level >= 5 ? vermilion : yellow}
             className="transition-all duration-500"
           />
         )}
 
-        {/* Level 3: Bottom Right Blade */}
+        {/* Level 3: Bottom Right Blade - Vermilion at Level 6 */}
         {level >= 3 && (
           <path 
             d={describeArc(90, 150, innerR, outerR)} 
-            fill={color}
+            fill={level >= 6 ? vermilion : yellow}
             className="transition-all duration-500"
           />
         )}
 
-        {/* Level 4: Bottom Left Blade */}
+        {/* Level 4: Bottom Left Blade - Vermilion at Level 7 */}
         {level >= 4 && (
           <path 
             d={describeArc(210, 270, innerR, outerR)} 
-            fill={color}
+            fill={level >= 7 ? vermilion : yellow}
             className="transition-all duration-500"
           />
         )}
