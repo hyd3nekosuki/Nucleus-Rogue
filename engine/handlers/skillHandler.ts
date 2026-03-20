@@ -12,8 +12,10 @@ import {
     MAX_ENERGY, 
     BONUS_SCORES 
 } from '../../constants/economy';
+import { MAGIC_NUMBERS } from '../../constants/physics';
 import { TITLES } from '../../constants/titles';
 import { HISTORY_METHODS } from '../../constants/strings';
+import { TUTORIAL_MESSAGES } from '../../constants/tutorial';
 import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync, getValidAsForZ } from '../../services/nuclideService';
 import { generateEntities } from '../moveSimulator';
@@ -49,6 +51,22 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
         case 'NUCLEOSYNTHESIS': {
             const cost = NUCLEOSYNTHESIS_COST;
             if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
+            
+            // Special Case: Og-294 Hidden Message
+            const isOg294 = state.currentNuclide.z === 118 && state.currentNuclide.a === 294;
+            if (isOg294) {
+                const nextState: GameState = { 
+                    ...state, 
+                    turn: state.turn + 1,
+                    energyPoints: Math.max(0, state.energyPoints - cost),
+                    tutorialMessage: TUTORIAL_MESSAGES.OGANESSON_CONGRATS,
+                    recordTime: state.elapsedTime,
+                    messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Boundary reached. Message unlocked.`].slice(-10),
+                    lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: ['Nucleosynthesis'] }
+                };
+                return finalizeAction(nextState);
+            }
+
             const nextZ = state.currentNuclide.z + 1;
             if (nextZ > 118) return { ...state, messages: [...state.messages, "⚠️ Oganesson limit reached!"].slice(-10) };
             const validAs = getValidAsForZ(nextZ);
@@ -105,7 +123,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 newData,
                 { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
-                { skipComboSettlement: true, isExplicitReplication: true }
+                { skipComboSettlement: true, isExplicitReplication: true, isQuantumOverride: false }
             );
 
             return finalizeAction(nextState);
@@ -142,7 +160,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 targetData,
                 { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
                 nextTurn,
-                { isExplicitReplication: true }
+                { isExplicitReplication: true, isQuantumOverride: true }
             );
 
             return finalizeAction(nextState);
@@ -153,10 +171,21 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const isDisabled = state.disabledSkills.includes(skillName);
             const nextDisabled = isDisabled ? state.disabledSkills.filter(s => s !== skillName) : [...state.disabledSkills, skillName];
             let nextEntities = [...state.gridEntities];
-            if (skillName === TITLES.DAREDEVIL && isDisabled && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
+            if (skillName === TITLES.DEMON_CORE && isDisabled && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
                 nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
             }
-            return { ...state, gridEntities: nextEntities, disabledSkills: nextDisabled, messages: [...state.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10) };
+            
+            // Dismiss tutorial if active
+            const isSkillToggleTutorialActive = state.tutorialMessage === TUTORIAL_MESSAGES.SKILL_TOGGLE;
+            
+            return { 
+                ...state, 
+                gridEntities: nextEntities, 
+                disabledSkills: nextDisabled, 
+                messages: [...state.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10),
+                hasSeenSkillToggleTutorial: true,
+                tutorialMessage: isSkillToggleTutorialActive ? null : state.tutorialMessage
+            };
         }
 
         default: return state;

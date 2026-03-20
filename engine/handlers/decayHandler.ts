@@ -27,7 +27,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
     
     let actualMode = mode;
-    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
     const isForced = state.currentNuclide.isStable;
 
     if (mode === DecayMode.UNKNOWN) {
@@ -106,6 +106,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         subType: actualMode, 
         decayModeTrigger: actualMode, 
         shake: isForced || decayResult.shouldShake, 
+        shakeIntensity: decayResult.shakeIntensity,
         flash: isForced ? undefined : (decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined), 
         priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] 
     };
@@ -119,7 +120,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             false, false, false, false, false, 
             state.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0), 
             state.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0),
-            false, isDare
+            false, isDare, false, false, state.playerLevel, false
         );
 
         if (isDaredevilActive) {
@@ -137,7 +138,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         const failMsg = `⚠️ Decay failed: Target nuclide is outside the drip lines.`;
         
         let finalEntities = state.gridEntities;
-        if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !state.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+        if (unlockResult.updatedGroups.includes(TITLES.DEMON_CORE) && !state.unlockedGroups.includes(TITLES.DEMON_CORE)) {
             finalEntities = generateEntities(1, finalEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
         }
 
@@ -274,11 +275,12 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     let reactionMessages: string[] = [];
 
     if (decayResult.defeatedNuclides && decayResult.defeatedNuclides.length > 0) {
-        const defeatResult = handleDefeatByReaction(state, decayResult.defeatedNuclides, nextTurn);
+        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: currentEntities }, decayResult.defeatedNuclides, nextTurn);
         currentEntities = defeatResult.nextEntities;
         currentHistory = defeatResult.nextHistory;
         reactionEnergyBonus = defeatResult.energyBonus;
         reactionMessages = defeatResult.messages;
+        decayEvent.hasDefeat = true;
     }
 
     let nextState = applyDiscoveryLogic(

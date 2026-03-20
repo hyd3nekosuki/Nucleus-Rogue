@@ -7,7 +7,8 @@ import { TITLES } from '../constants/titles';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
-import { NEUTRON_CROSS_SECTIONS } from '../src/data/neutronReactions';
+import { NEUTRON_CROSS_SECTIONS } from '../data/neutronReactions';
+import { PROTON_CROSS_SECTIONS } from '../data/protonReactions';
 
 /**
  * Pure function to calculate the outcome of a collision with an entity.
@@ -29,11 +30,16 @@ export const calculateInteraction = (
     const isFusionDisabled = disabledSkills.includes(TITLES.FUSION);
     const isZeroBarnActive = unlockedGroups.includes(TITLES.ZERO_BARN) && !disabledSkills.includes(TITLES.ZERO_BARN);
     const scatteringActive = unlockedGroups.includes(TITLES.ELECTRON_SCATTERING) && !disabledSkills.includes(TITLES.ELECTRON_SCATTERING);
-    const isDaredevilActive = unlockedGroups.includes(TITLES.DAREDEVIL) && !disabledSkills.includes(TITLES.DAREDEVIL);
+    const isDaredevilActive = unlockedGroups.includes(TITLES.DEMON_CORE) && !disabledSkills.includes(TITLES.DEMON_CORE);
+    const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
 
     switch (target.type) {
         case EntityType.PROTON:
-            if (isFusionDisabled) {
+            if (isRealPhysicsActive) {
+                // Real Physics ON: Always scattered by Coulomb barrier regardless of energy if no specific reaction
+                res.isCoulombScattered = true;
+                res.scatteredMessage = "Proton was scattered by Coulomb barrier";
+            } else if (isFusionDisabled) {
                 res.scatteredMessage = "Proton was blocked by Coulomb barrier";
             } else if (currentNuclide.z === 1 && currentNuclide.a === 1 && target.isHighEnergy) {
                 res.isPpFusion = true;
@@ -69,7 +75,28 @@ export const calculateInteraction = (
             break;
 
         case EntityType.ENEMY_ELECTRON:
-            if (scatteringActive) {
+            if (isRealPhysicsActive) {
+                // Real Physics ON: Only capture if primary decay mode is EC-related
+                const primaryDecay = currentNuclide.decayModes[0];
+                const isECCapable = primaryDecay && (
+                    primaryDecay === DecayMode.ELECTRON_CAPTURE ||
+                    primaryDecay === DecayMode.DOUBLE_ELECTRON_CAPTURE ||
+                    primaryDecay === DecayMode.EC_ALPHA ||
+                    primaryDecay === DecayMode.EC_PROTON ||
+                    primaryDecay === DecayMode.EC_2PROTON ||
+                    primaryDecay === DecayMode.EC_SF ||
+                    primaryDecay === DecayMode.EC_B_PLUS
+                );
+
+                if (isECCapable) {
+                    res.dZ = -1;
+                    res.messages = [`Electron captured via ${primaryDecay} channel`].filter(Boolean);
+                } else {
+                    res.isCoulombScattered = true;
+                    res.scatteredMessage = "Electron scattered due to mass-energy stability";
+                }
+            } else if (scatteringActive) {
+                res.isCoulombScattered = true;
                 res.scatteredMessage = "Electron scattering prevents capture";
             } else {
                 if (hp <= 10 && consecutiveElectrons >= 5) res.isBremsAchieved = true;
@@ -114,7 +141,7 @@ export const calculateNeutronReaction = (
 ): AtomicReactionResult | null => {
     if (target.type !== EntityType.NEUTRON) return null;
 
-    const isUnknownActive = unlockedGroups.includes(TITLES.UNKNOWN) && !disabledSkills.includes(TITLES.UNKNOWN);
+    const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
 
     // If zero barn is active, neutrons are ignored (no reaction)
     if (zeroBarnActive) {
@@ -132,8 +159,8 @@ export const calculateNeutronReaction = (
         };
     }
 
-    if (isUnknownActive) {
-        // Unknown skill is ON: Use current random algorithm
+    if (!isRealPhysicsActive) {
+        // Real Physics is OFF: Use game-like random algorithm (formerly Unknown ON logic)
         if (!target.isHighEnergy) return null; // Let calculateInteraction handle normal neutrons (dA=1)
 
         // Absorption phase
@@ -208,7 +235,7 @@ export const calculateNeutronReaction = (
             byproduct: decayResult.byproduct
         };
     } else {
-        // Unknown skill is OFF: Use realistic neutron nuclear reaction data
+        // Real Physics is ON: Use realistic neutron nuclear reaction data (formerly Unknown OFF logic)
         const data = NEUTRON_CROSS_SECTIONS[`${currentNuclide.z}-${currentNuclide.a}`];
         if (data) {
             const energyIdx = target.isHighEnergy ? 1 : 0;
@@ -269,6 +296,7 @@ export const calculateNeutronReaction = (
                     inducedReactionLabel: label,
                     shouldShake: decayResult.shouldShake,
                     shouldFlash: label === HISTORY_METHODS.REACTION_N2N ? false : decayResult.shouldFlash,
+                    flashColor: decayResult.flashColor,
                     chargesUsed: 0,
                     chainDecayResult: decayResult,
                     newGridEntities: decayResult.newGridEntities,
@@ -289,4 +317,142 @@ export const calculateNeutronReaction = (
             chargesUsed: 0
         };
     }
+};
+
+/**
+ * Pure function to calculate special reactions for high energy protons.
+ */
+export const calculateProtonReaction = (
+    currentNuclide: NuclideData,
+    target: GridEntity,
+    playerPos: Position,
+    currentEntities: GridEntity[],
+    currentTime: number,
+    annihilationEnabled: boolean,
+    fissionEnabled: boolean,
+    neutronStarEnabled: boolean,
+    unlockedGroups: string[] = [],
+    disabledSkills: string[] = []
+): AtomicReactionResult | null => {
+    if (target.type !== EntityType.PROTON || !target.isHighEnergy) return null;
+
+    const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
+    if (!isRealPhysicsActive) return null;
+
+    const data = PROTON_CROSS_SECTIONS[`${currentNuclide.z}-${currentNuclide.a}`];
+    if (!data) return null;
+
+    const energyIdx = 1; // High energy
+    const reactions = Object.entries(data.reactions);
+    const totalXS = reactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
+
+    if (totalXS > 0) {
+        let r = Math.random() * totalXS;
+        let chosenKey = reactions[0][0];
+        for (const [key, xs] of reactions) {
+            r -= xs[energyIdx];
+            if (r <= 0) {
+                chosenKey = key;
+                break;
+            }
+        }
+
+        let mode: DecayMode;
+        let label: string;
+        let extraEmissions: EntityType[] = [];
+        
+        switch (chosenKey) {
+            case "p,n": 
+                mode = DecayMode.NEUTRON_EMISSION; 
+                label = HISTORY_METHODS.REACTION_PN; 
+                break;
+            case "p,g": 
+                mode = DecayMode.GAMMA; 
+                label = HISTORY_METHODS.REACTION_PG; 
+                break;
+            case "p,n+p": 
+                mode = DecayMode.NEUTRON_EMISSION; 
+                label = HISTORY_METHODS.REACTION_PNP; 
+                extraEmissions = [EntityType.PROTON];
+                break;
+            case "p,2p":
+                mode = DecayMode.PROTON_EMISSION;
+                label = HISTORY_METHODS.REACTION_P2P;
+                extraEmissions = [EntityType.PROTON];
+                break;
+            case "p,p+a":
+                mode = DecayMode.ALPHA;
+                label = HISTORY_METHODS.REACTION_PPA;
+                extraEmissions = [EntityType.PROTON];
+                break;
+            case "p,f":
+                mode = DecayMode.SPONTANEOUS_FISSION;
+                label = HISTORY_METHODS.REACTION_PF;
+                break;
+            case "p,a":
+                mode = DecayMode.ALPHA;
+                label = HISTORY_METHODS.REACTION_PA;
+                break;
+            default: 
+                mode = DecayMode.GAMMA; 
+                label = HISTORY_METHODS.REACTION_PG;
+        }
+
+        // Intermediate state is (Z+1, A+1) after absorbing the proton
+        const intermediateData = getNuclideDataSync(currentNuclide.z + 1, currentNuclide.a + 1);
+        
+        const decayResult = calculateDecayEffects(
+            mode, 
+            intermediateData, 
+            playerPos, 
+            currentEntities, 
+            currentTime, 
+            annihilationEnabled, 
+            fissionEnabled,
+            neutronStarEnabled
+        );
+
+        // Stacking logic:
+        // Absorption: dZ+1, dA+1
+        // (p,n):   Intermediate(Z+1, A+1) -> n emission -> Final(Z+1, A). Net: dZ+1, dA+0
+        // (p,g):   Intermediate(Z+1, A+1) -> gamma -> Final(Z+1, A+1). Net: dZ+1, dA+1
+        // (p,n+p): Intermediate(Z+1, A+1) -> n emission -> (Z+1, A) -> p emission -> Final(Z, A-1). Net: dZ+0, dA-1
+        
+        let stackedDZ = 1 + decayResult.dZ;
+        let stackedDA = 1 + decayResult.dA;
+        
+        if (chosenKey === "p,n+p") {
+            stackedDZ = 0;
+            stackedDA = -1;
+            decayResult.emissions = [...(decayResult.emissions || []), ...extraEmissions];
+        } else if (chosenKey === "p,2p") {
+            stackedDZ = -1;
+            stackedDA = -1;
+            decayResult.emissions = [...(decayResult.emissions || []), ...extraEmissions];
+        } else if (chosenKey === "p,p+a") {
+            stackedDZ = -2;
+            stackedDA = -4;
+            decayResult.emissions = [...(decayResult.emissions || []), ...extraEmissions];
+        }
+
+        return {
+            dZ: stackedDZ,
+            dA: stackedDA,
+            hpPenalty: 0,
+            energyBonus: decayResult.energyBonus,
+            actionBonusScore: decayResult.actionBonusScore,
+            messages: decayResult.extraMessages,
+            inducedDecayMode: mode,
+            inducedReactionLabel: label,
+            shouldShake: decayResult.shouldShake,
+            shouldFlash: decayResult.shouldFlash,
+            flashColor: decayResult.flashColor,
+            chargesUsed: 0,
+            chainDecayResult: decayResult,
+            newGridEntities: decayResult.newGridEntities,
+            byproduct: decayResult.byproduct
+        };
+    }
+
+    return null;
 };

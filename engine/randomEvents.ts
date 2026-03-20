@@ -43,7 +43,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     }
 
     // 2. Behaviors: Movement and Matter Consumption
-    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
 
     nextEntities = moveAntiNuclides(nextEntities, state.playerPos);
     nextEntities = consumeMatterWithAntiNuclides(nextEntities);

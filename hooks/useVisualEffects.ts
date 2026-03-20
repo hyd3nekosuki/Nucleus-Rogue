@@ -21,6 +21,7 @@ const SPEECH_PRIORITY = [
  */
 export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatch<GameAction>) => {
     const [isScreenShaking, setIsScreenShaking] = useState(false);
+    const [shakeIntensity, setShakeIntensity] = useState<'normal' | 'light'>('normal');
     const [isFlashBang, setIsFlashBang] = useState(false);
     const [flashColor, setFlashColor] = useState('bg-neon-blue');
     const [lastDecayEvent, setLastDecayEvent] = useState<{ mode: DecayMode; timestamp: number; isPlayed?: boolean } | null>(null);
@@ -46,9 +47,11 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
         }
     }, []); // Run once on mount
 
-    const triggerShake = useCallback((duration: number = 300) => {
+    const triggerShake = useCallback((duration: number = 300, intensity: 'normal' | 'light' = 'normal') => {
+        const actualDuration = intensity === 'light' ? 200 : duration;
+        setShakeIntensity(intensity);
         setIsScreenShaking(true);
-        setTimeout(() => setIsScreenShaking(false), duration);
+        setTimeout(() => setIsScreenShaking(false), actualDuration);
     }, []);
 
     const triggerFlash = useCallback((color: string, duration: number = 500) => {
@@ -86,7 +89,7 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
 
         // 1. Physical Feedback (Shake)
         if (event.shake) {
-            triggerShake();
+            triggerShake(300, event.shakeIntensity || 'normal');
             emitShake();
         }
 
@@ -168,6 +171,7 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
 
     return {
         isScreenShaking,
+        shakeIntensity,
         isFlashBang,
         flashColor,
         lastDecayEvent,

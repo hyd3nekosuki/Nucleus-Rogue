@@ -150,6 +150,210 @@ export const createShutterSound = (ctx: AudioContext, dest: AudioNode, time: num
     noise.stop(time + 0.15);
 };
 
+/**
+ * Enemy Defeat Sound Synthesis (Alpha/SF Reaction)
+ * A noisy, resonant "pop" or "shatter" sound to signify an enemy being destroyed by a reaction.
+ */
+export const createDefeatSound = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1200, time);
+    filter.frequency.exponentialRampToValueAtTime(400, time + 0.2);
+    filter.Q.setValueAtTime(8, time);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(0.8 * power, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+    gain.gain.linearRampToValueAtTime(0, time + 0.3);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, time);
+    osc.frequency.exponentialRampToValueAtTime(50, time + 0.15);
+
+    const oscFilter = ctx.createBiquadFilter();
+    oscFilter.type = 'lowpass';
+    oscFilter.frequency.setValueAtTime(2000, time);
+    oscFilter.frequency.exponentialRampToValueAtTime(100, time + 0.15);
+
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0, time);
+    oscGain.gain.linearRampToValueAtTime(0.5 * power, time + 0.005);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(dest);
+
+    osc.connect(oscFilter);
+    oscFilter.connect(oscGain);
+    oscGain.connect(dest);
+
+    noise.start(time);
+    noise.stop(time + 0.3);
+    osc.start(time);
+    osc.stop(time + 0.3);
+};
+
+/**
+ * Alpha Decay Defeat Sound Synthesis
+ * A cooler, more high-tech sound for Alpha decay defeats.
+ * Features a sharp sine sweep and high-pass resonant noise.
+ */
+export const createAlphaDefeatSound = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
+    // 1. Heavy Sub-bass Thump (The "Weight")
+    const subOsc = ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(70, time);
+    subOsc.frequency.exponentialRampToValueAtTime(30, time + 0.25);
+
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0, time);
+    subGain.gain.linearRampToValueAtTime(1.0 * power, time + 0.01);
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+
+    // 2. Mid-range "Grit" (The "Impact")
+    const gritOsc = ctx.createOscillator();
+    gritOsc.type = 'sawtooth';
+    gritOsc.frequency.setValueAtTime(140, time);
+    gritOsc.frequency.exponentialRampToValueAtTime(40, time + 0.15);
+
+    const gritFilter = ctx.createBiquadFilter();
+    gritFilter.type = 'lowpass';
+    gritFilter.frequency.setValueAtTime(1000, time);
+    gritFilter.frequency.exponentialRampToValueAtTime(200, time + 0.15);
+    gritFilter.Q.setValueAtTime(5, time);
+
+    const gritGain = ctx.createGain();
+    gritGain.gain.setValueAtTime(0, time);
+    gritGain.gain.linearRampToValueAtTime(0.6 * power, time + 0.005);
+    gritGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+    // 3. High-tech "Ping" (The "Cool" factor - kept but softened)
+    const pingOsc = ctx.createOscillator();
+    pingOsc.type = 'sine';
+    pingOsc.frequency.setValueAtTime(2000, time);
+    pingOsc.frequency.exponentialRampToValueAtTime(600, time + 0.12);
+
+    const pingGain = ctx.createGain();
+    pingGain.gain.setValueAtTime(0, time);
+    pingGain.gain.linearRampToValueAtTime(0.3 * power, time + 0.002);
+    pingGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+
+    // 4. Low-pass Rumble (The "Aftershock")
+    const rumble = ctx.createBufferSource();
+    rumble.buffer = getNoiseBuffer(ctx);
+
+    const rumbleFilter = ctx.createBiquadFilter();
+    rumbleFilter.type = 'lowpass';
+    rumbleFilter.frequency.setValueAtTime(800, time);
+    rumbleFilter.frequency.exponentialRampToValueAtTime(40, time + 0.4);
+    rumbleFilter.Q.setValueAtTime(8, time);
+
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.setValueAtTime(0, time);
+    rumbleGain.gain.linearRampToValueAtTime(0.4 * power, time + 0.02);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+
+    // Connections
+    subOsc.connect(subGain);
+    subGain.connect(dest);
+
+    gritOsc.connect(gritFilter);
+    gritFilter.connect(gritGain);
+    gritGain.connect(dest);
+
+    pingOsc.connect(pingGain);
+    pingGain.connect(dest);
+
+    rumble.connect(rumbleFilter);
+    rumbleFilter.connect(rumbleGain);
+    rumbleGain.connect(dest);
+
+    // Start/Stop
+    subOsc.start(time);
+    subOsc.stop(time + 0.6);
+    gritOsc.start(time);
+    gritOsc.stop(time + 0.25);
+    pingOsc.start(time);
+    pingOsc.stop(time + 0.25);
+    rumble.start(time);
+    rumble.stop(time + 0.6);
+};
+
+/**
+ * Fission Explosion Sound Synthesis
+ * A heavy, multi-layered sound for Spontaneous Fission.
+ * Combines a sub-bass thump, a mid-range "crack", and a long, resonant noise tail.
+ */
+export const createFissionExplosionSound = (ctx: AudioContext, dest: AudioNode, time: number, power: number = 1.0) => {
+    // 1. Sub-bass Thump (The "Weight")
+    const subOsc = ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(60, time);
+    subOsc.frequency.exponentialRampToValueAtTime(30, time + 0.2);
+
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0, time);
+    subGain.gain.linearRampToValueAtTime(0.8 * power, time + 0.01);
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+
+    // 2. Mid-range Crack (The "Impact")
+    const crackOsc = ctx.createOscillator();
+    crackOsc.type = 'sawtooth';
+    crackOsc.frequency.setValueAtTime(180, time);
+    crackOsc.frequency.exponentialRampToValueAtTime(40, time + 0.1);
+
+    const crackFilter = ctx.createBiquadFilter();
+    crackFilter.type = 'lowpass';
+    crackFilter.frequency.setValueAtTime(1500, time);
+    crackFilter.frequency.exponentialRampToValueAtTime(200, time + 0.1);
+
+    const crackGain = ctx.createGain();
+    crackGain.gain.setValueAtTime(0, time);
+    crackGain.gain.linearRampToValueAtTime(0.6 * power, time + 0.005);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+
+    // 3. Resonant Noise (The "Shatter/Debris")
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.setValueAtTime(3000, time);
+    noiseFilter.frequency.exponentialRampToValueAtTime(400, time + 0.4);
+    noiseFilter.Q.setValueAtTime(10, time);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0, time);
+    noiseGain.gain.linearRampToValueAtTime(0.5 * power, time + 0.02);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
+
+    // Connections
+    subOsc.connect(subGain);
+    subGain.connect(dest);
+
+    crackOsc.connect(crackFilter);
+    crackFilter.connect(crackGain);
+    crackGain.connect(dest);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(dest);
+
+    // Start/Stop
+    subOsc.start(time);
+    subOsc.stop(time + 0.6);
+    crackOsc.start(time);
+    crackOsc.stop(time + 0.2);
+    noise.start(time);
+    noise.stop(time + 0.7);
+};
+
 export const createSynth = (ctx: AudioContext, dest: AudioNode, time: number, freq: number, duration: number, power: number = 1.0, type: 'pulse' | 'sub' | 'dark' | 'gabber' | 'void' | 'acid' | 'dnb-lead' | 'sparkle' = 'pulse') => {
     if (power <= 0.001) return;
     const osc1 = ctx.createOscillator();

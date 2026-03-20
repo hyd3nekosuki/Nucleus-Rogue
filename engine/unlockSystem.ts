@@ -24,7 +24,10 @@ export const processUnlocks = (
     betaPlusCount: number = 0,
     betaMinusCount: number = 0,
     isGluttonyAchieved: boolean = false,
-    isDaredevilAchieved: boolean = false
+    isDaredevilAchieved: boolean = false,
+    isTimeStopped: boolean = false,
+    isQuantumOverride: boolean = false,
+    playerLevel: number = 0
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -35,7 +38,8 @@ export const processUnlocks = (
 
     if (nuclideData.exists) {
         // 1. Element Unlock
-        if (!currentUnlockedElements.includes(newZ) && newZ >= 0) {
+        const isAlreadyUnlocked = currentUnlockedElements.includes(newZ);
+        if (!isAlreadyUnlocked && newZ >= 0) {
             updatedElements = [...currentUnlockedElements, newZ].sort((a,b) => a-b);
             let trophyBonus = 0;
             if (newZ === 0) {
@@ -85,6 +89,14 @@ export const processUnlocks = (
                 messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
             }
         }
+
+        // 3. Special Hidden Title: Exp. Replicate
+        // Condition: 🔮 button pressed (isTransmutation) AND result is an element already in the periodic table (isAlreadyUnlocked)
+        if (isTransmutation && !isQuantumOverride && isAlreadyUnlocked && !updatedGroups.includes(TITLES.EXP_REPLICATE)) {
+            updatedGroups = [...updatedGroups, TITLES.EXP_REPLICATE];
+            scoreBonus += BONUS_SCORES.EXP_REPLICATE_TITLE;
+            messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+${BONUS_SCORES.EXP_REPLICATE_TITLE.toLocaleString()} PTS)`);
+        }
     }
 
 
@@ -106,13 +118,6 @@ export const processUnlocks = (
         updatedGroups = [...updatedGroups, TITLES.NEUTRONIZATION];
         scoreBonus += BONUS_SCORES.NEUTRONIZATION;
         messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+${BONUS_SCORES.NEUTRONIZATION.toLocaleString()} PTS)`);
-    }
-
-    // 3. Special Hidden Title: Exp. Replicate
-    if (isTransmutation && !updatedGroups.includes(TITLES.EXP_REPLICATE)) {
-        updatedGroups = [...updatedGroups, TITLES.EXP_REPLICATE];
-        scoreBonus += BONUS_SCORES.EXP_REPLICATE_TITLE;
-        messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+${BONUS_SCORES.EXP_REPLICATE_TITLE.toLocaleString()} PTS)`);
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
@@ -170,10 +175,10 @@ export const processUnlocks = (
     }
 
     // NEW: Special Hidden Title: Demon core
-    if (isDaredevilAchieved && !updatedGroups.includes(TITLES.DAREDEVIL)) {
-        updatedGroups = [...updatedGroups, TITLES.DAREDEVIL];
-        scoreBonus += BONUS_SCORES.DAREDEVIL;
-        messages.push(` 🫀 HIDDEN TITLE: Demon core! Attempting the impossible from the brink. (+${BONUS_SCORES.DAREDEVIL.toLocaleString()} PTS)`);
+    if (isDaredevilAchieved && !updatedGroups.includes(TITLES.DEMON_CORE)) {
+        updatedGroups = [...updatedGroups, TITLES.DEMON_CORE];
+        scoreBonus += BONUS_SCORES.DEMON_CORE;
+        messages.push(` 🫀 HIDDEN TITLE: Demon core! Attempting the impossible from the brink. (+${BONUS_SCORES.DEMON_CORE.toLocaleString()} PTS)`);
     }
 
     return { updatedElements, updatedGroups, scoreBonus, messages };

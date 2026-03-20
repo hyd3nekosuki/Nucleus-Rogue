@@ -24,6 +24,7 @@ export interface SavePayload {
   ev: Record<string, string>; // Evolution History (Serialized)
   mc: number;  // Max Combo
   mb: number;  // Magic Barrier Charges
+  et: number;  // Elapsed Time (RTA)
   pp: number;  // Reincarnation Pool Protons
   pn: number;  // Reincarnation Pool Neutrons
   pe: number;  // Reincarnation Pool Electrons

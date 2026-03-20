@@ -150,7 +150,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
       {/* STATIC TEXT LAYER */}
       <div className="relative z-10 w-full h-full flex flex-col justify-center pointer-events-none">
         {tutorialMessage ? (
-          <div className="animate-fade-in w-full text-center">
+          <div key={tutorialMessage} className="animate-fade-in w-full text-center">
              <div className="text-base md:text-xl font-bold text-white drop-shadow-[0_0_8px_#00f3ff] uppercase tracking-tighter leading-tight font-mono">
                 {tutorialMessage}
                 <span 
@@ -160,7 +160,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
              </div>
           </div>
         ) : showCombo ? (
-          <div className="animate-fade-in w-full h-full flex flex-col justify-start">
+          <div key={`combo-${combo}`} className="animate-fade-in w-full h-full flex flex-col justify-start">
                <div 
                   className="text-[11px] md:text-xs font-bold leading-tight drop-shadow-[0_0_2px_currentColor] mb-3 transition-colors duration-300"
                   style={{ color: signalColor }}
@@ -189,6 +189,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
           </div>
         ) : (
           <div 
+            key={description || "default"}
             className="text-[11px] md:text-xs leading-tight drop-shadow-[0_0_2px_currentColor] pt-0 transition-colors duration-300 h-full flex items-start"
             style={{ color: signalColor }}
           >

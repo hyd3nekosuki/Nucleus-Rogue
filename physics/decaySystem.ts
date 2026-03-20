@@ -18,7 +18,9 @@ export interface DecayResult {
     additionalEffects: VisualEffect[];
     newGridEntities: GridEntity[];
     shouldShake: boolean;
+    shakeIntensity?: 'normal' | 'light';
     shouldFlash: boolean;
+    flashColor?: string;
     speechOverride: string | null;
     isAnnihilation?: boolean;
     newPosition?: Position; 
@@ -48,9 +50,6 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
     );
 
     if (nearbyAntis.length > 0) {
-        // Remove detected anti-nuclides
-        currentEntities = currentEntities.filter(e => !nearbyAntis.some(a => a.id === e.id));
-        
         // Apply special rewards
         energyBonus += 1000;
         score += Math.floor(940 * currentNuclide.a);
@@ -72,7 +71,7 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
         actionBonusScore: score, 
         extraMessages: messages,
         shouldFlash: false,
-        defeatedNuclides: nearbyEnemies
+        defeatedNuclides: [...nearbyAntis, ...nearbyEnemies]
     };
 };
 
@@ -112,7 +111,10 @@ const handleBetaMinus = (
 
     // 2. Annihilation check
     const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_POSITRON, currentTime);
+    let defeatedNuclides: GridEntity[] = [];
     if (annihilationResult) {
+        const removedEntity = gridEntities.find(e => e.id === annihilationResult.removedId);
+        if (removedEntity) defeatedNuclides.push(removedEntity);
         currentEntities = annihilationResult.remainingEntities;
         effects.push({ id: Math.random().toString(36).substr(2, 9), type: annihilationResult.effectMode, position: { ...playerPos }, timestamp: currentTime });
         effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
@@ -122,7 +124,7 @@ const handleBetaMinus = (
         isAnnihilation = true;
     }
 
-    return { trigger: HISTORY_METHODS.BETA_MINUS, newGridEntities: currentEntities, actionBonusScore: score, extraMessages: messages, additionalEffects: effects, speechOverride: speech, isAnnihilation };
+    return { trigger: HISTORY_METHODS.BETA_MINUS, newGridEntities: currentEntities, actionBonusScore: score, extraMessages: messages, additionalEffects: effects, speechOverride: speech, isAnnihilation, defeatedNuclides };
 };
 
 const handleBetaPlus = (
@@ -139,9 +141,12 @@ const handleBetaPlus = (
     let isAnnihilation = false;
 
     // Perform annihilation logic only if skill is unlocked and active
+    let defeatedNuclides: GridEntity[] = [];
     if (annihilationEnabled) {
         const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_ELECTRON, currentTime);
         if (annihilationResult) {
+            const removedEntity = gridEntities.find(e => e.id === annihilationResult.removedId);
+            if (removedEntity) defeatedNuclides.push(removedEntity);
             currentEntities = annihilationResult.remainingEntities;
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: annihilationResult.effectMode, position: { ...playerPos }, timestamp: currentTime });
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
@@ -152,7 +157,7 @@ const handleBetaPlus = (
         }
     }
 
-    return { trigger: HISTORY_METHODS.BETA_PLUS, newGridEntities: currentEntities, actionBonusScore: score, extraMessages: messages, additionalEffects: effects, speechOverride: speech, isAnnihilation };
+    return { trigger: HISTORY_METHODS.BETA_PLUS, newGridEntities: currentEntities, actionBonusScore: score, extraMessages: messages, additionalEffects: effects, speechOverride: speech, isAnnihilation, defeatedNuclides };
 };
 
 const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number): Partial<DecayResult> => {
@@ -204,11 +209,12 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
 
     return {
         dZ, dA, trigger: HISTORY_METHODS.FISSION_SPONTANEOUS, shouldShake: true, shouldFlash: true,
+        flashColor: 'bg-yellow-400',
         speechOverride: "Nuclear Fission", actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
         extraMessages: messages,
         emissions, // Return list of particles to be spawned by engine
         byproduct,  // Procedure 2: Secondary fragment for conservation
-        defeatedNuclides: enemiesInBlast
+        defeatedNuclides: [...antisInBlast, ...enemiesInBlast]
     };
 };
 
@@ -277,6 +283,7 @@ export const calculateDecayEffects = (
              result.trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
+             result.shakeIntensity = 'light';
              result.extraMessages.push("✨ Uncertainty principle for position!");
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
@@ -284,11 +291,13 @@ export const calculateDecayEffects = (
              result.trigger = "Double Electron Capture";
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
+             result.shakeIntensity = 'light';
              result.extraMessages.push("✨ Double uncertainty principle!");
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 
             result.trigger = HISTORY_METHODS.PROTON_EMISSION; 
+            result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.TWO_PROTON_EMISSION:
             result.trigger = HISTORY_METHODS.TWO_PROTON_EMISSION;
@@ -296,6 +305,7 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.NEUTRON_EMISSION: 
             result.trigger = HISTORY_METHODS.NEUTRON_EMISSION; 
+            result.emissions = [EntityType.NEUTRON];
             break;
         case DecayMode.TWO_NEUTRON_EMISSION:
             result.trigger = "Two Neutron Emission";
@@ -322,6 +332,7 @@ export const calculateDecayEffects = (
         case DecayMode.B_MINUS_ALPHA:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
             result.trigger = "Beta-delayed alpha emission";
+            result.energyBonus = 5;
             break;
         case DecayMode.B_MINUS_PROTON:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
@@ -338,6 +349,7 @@ export const calculateDecayEffects = (
         case DecayMode.B_PLUS_ALPHA:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
             result.trigger = "Beta-delayed alpha emission";
+            result.energyBonus = 5;
             break;
         case DecayMode.B_PLUS_PROTON:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
@@ -351,6 +363,7 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.EC_ALPHA:
             result.trigger = "EC-delayed alpha emission";
+            result.energyBonus = 5;
             break;
         case DecayMode.EC_PROTON:
             result.trigger = "EC-delayed proton emission";

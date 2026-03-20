@@ -1,6 +1,23 @@
 import { GameState, NuclideData } from '../types';
 import { TUTORIAL_MESSAGES, TutorialEvent } from '../constants/tutorial';
 
+import { TITLES } from '../constants/titles';
+
+const SPECIALIZED_SKILLS: string[] = [
+    TITLES.PAIR_ANNIHILATION,
+    TITLES.NEUTRONIZATION,
+    TITLES.EXP_REPLICATE,
+    TITLES.NUCLEOSYNTHESIS,
+    TITLES.TEMPORAL_INVERSION,
+    TITLES.FUSION,
+    TITLES.FISSION,
+    TITLES.ZERO_BARN,
+    TITLES.ELECTRON_SCATTERING,
+    TITLES.GLUTTONY,
+    TITLES.DEMON_CORE,
+    TITLES.REAL_PHYSICS
+];
+
 interface TutorialContext {
     randomStart?: boolean;
     nextNuclide?: NuclideData;
@@ -27,12 +44,23 @@ export const getNextTutorialMessage = (
         hasSeenCaptureTutorial,
         hasSeenDripLineTutorial,
         hasSeenEngraveTutorial,
+        hasSeenSkillToggleTutorial,
         tutorialStartTurn,
         energyPoints
     } = state;
 
     const currentTurn = context.currentTurn ?? state.turn;
     const nextNuclide = context.nextNuclide;
+
+    // --- SPECIAL: Og-294 Congrats Persistence ---
+    if (currentMsg === TUTORIAL_MESSAGES.OGANESSON_CONGRATS) {
+        const isSameNuclide = nextNuclide && 
+                             nextNuclide.z === state.currentNuclide.z && 
+                             nextNuclide.a === state.currentNuclide.a;
+        if (isSameNuclide || !nextNuclide) {
+            return TUTORIAL_MESSAGES.OGANESSON_CONGRATS;
+        }
+    }
 
     // --- PRIORITY 1: Drip Line Danger ---
     const isAtDripLine = nextNuclide && !nextNuclide.isStable && (nextNuclide.isProtonDripLine || nextNuclide.isNeutronDripLine);
@@ -46,7 +74,17 @@ export const getNextTutorialMessage = (
         return TUTORIAL_MESSAGES.DECAY;
     }
 
-    // --- PRIORITY 3: Record History (Feature Discovery) ---
+    // --- PRIORITY 3: Physics Scattering Message Persistence ---
+    // These messages start with "✅" and should disappear after 3 turns
+    if (currentMsg?.startsWith('✅')) {
+        const elapsed = currentTurn - tutorialStartTurn;
+        if (elapsed < 3) {
+            return currentMsg;
+        }
+        // If timed out, we fall through to lower priorities
+    }
+
+    // --- PRIORITY 4: Record History (Feature Discovery) ---
     const canShowEngrave = (energyPoints >= 1) && !hasSeenEngraveTutorial;
     
     // Check timeout for Engrave message: Hide after 10 turns
@@ -54,6 +92,13 @@ export const getNextTutorialMessage = (
                              (currentTurn - tutorialStartTurn >= 10);
     
     const showEngraveNow = canShowEngrave && !isEngraveTimedOut;
+
+    // --- PRIORITY 5: Skill Toggle (Feature Discovery) ---
+    const hasAnySpecializedSkill = state.unlockedGroups.some(group => SPECIALIZED_SKILLS.includes(group));
+    const canShowSkillToggle = hasAnySpecializedSkill && !hasSeenSkillToggleTutorial;
+    const isSkillToggleTimedOut = currentMsg === TUTORIAL_MESSAGES.SKILL_TOGGLE && 
+                                 (currentTurn - tutorialStartTurn >= 20);
+    const showSkillToggleNow = canShowSkillToggle && !isSkillToggleTimedOut;
 
     // Special Trigger: If energy increased, re-show the recording hint if not already done
     if (context.energyIncreased && showEngraveNow && !shouldShowDecayNow && !isAtDripLine) {
@@ -63,20 +108,26 @@ export const getNextTutorialMessage = (
     switch (event) {
         case 'GAME_START':
             if (context.randomStart && hasSeenCaptureTutorial) {
+                if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
                 return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return TUTORIAL_MESSAGES.CAPTURE;
 
         case 'PARTICLE_CAPTURED':
             if (nextNuclide?.isStable) {
+                if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
                 return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
             }
             return currentMsg;
 
         case 'DECAY_PERFORMED':
+            if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
             return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
 
         case 'ENGRAVE_PERFORMED':
+            return showSkillToggleNow ? TUTORIAL_MESSAGES.SKILL_TOGGLE : null;
+
+        case 'MASTERY_OPENED':
             return null;
 
         case 'TURN_ADVANCED':
@@ -88,6 +139,11 @@ export const getNextTutorialMessage = (
                 }
             }
             
+            // If we were showing a scattering message and it just timed out (handled by priority check above)
+            // or if we are just moving around, check for discovery tutorials
+            if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
+            if (showEngraveNow) return TUTORIAL_MESSAGES.RECORD_HISTORY;
+
             // Engrave message display timeout logic:
             // If shown for 10 turns without action, hide permanently (判定をtrueにする)
             if (isEngraveTimedOut) {
@@ -133,6 +189,10 @@ export const calculateTutorialFlagUpdates = (
         }
     }
 
+    if (event === 'MASTERY_OPENED') {
+        updates.hasSeenSkillToggleTutorial = true;
+    }
+
     // Drip Line Tutorial is mastered once the player successfully transforms into another nuclide
     if (currentMsg === TUTORIAL_MESSAGES.DRIP_LINE && nextMsg !== TUTORIAL_MESSAGES.DRIP_LINE) {
         updates.hasSeenDripLineTutorial = true;
@@ -145,6 +205,14 @@ export const calculateTutorialFlagUpdates = (
         const elapsed = currentTurn - state.tutorialStartTurn;
         if (elapsed >= 10) {
             updates.hasSeenEngraveTutorial = true;
+        }
+    }
+
+    // Skill Toggle Tutorial is mastered if user opens mastery OR if it was shown and then timed out (20 turns)
+    if (currentMsg === TUTORIAL_MESSAGES.SKILL_TOGGLE) {
+        const elapsed = currentTurn - state.tutorialStartTurn;
+        if (elapsed >= 20) {
+            updates.hasSeenSkillToggleTutorial = true;
         }
     }
     

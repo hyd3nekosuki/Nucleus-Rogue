@@ -59,12 +59,14 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     }
 
     // Process enemies defeated by reaction (Alpha, SF, etc.) from chainDecayResult
+    let defeatedCount = 0;
     if (result.chainDecayResult?.defeatedNuclides && result.chainDecayResult.defeatedNuclides.length > 0) {
         const defeatResult = handleDefeatByReaction({ ...state, gridEntities: nextEntities }, result.chainDecayResult.defeatedNuclides, nextTurn);
         nextEntities = defeatResult.nextEntities;
         currentHistory = defeatResult.nextHistory;
         reactionEnergyBonus = defeatResult.energyBonus;
         reactionMessages = defeatResult.messages;
+        defeatedCount = defeatResult.defeatedCount;
     }
 
     // Procedure 4: Byproduct realization
@@ -97,13 +99,21 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             e: state.reincarnationPool.e + result.reincarnationPoolIncrement.e 
         }, 
         turn: nextTurn, 
-        lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion || result.inducedDecayMode) ? { 
+        realPhysicsUnlockProgress: result.realPhysicsUnlockProgress || state.realPhysicsUnlockProgress,
+        tutorialMessage: result.tutorialMessage !== undefined ? result.tutorialMessage : state.tutorialMessage,
+        tutorialStartTurn: result.tutorialStartTurn !== undefined ? result.tutorialStartTurn : state.tutorialStartTurn,
+        unlockedGroups: result.newlyUnlockedGroups && result.newlyUnlockedGroups.length > 0 
+            ? [...new Set([...state.unlockedGroups, ...result.newlyUnlockedGroups])]
+            : state.unlockedGroups,
+        lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion || result.inducedDecayMode || defeatedCount > 0 || isAnti) ? { 
             id: Date.now(), 
             type: 'COLLISION', 
-            shake: result.shouldShake, 
-            flash: result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined, 
+            shake: result.shouldShake || defeatedCount > 0 || isAnti, 
+            shakeIntensity: result.shakeIntensity,
+            flash: result.flashColor || (result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined), 
             priorityMessages: result.isPpFusion ? ['Nuclear Fusion'] : [],
-            decayModeTrigger: result.inducedDecayMode
+            decayModeTrigger: result.inducedDecayMode,
+            hasDefeat: defeatedCount > 0 || isAnti
         } : undefined 
     };
 
@@ -134,23 +144,23 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             nextState = applyDiscoveryLogic({ ...nextState, messages: [...nextState.messages, coreMsg, ...reactionMessages].slice(-10), hp: Math.min(state.maxHp, Math.max(0, state.hp + (newData.isStable ? 10 : 0) - result.hpPenalty)), energyPoints: Math.min(MAX_ENERGY, state.energyPoints + result.energyBonus + reactionEnergyBonus) }, newData, context, nextTurn, { isCoulombScattered: result.isCoulombScattered, isFusionAchieved: result.isPpFusion, isFissionAchieved: result.isFissionAchieved, isZeroBarnAchieved: result.isZeroBarnAchieved, isBremsAchieved: result.isBremsAchieved, gluttonyTrigger: result.gluttonyTrigger });
         } else {
             const isDare = !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine);
-            const isDareActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+            const isDareActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
             let failMsg = isAnti ? `🌑 TOTAL ANNIHILATION: Core matter converted to ${result.energyBonus} MeV energy!` : `⚠️ Transformation failed: Target nuclide is outside the drip lines.`;
 
             const unlockResult = processUnlocks(
                 state.unlockedElements, state.unlockedGroups, null, null,
                 false, false, false, false, 0, 
                 false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved,
-                0, 0, false, isDare
+                0, 0, false, isDare, false, false, state.playerLevel, false
             );
 
             let finalEntities = nextState.gridEntities;
-            if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !state.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+            if (unlockResult.updatedGroups.includes(TITLES.DEMON_CORE) && !state.unlockedGroups.includes(TITLES.DEMON_CORE)) {
                 finalEntities = generateEntities(1, finalEntities, result.newPos!, nextTurn, EntityType.ANTI_NUCLIDE);
             }
 
             Object.assign(nextState, { 
-                unlockedGroups: unlockResult.updatedGroups,
+                unlockedGroups: [...new Set([...nextState.unlockedGroups, ...unlockResult.updatedGroups])],
                 gridEntities: finalEntities,
                 hp: (isDareActive || isAnti) ? 0 : Math.max(0, state.hp - result.hpPenalty), 
                 energyPoints: Math.min(MAX_ENERGY, state.energyPoints + result.energyBonus), 
@@ -164,12 +174,27 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     } else {
         const nextHp = Math.max(0, Math.min(state.maxHp, state.hp + (state.currentNuclide.isStable ? 1 : 0)) - result.hpPenalty);
         const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn, energyIncreased: result.energyBonus > 0 });
-        Object.assign(nextState, { hp: nextHp, ...calculateTutorialFlagUpdates(state, nextMsg, nextTurn, 'TURN_ADVANCED'), tutorialMessage: nextMsg, messages: result.scatteredMessage ? [...state.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : state.messages });
+        
+        // Prioritize specific tutorial messages from the simulator (e.g., Real Physics scattering)
+        const finalTutorialMsg = result.tutorialMessage !== undefined ? result.tutorialMessage : nextMsg;
+        
+        Object.assign(nextState, { 
+            hp: nextHp, 
+            ...calculateTutorialFlagUpdates(state, finalTutorialMsg, nextTurn, 'TURN_ADVANCED'), 
+            tutorialMessage: finalTutorialMsg, 
+            messages: result.scatteredMessage ? [...state.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : state.messages 
+        });
         if (nextHp === 0) reason = REASON.FATAL_CAPTURE;
     }
 
     if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];
     if (result.inducedDecayMode && result.inducedReactionLabel) nextState.reactionStats = { ...nextState.reactionStats, [result.inducedReactionLabel]: (nextState.reactionStats[result.inducedReactionLabel] || 0) + 1 };
+    
+    // Add Real Physics unlock message if applicable
+    if (result.newlyUnlockedGroups?.includes(TITLES.REAL_PHYSICS) && !state.unlockedGroups.includes(TITLES.REAL_PHYSICS)) {
+        nextState.messages = [...nextState.messages, "🍎Skill Unlocked: Real Physics"].slice(-10);
+    }
+
     if (nextState.hp <= 0 && !nextState.gameOver) Object.assign(nextState, resolveStabilityCrisis(nextState, reason, !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine)));
     
     return finalizeAction(nextState);

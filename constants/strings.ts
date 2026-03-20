@@ -25,5 +25,12 @@ export const HISTORY_METHODS = {
   REACTION_NP: "(n,p)",
   REACTION_N2N: "(n,2n)",
   REACTION_NA: "(n,α)",
-  REACTION_NF: "(n,fission)"
+  REACTION_NF: "(n,fission)",
+  REACTION_PN: "(p,n)",
+  REACTION_PG: "(p,γ)",
+  REACTION_PNP: "(p,n+p)",
+  REACTION_PA: "(p,α)",
+  REACTION_P2P: "(p,2p)",
+  REACTION_PF: "(p,fission)",
+  REACTION_PPA: "(p,p+α)"
 };

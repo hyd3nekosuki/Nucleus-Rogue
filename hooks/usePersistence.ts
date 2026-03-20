@@ -90,6 +90,7 @@ export const usePersistence = (
                 turn: payload.t || 0, 
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
+                elapsedTime: payload.et || 0,
                 reincarnationPool: {
                     p: payload.pp || 0,
                     n: payload.pn || 0,

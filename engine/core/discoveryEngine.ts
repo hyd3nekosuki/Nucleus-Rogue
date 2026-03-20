@@ -13,6 +13,7 @@ import { calculateNextLevel, checkBarrierReplenish } from '../atomicTransitions'
 import { processUnlocks } from '../unlockSystem';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { TITLES } from '../../constants/titles';
+import { TUTORIAL_MESSAGES } from '../../constants/tutorial';
 import { generateEntities } from '../moveSimulator';
 import { registerHistoryEntry } from './historyService';
 import { decomposeDecayMode } from '../../utils/masteryUtils';
@@ -59,6 +60,7 @@ export const applyDiscoveryLogic = (
         isDaredevilAchieved?: boolean;
         skipComboSettlement?: boolean;
         isExplicitReplication?: boolean; 
+        isQuantumOverride?: boolean;
     } = {}
 ): GameState => {
     const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;
@@ -108,7 +110,10 @@ export const applyDiscoveryLogic = (
         state.decayStats[DecayMode.BETA_PLUS] + (inducedDecayMode === DecayMode.BETA_PLUS ? 1 : 0),
         state.decayStats[DecayMode.BETA_MINUS] + (inducedDecayMode === DecayMode.BETA_MINUS ? 1 : 0),
         !!flags.gluttonyTrigger,
-        !!flags.isDaredevilAchieved
+        !!flags.isDaredevilAchieved,
+        state.isTimeStopped,
+        !!flags.isQuantumOverride,
+        state.playerLevel
     );
 
     // 5. Level Up Messaging
@@ -129,6 +134,19 @@ export const applyDiscoveryLogic = (
         energyIncreased 
     });
     const tutorialUpdates = calculateTutorialFlagUpdates(state, nextTutorialMsg, targetTurn, tutorialEvent);
+    
+    // 6.5 Check for All Elements Discovery (Z=1 to 118)
+    let finalTutorialMsg = nextTutorialMsg;
+    let finalRecordTime = state.recordTime;
+    
+    const hasAllElements = Array.from({ length: 118 }, (_, i) => i + 1).every(z => unlockResult.updatedElements.includes(z));
+    const wasAlreadyComplete = Array.from({ length: 118 }, (_, i) => i + 1).every(z => state.unlockedElements.includes(z));
+    
+    if (hasAllElements && !wasAlreadyComplete) {
+        finalTutorialMsg = TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE;
+        finalRecordTime = state.elapsedTime;
+        nextMessages = [...nextMessages, `🏆 ACHIEVEMENT: Periodic Table Completed!`];
+    }
 
     // 7. Chain / Combo Logic
     let nextCombo = state.combo;
@@ -183,7 +201,7 @@ export const applyDiscoveryLogic = (
 
     // 10. Daredevil Anti-Matter spawn handling
     let finalEntities = state.gridEntities;
-    if (unlockResult.updatedGroups.includes(TITLES.DAREDEVIL) && !state.unlockedGroups.includes(TITLES.DAREDEVIL)) {
+    if (unlockResult.updatedGroups.includes(TITLES.DEMON_CORE) && !state.unlockedGroups.includes(TITLES.DEMON_CORE)) {
         finalEntities = generateEntities(1, finalEntities, state.playerPos, targetTurn, EntityType.ANTI_NUCLIDE);
     }
 
@@ -206,7 +224,8 @@ export const applyDiscoveryLogic = (
         score: state.score + (addedScore * (state.combo || 1)) + unlockResult.scoreBonus,
         unlockedElements: unlockResult.updatedElements,
         unlockedGroups: unlockResult.updatedGroups,
-        tutorialMessage: nextTutorialMsg,
+        tutorialMessage: finalTutorialMsg,
+        recordTime: finalRecordTime,
         gridEntities: finalEntities
     };
 };

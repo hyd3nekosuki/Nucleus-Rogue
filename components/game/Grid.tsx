@@ -20,7 +20,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   const componentStartTime = React.useRef<number>(Date.now());
 
   // Determine if Daredevil (Hard Mode) is active
-  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
+  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DEMON_CORE) && !gameState.disabledSkills.includes(TITLES.DEMON_CORE);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

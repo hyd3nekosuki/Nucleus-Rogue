@@ -35,7 +35,10 @@ export const formatScore = (val: number): string => {
 export const formatPreciseHalfLife = (seconds: number): string => {
     if (seconds === Infinity) return "Stable";
     
-    // Handle 'V' flag (mapped to 1e-9) or extremely short/unmeasured measurements
+    // Handle unknown/unmeasured measurements
+    if (seconds === 0 || seconds === 0.00000001) return "unknown";
+    
+    // Handle 'V' flag (mapped to 1e-9) or extremely short measurements
     if (seconds <= 1e-9) return "< 1 ns";
 
     // Use scientific notation for very fast decays (less than 1ms but greater than 1ns)

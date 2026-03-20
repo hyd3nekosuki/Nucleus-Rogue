@@ -34,7 +34,7 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
   const pool = gameState.reincarnationPool;
 
   // 4. Calculate Reincarnation Target for Display
-  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
+  const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DEMON_CORE) && !gameState.disabledSkills.includes(TITLES.DEMON_CORE);
   const reincResult = calculateReincarnationTargets(
     gameState.currentNuclide,
     gameState.reincarnationPool,
@@ -48,6 +48,8 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
     findSpecialReaction(gameState.currentNuclide.z, gameState.currentNuclide.a, e.z || 0, e.a || 0)
   );
 
+  const isRealPhysicsActive = !gameState.unlockedGroups.includes(TITLES.REAL_PHYSICS) || !gameState.disabledSkills.includes(TITLES.REAL_PHYSICS);
+
   const toggleDisplay = () => setShowStats(!showStats);
 
   return (
@@ -59,15 +61,21 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
         <div className={`absolute inset-0 flex flex-wrap justify-center items-center gap-x-4 gap-y-1 transition-all duration-300 ${showStats ? 'opacity-0 -translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
             <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 bg-neon-red rounded-full shadow-[0_0_8px_#ff0055]"></div>
-                <span className="text-white font-mono text-[9px] font-light">p: (Z+1, A+1)</span>
+                <span className="text-white font-mono text-[9px] font-light">
+                  {isRealPhysicsActive ? "p: proton" : "p: (Z+1, A+1)"}
+                </span>
             </div>
             <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
-                <span className="text-white font-mono text-[9px] font-light">n: (Z, A+1)</span>
+                <span className="text-white font-mono text-[9px] font-light">
+                  {isRealPhysicsActive ? "n: neutron" : "n: (Z, A+1)"}
+                </span>
             </div>
             <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_5px_#facc15]"></div>
-                <span className="text-white font-mono text-[9px] font-light">e-: (Z-1, A)</span>
+                <span className="text-white font-mono text-[9px] font-light">
+                  {isRealPhysicsActive ? "e-: electron" : "e-: (Z-1, A)"}
+                </span>
             </div>
         </div>
 

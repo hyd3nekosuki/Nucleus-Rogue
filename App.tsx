@@ -1,6 +1,8 @@
 import React, { useRef, useMemo, useCallback } from 'react';
+// Triggering Vite reload to resolve potential HMR hang
 import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION } from './constants/gameConfig';
 
+import { TUTORIAL_MESSAGES } from './constants/tutorial';
 import Grid from './components/game/Grid';
 import HealthBar from './components/game/HealthBar';
 import NucleusVisualizer from './components/game/NucleusVisualizer';
@@ -83,7 +85,7 @@ function App() {
 
   return (
     <div ref={containerRef} tabIndex={0} 
-      className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${engine.isScreenShaking ? 'animate-shake' : ''}`}>
+      className={`min-h-screen bg-dark-bg text-gray-200 font-mono flex flex-col md:flex-row overflow-hidden relative outline-none ${engine.isScreenShaking ? (engine.shakeIntensity === 'light' ? 'animate-shake-light' : 'animate-shake') : ''}`}>
       <div className={`pointer-events-none fixed inset-0 z-[100] ${engine.flashColor} mix-blend-screen transition-opacity duration-500 ${engine.isFlashBang ? 'opacity-100' : 'opacity-0'}`}></div>
       
       {ui.showTable && (
@@ -113,7 +115,7 @@ function App() {
             nuclide={gameState.currentNuclide} hp={gameState.hp} maxHp={gameState.maxHp} energyPoints={gameState.energyPoints} turn={gameState.turn} score={gameState.score} 
             onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={ui.isNucleosynthesisReady} isNucleosynthesisEnabled={ui.isNucleosynthesisEnabled} transmutationReady={ui.transmutationReady} energyPointsAvailable={ui.energyPointsAvailable}
-            onStabilize={engine.handleStabilize} onShowTable={() => ui.setShowTable(true)} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
+            onStabilize={engine.handleStabilize} onShowTable={() => { ui.setShowTable(true); engine.handleOpenMastery(); }} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
           />
           
           <ControlPanel 
@@ -179,7 +181,33 @@ function App() {
             hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={ui.isSoundTestActive} onHPChange={engine.setHP} 
          />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
-            {gameState.isTimeStopped && <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none"><div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div></div>}
+            {gameState.isTimeStopped && (
+              <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center">
+                  <div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div>
+                  <div className="text-xl md:text-2xl font-mono text-neon-blue mt-2 drop-shadow(0 0 10px #00f3ff) opacity-80">{(gameState.elapsedTime / 1000).toFixed(2)}s</div>
+                </div>
+              </div>
+            )}
+            {(gameState.tutorialMessage === TUTORIAL_MESSAGES.OGANESSON_CONGRATS || gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE) && gameState.recordTime !== undefined && (
+              <div className="absolute inset-0 z-[60] bg-yellow-400/10 backdrop-blur-[4px] flex items-center justify-center pointer-events-none">
+                <div key={gameState.tutorialMessage} className="flex flex-col items-center animate-fade-in">
+                  <div className="text-xs md:text-sm font-bold text-yellow-400 uppercase tracking-[0.3em] mb-2 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">Achievement Unlocked</div>
+                  <div className="text-3xl md:text-5xl font-black italic text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] uppercase tracking-tighter text-center px-4">
+                    {gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'Boundary Reached'}
+                  </div>
+                  <div className="mt-6 flex flex-col items-center">
+                    <div className="text-[10px] text-yellow-400/70 uppercase tracking-widest font-bold">Completion Time</div>
+                    <div className="text-4xl md:text-6xl font-mono text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
+                      {(gameState.recordTime / 1000).toFixed(2)}s
+                    </div>
+                  </div>
+                  <div className="mt-8 text-[9px] text-white/40 uppercase tracking-[0.2em] animate-pulse">
+                    Take any action to continue
+                  </div>
+                </div>
+              </div>
+            )}
             <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} />
             <GridStatusFooter gameState={gameState} />
             <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { ui.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={ui.isSoundTestActive} onToggleSoundTest={ui.toggleSoundTest} />

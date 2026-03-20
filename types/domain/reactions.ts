@@ -24,7 +24,9 @@ export interface AtomicReactionResult {
   chargesUsed: number;
   scatteredMessage?: string;
   shouldShake?: boolean;
+  shakeIntensity?: 'normal' | 'light';
   shouldFlash?: boolean;
+  flashColor?: string;
   chainDecayResult?: any;
   newGridEntities?: GridEntity[];
   newPosition?: Position;

@@ -2,7 +2,7 @@ import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } 
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt, getFreeCells } from '../utils/gridUtils';
-import { calculateInteraction, calculateNeutronReaction } from '../physics/atomicCalculator';
+import { calculateInteraction, calculateNeutronReaction, calculateProtonReaction } from '../physics/atomicCalculator';
 import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
 
@@ -21,7 +21,9 @@ export interface MoveResult {
     inducedDecayMode?: DecayMode;
     inducedReactionLabel?: string;
     shouldShake?: boolean;
+    shakeIntensity?: 'normal' | 'light';
     shouldFlash?: boolean;
+    flashColor?: string;
     additionalEffects?: VisualEffect[];
     isPpFusion?: boolean;
     isPositronAbsorption?: boolean;
@@ -42,7 +44,15 @@ export interface MoveResult {
     reincarnationPoolIncrement: { p: number; n: number; e: number };
     // Add chainDecayResult to MoveResult interface to fix type error in handlers
     chainDecayResult?: any;
-    byproduct?: { z: number, a: number }; // Added for fission fragment handling
+    byproduct?: { z: number, a: number };
+    realPhysicsUnlockProgress?: {
+        hasScatteredProton: boolean;
+        hasScatteredElectron: boolean;
+        hasAbsorbedNeutron: boolean;
+    };
+    tutorialMessage?: string | null;
+    tutorialStartTurn?: number;
+    newlyUnlockedGroups?: string[];
 }
 
 export const generateEntities = (count: number, currentEntities: GridEntity[], playerPos: Position, currentTurn: number = 0, forcedType?: EntityType, isFriendly?: boolean): GridEntity[] => {
@@ -101,7 +111,11 @@ export const calculateMoveResult = (
             consecutiveNeutrons: prev.consecutiveNeutrons,
             consecutiveElectrons: prev.consecutiveElectrons,
             lastConsumedType: prev.lastConsumedType,
-            reincarnationPoolIncrement: { p: 0, n: 0, e: 0 }
+            reincarnationPoolIncrement: { p: 0, n: 0, e: 0 },
+            realPhysicsUnlockProgress: prev.realPhysicsUnlockProgress,
+            tutorialMessage: undefined,
+            tutorialStartTurn: prev.tutorialStartTurn,
+            newlyUnlockedGroups: []
         };
     }
 
@@ -111,6 +125,7 @@ export const calculateMoveResult = (
     let dZ = 0, dA = 0, hpPenalty = 0, energyBonus = 0, actionBonusScore = 0;
     let inducedDecayMode: DecayMode | undefined = undefined;
     let reactionLabel = "";
+    let flashColor: string | undefined = undefined;
     let interactionResult: any = null;
     let nextEntities = [...prev.gridEntities];
     let targetEntity: GridEntity | undefined;
@@ -123,10 +138,16 @@ export const calculateMoveResult = (
     let cE = prev.consecutiveElectrons;
     let lT = prev.lastConsumedType;
 
+    // Real Physics Unlock Progress Tracking
+    let unlockProgress = { ...prev.realPhysicsUnlockProgress };
+    let newTutorialMessage: string | undefined = undefined;
+    let newTutorialStartTurn = prev.tutorialStartTurn;
+    let newlyUnlockedGroups: string[] = [];
+
     const isZeroBarnActive = prev.unlockedGroups.includes(TITLES.ZERO_BARN) && !prev.disabledSkills.includes(TITLES.ZERO_BARN);
     const scatteringActive = prev.unlockedGroups.includes(TITLES.ELECTRON_SCATTERING) && !prev.disabledSkills.includes(TITLES.ELECTRON_SCATTERING);
     const isFusionDisabled = prev.disabledSkills.includes(TITLES.FUSION);
-    const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DAREDEVIL) && !prev.disabledSkills.includes(TITLES.DAREDEVIL);
+    const isDaredevilActive = prev.unlockedGroups.includes(TITLES.DEMON_CORE) && !prev.disabledSkills.includes(TITLES.DEMON_CORE);
 
     if (entityMatch) {
         targetEntity = entityMatch.entity;
@@ -138,7 +159,11 @@ export const calculateMoveResult = (
             
             return {
                 ...annihilationResult,
-                evolvedEntities: nextEntities
+                evolvedEntities: nextEntities,
+                realPhysicsUnlockProgress: unlockProgress,
+                tutorialMessage: undefined,
+                tutorialStartTurn: newTutorialStartTurn,
+                newlyUnlockedGroups: []
             };
         }
 
@@ -150,7 +175,11 @@ export const calculateMoveResult = (
                 consecutiveNeutrons: prev.consecutiveNeutrons,
                 consecutiveElectrons: prev.consecutiveElectrons,
                 lastConsumedType: prev.lastConsumedType,
-                reincarnationPoolIncrement: { p: 0, n: 0, e: 0 }
+                reincarnationPoolIncrement: { p: 0, n: 0, e: 0 },
+                realPhysicsUnlockProgress: unlockProgress,
+                tutorialMessage: undefined,
+                tutorialStartTurn: newTutorialStartTurn,
+                newlyUnlockedGroups: []
             };
         }
 
@@ -165,13 +194,24 @@ export const calculateMoveResult = (
             else { poolInc.n = 1; }
 
         } else if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
-            if (lT != EntityType.ENEMY_ELECTRON) { cP = 0; cN = 0; cE = 0; lT = EntityType.ENEMY_ELECTRON; }
-            // Only increment streak if scattering is not preventing the capture
-            if (!scatteringActive) { cE++; }
-            else { poolInc.e = 1; }
+            // Streak increment moved after interaction result to handle physical scattering
         }
 
         const isAnnihilationSkillActive = prev.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !prev.disabledSkills.includes(TITLES.PAIR_ANNIHILATION);
+
+        // High energy proton special reactions
+        const protonReaction = calculateProtonReaction(
+            prev.currentNuclide,
+            targetEntity,
+            newPos,
+            nextEntities,
+            Date.now(),
+            isAnnihilationSkillActive,
+            !prev.disabledSkills.includes(TITLES.FISSION),
+            prev.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !prev.disabledSkills.includes(TITLES.NEUTRONIZATION),
+            prev.unlockedGroups,
+            prev.disabledSkills
+        );
 
         // High energy neutron special reactions
         const neutronReaction = calculateNeutronReaction(
@@ -189,7 +229,10 @@ export const calculateMoveResult = (
             prev.disabledSkills
         );
 
-        if (neutronReaction) {
+        if (protonReaction) {
+            interactionResult = protonReaction;
+            nextEntities = protonReaction.newGridEntities || nextEntities;
+        } else if (neutronReaction) {
             interactionResult = neutronReaction;
             nextEntities = neutronReaction.newGridEntities || nextEntities;
         } else {
@@ -206,7 +249,37 @@ export const calculateMoveResult = (
         actionBonusScore = interactionResult.actionBonusScore || 0;
         inducedDecayMode = interactionResult.inducedDecayMode;
         reactionLabel = interactionResult.inducedReactionLabel || "";
+        flashColor = interactionResult.flashColor;
         chargesUsed = interactionResult.chargesUsed || 0;
+
+        // Real Physics Unlock Progress Tracking
+        const isRealPhysicsUnlocked = prev.unlockedGroups.includes(TITLES.REAL_PHYSICS);
+
+        if (!isRealPhysicsUnlocked) {
+            // 1. Proton scattering
+            if (targetEntity.type === EntityType.PROTON && interactionResult.isCoulombScattered && !unlockProgress.hasScatteredProton) {
+                unlockProgress.hasScatteredProton = true;
+                newTutorialMessage = "✅Coulomb barrier prevents proton capture";
+                newTutorialStartTurn = prev.turn + 1;
+            }
+            // 2. Electron scattering
+            if (targetEntity.type === EntityType.ENEMY_ELECTRON && interactionResult.isCoulombScattered && !unlockProgress.hasScatteredElectron) {
+                unlockProgress.hasScatteredElectron = true;
+                newTutorialMessage = "✅Mass stability prevents electron capture";
+                newTutorialStartTurn = prev.turn + 1;
+            }
+            // 3. Neutron absorption resulting in transformation
+            if (targetEntity.type === EntityType.NEUTRON && (dZ !== 0 || dA !== 0) && !unlockProgress.hasAbsorbedNeutron) {
+                unlockProgress.hasAbsorbedNeutron = true;
+                newTutorialMessage = "✅ UNCHARGED NEUTRON IS CAPTURED";
+                newTutorialStartTurn = prev.turn + 1;
+            }
+
+            // Check for full unlock
+            if (unlockProgress.hasScatteredProton && unlockProgress.hasScatteredElectron && unlockProgress.hasAbsorbedNeutron) {
+                newlyUnlockedGroups.push(TITLES.REAL_PHYSICS);
+            }
+        }
 
         // Streak and Pool maintenance for Protons
         if (targetEntity.type === EntityType.PROTON) {
@@ -217,9 +290,14 @@ export const calculateMoveResult = (
                 // 2. Skill case: Fusion is explicitly disabled by player (Absorption into pool)
                 else { poolInc.p = 1; }
             }
-            else {
-                // 3. Physical case: Coulomb scattered due to low HP (No increment to pool, particle is lost to grid)
-                // interactionResult.isCoulombScattered is true. Pool stays 0.               
+        }
+
+        // Streak and Pool maintenance for Electrons
+        if (targetEntity.type === EntityType.ENEMY_ELECTRON) {
+            if (!interactionResult.isCoulombScattered) {
+                if (lT != EntityType.ENEMY_ELECTRON) { cP = 0; cN = 0; cE = 0; lT = EntityType.ENEMY_ELECTRON; }
+                if (!scatteringActive) { cE++; }
+                else { poolInc.e = 1; }
             }
         }
 
@@ -234,7 +312,7 @@ export const calculateMoveResult = (
             
             if (potentialCells.length > 0) {
                 const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
-                nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: EntityType.PROTON, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+                nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: targetEntity.type, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
             }
             gluttonyTrigger = false;
         }
@@ -261,7 +339,9 @@ export const calculateMoveResult = (
         inducedDecayMode, 
         inducedReactionLabel: reactionLabel, 
         shouldShake: !!interactionResult?.shouldShake || !!interactionResult?.isCoulombScattered || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        shakeIntensity: (interactionResult?.isCoulombScattered || interactionResult?.shakeIntensity === 'light') ? 'light' : 'normal',
         shouldFlash: !!interactionResult?.shouldFlash || !!interactionResult?.isPpFusion || !!interactionResult?.isPositronAbsorption, 
+        flashColor,
         additionalEffects: interactionResult?.chainDecayResult?.additionalEffects, 
         isPpFusion: !!interactionResult?.isPpFusion, 
         isPositronAbsorption: !!interactionResult?.isPositronAbsorption, 
@@ -280,8 +360,11 @@ export const calculateMoveResult = (
         consecutiveElectrons: cE,
         lastConsumedType: lT,
         reincarnationPoolIncrement: poolInc,
-        // Pass chainDecayResult to MoveResult return object
         chainDecayResult: interactionResult?.chainDecayResult,
-        byproduct: interactionResult?.byproduct // Added for fission fragment propagation
+        byproduct: interactionResult?.byproduct,
+        realPhysicsUnlockProgress: unlockProgress,
+        tutorialMessage: newTutorialMessage,
+        tutorialStartTurn: newTutorialStartTurn,
+        newlyUnlockedGroups
     };
 };

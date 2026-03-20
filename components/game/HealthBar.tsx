@@ -61,7 +61,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
     const dynamicStatusColor = getDynamicColor(hpPercent);
 
     const getDecayDisplay = () => {
-        const modes = formatDecayModes(nuclide);
+        const modes = formatDecayModes(nuclide, false);
         if (nuclide.isStable) return `[${nuclide.halfLifeText}]`;
         return `[${nuclide.halfLifeText}, ${modes}]`;
     };
@@ -114,9 +114,11 @@ const HealthBar: React.FC<HealthBarProps> = ({
                         <span className="text-neon-blue font-bold text-sm md:text-base">{nuclide.name}</span>
                         <span className="text-xs text-gray-500 font-mono">{getDecayDisplay()}</span>
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : (isSoundTestActive ? 'text-yellow-400' : 'text-neon-blue opacity-100')) : 'opacity-0'}`}>
-                        {getMagicLabel()}
-                    </span>
+                  <span 
+                    key={getMagicLabel()}
+                    className={`text-[10px] font-black uppercase tracking-tighter -mt-1 drop-shadow-[0_0_5px_#00f3ff] min-h-[1.2em] flex items-center transition-all duration-300 ${isAnyMagic ? (isDoubleMagic || hasBarrier ? 'text-yellow-400 opacity-100' : (isSoundTestActive ? 'text-yellow-400' : 'text-neon-blue opacity-100')) : 'opacity-0'}`}>
+                      {getMagicLabel()}
+                  </span>
                 </div>
                 {/* 
                    CRITICAL FIX: Adding key={roundedHp} forces React to unmount and remount 

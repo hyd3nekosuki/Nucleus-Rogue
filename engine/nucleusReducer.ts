@@ -7,6 +7,7 @@ import { handleUseSkill } from './handlers/skillHandler';
 import { handleEngraveCurrent } from './handlers/historyHandler';
 import { handleMovePlayer } from './handlers/moveHandler';
 import { handleManualDecay } from './handlers/decayHandler';
+import { getNextTutorialMessage, calculateTutorialFlagUpdates } from './tutorialManager';
 
 /**
  * Nucleus Rogue: Central State Reducer
@@ -64,6 +65,16 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     action.payload.effectIds.includes(e.id) ? { ...e, isPlayed: true } : e
                 )
             };
+
+        case 'NOTIFY_TUTORIAL_EVENT': {
+            const nextMsg = getNextTutorialMessage(state, action.payload.event);
+            const updates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, action.payload.event);
+            return {
+                ...state,
+                ...updates,
+                tutorialMessage: nextMsg
+            };
+        }
 
         case 'CLEANUP_VISUALS': {
             const { effects, activeEventExpired } = action.payload;

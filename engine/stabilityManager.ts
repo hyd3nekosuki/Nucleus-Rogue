@@ -25,7 +25,8 @@ export const resolveStabilityCrisis = (
             null, null, 
             false, false, false, false, 0, 
             false, false, false, false, false, 
-            0, 0, false, isDaredevilAttempt
+            0, 0, false, isDaredevilAttempt,
+            state.isTimeStopped, false, state.playerLevel, false
         );
     };
 
@@ -68,7 +69,7 @@ export const resolveStabilityCrisis = (
     }
 
     // --- CASE 2: Reincarnation ---
-    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DAREDEVIL) && !state.disabledSkills.includes(TITLES.DAREDEVIL);
+    const isDaredevilActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
     const reinc = calculateReincarnationTargets(state.currentNuclide, state.reincarnationPool, state.evolutionHistory, isDaredevilActive);
     
     if (reinc) {

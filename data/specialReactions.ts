@@ -1,7 +1,7 @@
 import { SpecialReaction } from '../types';
+import { ALPHA_INDUCED_REACTIONS } from './alphaInducedReactions';
 import { SPECIAL_REACTIONS as HISTORICAL } from './historicalAndNeutronReactions';
 import { LIGHT_ION_REACTIONS } from './lightIonReactions';
-import { ALPHA_INDUCED_REACTIONS } from './alphaInducedReactions';
 import { HEAVY_ION_FUSION_REACTIONS } from './heavyIonFusionReactions';
 
 /**

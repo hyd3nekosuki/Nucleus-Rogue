@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../../types';
 import { playRhythm } from './audioSequencer';
 import { createMasterRack } from './audioGraph';
-import { createShutterSound } from './audioInstruments';
+import { createShutterSound, createDefeatSound, createFissionExplosionSound, createAlphaDefeatSound } from './audioInstruments';
 
 // --- Internal Audio Configuration ---
 const AUDIO_CONFIG = {
@@ -101,6 +101,23 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         if (lastEvent.type === 'ENGRAVE') {
             createShutterSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime);
+        } else if (lastEvent.type === 'DEFEAT' || lastEvent.hasDefeat) {
+            const isFission = lastEvent.decayModeTrigger === DecayMode.SPONTANEOUS_FISSION || 
+                              lastEvent.decayModeTrigger === DecayMode.B_MINUS_SF || 
+                              lastEvent.decayModeTrigger === DecayMode.EC_SF;
+            
+            const isAlpha = lastEvent.decayModeTrigger === DecayMode.ALPHA ||
+                            lastEvent.decayModeTrigger === DecayMode.B_MINUS_ALPHA ||
+                            lastEvent.decayModeTrigger === DecayMode.B_PLUS_ALPHA ||
+                            lastEvent.decayModeTrigger === DecayMode.EC_ALPHA;
+
+            if (isFission) {
+                createFissionExplosionSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime, 1.5);
+            } else if (isAlpha) {
+                createAlphaDefeatSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime, 1.4);
+            } else {
+                createDefeatSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime, 1.3);
+            }
         }
     }, [lastEvent, isMuted]);
 

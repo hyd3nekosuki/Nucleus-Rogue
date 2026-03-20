@@ -1,5 +1,6 @@
 import { GameState, DecayMode } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS, TUTORIAL_MESSAGES } from '../constants';
+import { TITLES } from '../constants/titles';
 
 /**
  * Provides the clean slate initial state for the Nucleus game engine.
@@ -37,15 +38,23 @@ export const getInitialState = (): GameState => ({
     lastConsumedType: null,
     reincarnations: 0,
     magicBarrierCharges: 0,
+    elapsedTime: 0,
+    recordTime: undefined,
     tutorialMessage: TUTORIAL_MESSAGES.CAPTURE,
     tutorialStartTurn: 0,
     hasSeenDecayTutorial: false,
     hasSeenCaptureTutorial: false,
     hasSeenDripLineTutorial: false,
     hasSeenEngraveTutorial: false,
+    hasSeenSkillToggleTutorial: false,
     comboOrigin: undefined,
     reincarnationPool: { p: 0, n: 0, e: 0 },
     emptyTurnCount: 0,
+    realPhysicsUnlockProgress: {
+        hasScatteredProton: false,
+        hasScatteredElectron: false,
+        hasAbsorbedNeutron: false,
+    },
     decayStats: {
         [DecayMode.ALPHA]: 0,
         [DecayMode.BETA_MINUS]: 0,

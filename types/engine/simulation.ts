@@ -14,7 +14,9 @@ export interface MoveResult {
   inducedDecayMode?: DecayMode;
   inducedReactionLabel?: string;
   shouldShake?: boolean;
+  shakeIntensity?: 'normal' | 'light';
   shouldFlash?: boolean;
+  flashColor?: string;
   additionalEffects?: VisualEffect[];
   isPpFusion?: boolean;
   isPositronAbsorption?: boolean;
@@ -35,6 +37,14 @@ export interface MoveResult {
   reincarnationPoolIncrement: { p: number; n: number; e: number };
   chainDecayResult?: any;
   byproduct?: { z: number, a: number };
+  realPhysicsUnlockProgress?: {
+    hasScatteredProton: boolean;
+    hasScatteredElectron: boolean;
+    hasAbsorbedNeutron: boolean;
+  };
+  tutorialMessage?: string | null;
+  tutorialStartTurn?: number;
+  newlyUnlockedGroups?: string[];
 }
 
 /**
@@ -50,7 +60,9 @@ export interface DecayResult {
   additionalEffects: VisualEffect[];
   newGridEntities: GridEntity[];
   shouldShake: boolean;
+  shakeIntensity?: 'normal' | 'light';
   shouldFlash: boolean;
+  flashColor?: string;
   speechOverride: string | null;
   isAnnihilation?: boolean;
   newPosition?: Position; 

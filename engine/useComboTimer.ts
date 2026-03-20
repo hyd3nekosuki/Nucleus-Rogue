@@ -46,7 +46,9 @@ export const useComboTimer = (
                         const unlockResult = processUnlocks(
                             prev.unlockedElements, prev.unlockedGroups, 
                             prev.currentNuclide.z, prev.currentNuclide.a, 
-                            false, false, false, true, prev.comboScore
+                            false, false, false, true, prev.comboScore,
+                            false, false, false, false, false, 0, 0, false, false,
+                            prev.isTimeStopped, false, prev.playerLevel, true
                         );
                         
                         finalScoreBonus = unlockResult.scoreBonus;

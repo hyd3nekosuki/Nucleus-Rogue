@@ -45,15 +45,23 @@ export interface GameState {
   activeEvent?: { type: string; color: string; timestamp: number };
   reincarnations: number;
   magicBarrierCharges: number;
+  elapsedTime: number;
+  recordTime?: number;
   tutorialMessage: string | null;
   tutorialStartTurn: number;
   hasSeenDecayTutorial: boolean;
   hasSeenCaptureTutorial: boolean;
   hasSeenDripLineTutorial: boolean;
   hasSeenEngraveTutorial: boolean;
+  hasSeenSkillToggleTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
   emptyTurnCount: number;
   lastEvent?: GameStateEvent; 
+  realPhysicsUnlockProgress: {
+    hasScatteredProton: boolean;
+    hasScatteredElectron: boolean;
+    hasAbsorbedNeutron: boolean;
+  };
 }
 
 export type GameAction =
@@ -68,6 +76,7 @@ export type GameAction =
   | { type: 'RESET_VISUALS' }
   | { type: 'MARK_EVENT_PLAYED'; payload: { eventId: number } }
   | { type: 'MARK_EFFECTS_PLAYED'; payload: { effectIds: string[] } }
+  | { type: 'NOTIFY_TUTORIAL_EVENT'; payload: { event: 'MASTERY_OPENED' } }
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
   | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } };

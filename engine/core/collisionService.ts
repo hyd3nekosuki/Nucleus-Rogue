@@ -123,7 +123,7 @@ export const handleAnotherNuclideCollision = (
         evolutionHistory: nextHistory,
         turn: targetTurn, 
         messages: [...state.messages, `⚠️ COLLISION WITH ${campLabel} NUCLIDE! HP -${penalty}`, ...rewardMsg].slice(-10), 
-        lastEvent: { id: now, type: 'COLLISION', shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
+        lastEvent: { id: now, type: 'COLLISION', hasDefeat: isDefeated, shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
     };
 
     if (nextState.hp <= 0) {
@@ -141,11 +141,12 @@ export const handleDefeatByReaction = (
     state: GameState,
     defeatedEntities: GridEntity[],
     targetTurn: number
-): { nextEntities: GridEntity[], nextHistory: Record<string, HistoryEntry>, energyBonus: number, messages: string[] } => {
+): { nextEntities: GridEntity[], nextHistory: Record<string, HistoryEntry>, energyBonus: number, messages: string[], defeatedCount: number } => {
     let nextEntities = [...state.gridEntities];
     let nextHistory = { ...state.evolutionHistory };
     let energyBonus = 0;
     let messages: string[] = [];
+    let defeatedCount = 0;
 
     defeatedEntities.forEach(enemy => {
         // Remove from entities
@@ -153,16 +154,20 @@ export const handleDefeatByReaction = (
         
         // Apply rewards
         energyBonus += 1;
-        messages.push(`💥 ANOTHER NUCLIDE DEFEATED BY REACTION! (+1E)`);
+        const label = enemy.type === EntityType.ANTI_NUCLIDE ? 'ANTI-NUCLIDE' : 'ANOTHER NUCLIDE';
+        messages.push(`💥 ${label} DEFEATED BY REACTION! (+1E)`);
+        defeatedCount++;
         
-        // Register in history as scientific discovery
-        const ez = enemy.z || 0;
-        const ea = enemy.a || 0;
-        const enemyData = getNuclideDataSync(ez, ea);
-        if (enemyData.exists) {
-            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
+        // Register in history as scientific discovery (only for nuclides with Z/A)
+        if (enemy.type === EntityType.ANOTHER_NUCLIDE) {
+            const ez = enemy.z || 0;
+            const ea = enemy.a || 0;
+            const enemyData = getNuclideDataSync(ez, ea);
+            if (enemyData.exists) {
+                nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
+            }
         }
     });
 
-    return { nextEntities, nextHistory, energyBonus, messages };
+    return { nextEntities, nextHistory, energyBonus, messages, defeatedCount };
 };

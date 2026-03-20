@@ -27,7 +27,7 @@ const GROUP_MAP: string[] = [
     TITLES.ZERO_BARN,           // 18
     TITLES.ELECTRON_SCATTERING, // 19
     TITLES.GLUTTONY,            // 20
-    TITLES.DAREDEVIL            // 21
+    TITLES.DEMON_CORE            // 21
 ];
 
 const METHOD_MAP = Object.values(HISTORY_METHODS);
@@ -105,6 +105,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     view.setUint16(offset, state.currentNuclide.a); offset += 2;
     view.setUint16(offset, state.maxCombo); offset += 2;
     view.setUint8(offset++, state.magicBarrierCharges);
+    view.setUint32(offset, Math.floor(state.elapsedTime)); offset += 4;
 
     const elementBits = new Uint8Array(15);
     state.unlockedElements.forEach(z => {
@@ -201,6 +202,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const ca = view.getUint16(offset); offset += 2;
         const mc = view.getUint16(offset); offset += 2;
         const mb = view.getUint8(offset++);
+        const et = view.getUint32(offset); offset += 4;
 
         const ue: number[] = [];
         for (let i = 0; i < 15; i++) {
@@ -271,7 +273,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, pp, pn, pe };
+        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe };
     } catch (e) {
         console.error("Unpack failed:", e instanceof Error ? e.message : String(e));
         return null;

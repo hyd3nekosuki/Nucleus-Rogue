@@ -65,12 +65,16 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
 /**
  * Formats the decay modes of a nuclide into a single string.
  */
-export const formatDecayModes = (nuclide: NuclideData): string => {
+export const formatDecayModes = (nuclide: NuclideData, showAll: boolean = true): string => {
     if (nuclide.isStable) return "Stable";
 
-    const modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
+    let modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
     if (modes.length === 0) {
         return nuclide.decayModes.includes(DecayMode.UNKNOWN) ? "Unknown" : "Stable";
+    }
+
+    if (!showAll && modes.length > 1) {
+        modes = [modes[0]];
     }
     
     return modes.map(getDecayModeLabel).join(", ");
@@ -131,7 +135,7 @@ const createNuclide = (
 
     let hlText = "Unknown";
     if (isStable) hlText = "Stable";
-    else if (halfLife === 0) hlText = "-";
+    else if (halfLife === 0) hlText = "unknown";
     else if (halfLife < 1e-6) hlText = "< 1 µs";
     else if (halfLife < 1) hlText = `${halfLife.toExponential(2)} s`;
     else if (halfLife < 60) hlText = `${Math.round(halfLife)} s`;

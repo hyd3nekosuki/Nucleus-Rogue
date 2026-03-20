@@ -32,5 +32,6 @@ export const SKILL_METADATA = [
     { name: TITLES.TEMPORAL_INVERSION, icon: "⏱", class: "bg-white/10 border-white text-white font-black shadow-[0_0_15px_white]" },
     { name: TITLES.UNKNOWN, icon: "❔", class: "bg-black border-purple-500 text-purple-300 shadow-[0_0_10px_#a855f7] font-black" },
     { name: TITLES.GLUTTONY, icon: "🕳️", class: "bg-indigo-900/40 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.5)] font-black" },
-    { name: TITLES.DAREDEVIL, icon: "🫀", class: "bg-red-900 border-orange-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.6)] font-black" }
+    { name: TITLES.DEMON_CORE, icon: "🫀", class: "bg-red-900 border-orange-500 text-white shadow-[0_0_15px_rgba(250,0,0,0.6)] font-black" },
+    { name: TITLES.REAL_PHYSICS, icon: "🍎", class: "bg-emerald-900/40 border-emerald-500 text-emerald-300 shadow-[0_0_10px_#10b981] font-black" }
 ];

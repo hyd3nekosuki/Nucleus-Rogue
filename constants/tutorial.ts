@@ -8,7 +8,10 @@ export const TUTORIAL_MESSAGES = {
     DECAY: "Decay to become stable",
     DECAY_MANUAL: "Press spacebar or click nuclide to decay",
     DRIP_LINE: "Carefully and Quickly capture particle or decay",
-    RECORD_HISTORY: "Click a nuclide figure to record in history"
+    RECORD_HISTORY: "Click a nuclide figure to record in history",
+    SKILL_TOGGLE: "Press 🏆 set skill on/off",
+    OGANESSON_CONGRATS: "🌐Congratulations: End of one journey is beginning of another",
+    ALL_ELEMENTS_COMPLETE: "🎉 All elements are completed"
 } as const;
 
-export type TutorialEvent = 'GAME_START' | 'PARTICLE_CAPTURED' | 'DECAY_PERFORMED' | 'TURN_ADVANCED' | 'ENGRAVE_PERFORMED';
+export type TutorialEvent = 'GAME_START' | 'PARTICLE_CAPTURED' | 'DECAY_PERFORMED' | 'TURN_ADVANCED' | 'ENGRAVE_PERFORMED' | 'MASTERY_OPENED';

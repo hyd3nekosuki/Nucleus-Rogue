@@ -60,7 +60,7 @@ export const useNucleusActions = (
     const restartGame = useCallback((randomStart: boolean = false) => {
         const currentTitles = gameState.unlockedElements;
         const currentGroups = gameState.unlockedGroups;
-        const isDaredevilActive = currentGroups.includes(TITLES.DAREDEVIL) && !gameState.disabledSkills.includes(TITLES.DAREDEVIL);
+        const isDaredevilActive = currentGroups.includes(TITLES.DEMON_CORE) && !gameState.disabledSkills.includes(TITLES.DEMON_CORE);
         
         let startNuclide = INITIAL_NUCLIDE;
         if (randomStart) {
@@ -80,6 +80,7 @@ export const useNucleusActions = (
             newState.hasSeenCaptureTutorial = gameState.hasSeenCaptureTutorial;
             newState.hasSeenDripLineTutorial = gameState.hasSeenDripLineTutorial;
             newState.hasSeenEngraveTutorial = gameState.hasSeenEngraveTutorial;
+            newState.hasSeenSkillToggleTutorial = gameState.hasSeenSkillToggleTutorial;
         }
 
         // ターン数のリセット: 歴史に刻印する機能の導入に伴い、Random Generation 時もターン 0 から開始する
@@ -123,6 +124,7 @@ export const useNucleusActions = (
             payload: { 
                 ...newState, 
                 turn: startTurn,
+                elapsedTime: randomStart ? gameState.elapsedTime : 0,
                 evolutionHistory: nextHistory,
                 disabledSkills: randomStart ? gameState.disabledSkills : [], 
                 currentNuclide: startNuclide, 

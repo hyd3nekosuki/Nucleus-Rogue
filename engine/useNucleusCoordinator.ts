@@ -4,6 +4,7 @@ import { generateEntities } from './moveSimulator';
 import { getInitialState } from './initialState';
 import { useNucleusState } from './useNucleusState';
 import { useStabilityTimer } from './useStabilityTimer';
+import { useRTATimer } from './useRTATimer';
 import { useComboTimer } from './useComboTimer';
 import { useVisualCleanup } from '../hooks/useVisualCleanup';
 import { useMoveController } from '../hooks/useMoveController';
@@ -25,12 +26,13 @@ export const useNucleusCoordinator = () => {
 
     // 2. Transient Visual State Management (Shakes, Flashes, TTS Trigger)
     const {
-        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        isScreenShaking, shakeIntensity, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         triggerShake, triggerFlash, setFinalCombo, resetVisuals
     } = useVisualEffects(gameState, dispatch);
 
     // 3. Periodic Life-Cycle Timers (Stability Decay, Combo Expiration, Janitorial Cleanup)
     useStabilityTimer(gameState, setGameState);
+    useRTATimer(gameState, setGameState);
     useComboTimer(gameState, setGameState, setFinalCombo);
     useVisualCleanup(gameState, setGameState);
 
@@ -122,13 +124,17 @@ export const useNucleusCoordinator = () => {
     // Helper for manual HP adjustments (Sound Test)
     const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), [dispatch]);
 
+    const handleOpenMastery = useCallback(() => {
+        dispatch({ type: 'NOTIFY_TUTORIAL_EVENT', payload: { event: 'MASTERY_OPENED' } });
+    }, [dispatch]);
+
     return {
         // Raw Data
         gameState, 
         evolutionHistory: gameState.evolutionHistory,
         
         // Visual Status
-        isScreenShaking, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        isScreenShaking, shakeIntensity, isFlashBang, flashColor, lastDecayEvent, finalCombo,
         
         // Visual Triggers
         triggerShake, triggerFlash, 
@@ -148,6 +154,7 @@ export const useNucleusCoordinator = () => {
         handleTransmute, 
         handleToggleHiddenSkill, 
         handleForceUnknownDecay,
+        handleOpenMastery,
         
         // System & Persistence
         restartGame, 

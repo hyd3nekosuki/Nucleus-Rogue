@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNucleusCoordinator } from '../../engine/useNucleusCoordinator';
 import { useGameUIState } from '../ui/useGameUIState';
+import { TITLES } from '../../constants/titles';
 
 /**
  * Hook to handle global keyboard inputs for the game.
@@ -35,7 +36,31 @@ export const useKeyboardControls = (
       // 3. User intentional action stops any ongoing automatic movement (Pathfinding)
       engine.stopAutoMove();
 
-      // 4. Input Mapping to Logic
+      // 4. Skill Shortcuts (Shift + Key)
+      if (e.shiftKey) {
+        const key = e.key.toLowerCase();
+        let skillToToggle: string | null = null;
+        
+        switch(key) {
+          case 'r': skillToToggle = TITLES.REAL_PHYSICS; break;
+          case 'p': skillToToggle = TITLES.FUSION; break;
+          case 'n': skillToToggle = TITLES.ZERO_BARN; break;
+          case 'e': skillToToggle = TITLES.ELECTRON_SCATTERING; break;
+          case 'u': skillToToggle = TITLES.UNKNOWN; break;
+          case 'f': skillToToggle = TITLES.FISSION; break;
+          case 'd': skillToToggle = TITLES.DEMON_CORE; break;
+        }
+
+        if (skillToToggle) {
+          const isUnlocked = engine.gameState.unlockedGroups.includes(skillToToggle);
+          if (isUnlocked) {
+            engine.handleToggleHiddenSkill(skillToToggle as any);
+          }
+          return;
+        }
+      }
+
+      // 5. Input Mapping to Logic
       switch(e.key) {
         // --- Orthogonal Movement (Rogue: hjkl + Arrows + Numpad) ---
         case 'k':

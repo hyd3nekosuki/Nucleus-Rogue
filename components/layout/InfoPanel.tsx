@@ -56,48 +56,56 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   return (
     <div className="px-6 pb-2 pt-0.5 border-b border-gray-800">
       
-      <div className="flex justify-between items-end mb-4 gap-2">
+      <div className="grid grid-cols-2 gap-4 items-end mb-4">
           {/* Score Area - Subtle hidden interaction for Level 5 */}
           <div 
             onClick={isForceDecayAvailable ? onForceDecay : undefined}
-            className={`flex-[2] min-w-0 rounded p-1 transition-all duration-300 select-none
+            className={`min-w-0 rounded p-1 transition-all duration-300 select-none
                 ${isForceDecayAvailable 
-                    ? 'cursor-pointer hover:bg-neon-purple/5 ring-1 ring-transparent hover:ring-neon-purple/20' 
+                    ? 'cursor-pointer bg-neon-purple/10 ring-1 ring-neon-purple/30 hover:bg-neon-purple/20 shadow-[0_0_10px_rgba(188,19,254,0.1)]' 
                     : isForcedDecayUnlocked
                         ? 'opacity-40 grayscale cursor-not-allowed'
                         : 'cursor-default'}`}
             title={isForceDecayAvailable ? "Forced Decay (Costs 5 MeV)" : isForcedDecayUnlocked ? "Insufficient Energy (5 MeV required)" : undefined}
           >
-            <div className="text-gray-500 text-[10px] md:text-xs uppercase tracking-widest truncate">
-                Score
+            <div className="text-gray-500 text-[10px] md:text-xs uppercase tracking-widest flex justify-between items-center">
+                <span>Score</span>
+                {isForceDecayAvailable && <span className="text-neon-purple text-[8px] animate-pulse font-black tracking-tighter">FORCE DECAY</span>}
             </div>
-            <div className={`text-base md:text-lg lg:text-xl text-neon-purple font-mono font-bold leading-tight break-all ${isForceDecayAvailable ? 'drop-shadow-[0_0_8px_rgba(188,19,254,0.3)]' : ''}`}>
+            <div 
+                key={score}
+                className={`text-base md:text-lg lg:text-xl text-neon-purple font-mono font-bold leading-tight break-all ${isForceDecayAvailable ? 'drop-shadow-[0_0_8px_rgba(188,19,254,0.3)]' : ''}`}>
                 {formatScore(score)}
             </div>
           </div>
 
-          {/* E-Points */}
-          <div className="flex-1 text-center px-1">
-            <div className="text-gray-500 text-[10px] uppercase tracking-widest truncate">E</div>
-            <div className={`text-lg md:text-xl text-yellow-400 font-mono font-bold leading-none drop-shadow-[0_0_8px_rgba(250,204,21,0.4)] ${energyPoints > 0 ? 'animate-pulse' : 'opacity-40'}`}>
-              {energyPoints}<span className="text-[8px] ml-0.5">MeV</span>
-            </div>
-          </div>
-          
-          {/* Nuclear Info */}
-          <div className="flex gap-3 items-end shrink-0">
-              <div className="text-right">
-                <div className="text-gray-500 text-[10px] uppercase tracking-tighter">Z</div>
-                <div className="text-lg md:text-xl text-neon-red font-mono font-bold leading-none">
-                  {nuclide.z}
+          {/* Info Area */}
+          <div className="flex justify-between items-end gap-2">
+              {/* E-Points */}
+              <div className="flex-1 text-center px-1">
+                <div className="text-gray-500 text-[10px] uppercase tracking-widest truncate">E</div>
+                <div 
+                  key={energyPoints}
+                  className={`text-lg md:text-xl text-yellow-400 font-mono font-bold leading-none drop-shadow-[0_0_8px_rgba(250,204,21,0.4)] ${energyPoints > 0 ? 'animate-pulse' : 'opacity-40'}`}>
+                  {energyPoints}<span className="text-[8px] ml-0.5">MeV</span>
                 </div>
               </div>
+              
+              {/* Nuclear Info */}
+              <div className="flex gap-3 items-end shrink-0">
+                  <div className="text-right">
+                    <div className="text-gray-500 text-[10px] uppercase tracking-tighter">Z</div>
+                    <div className="text-lg md:text-xl text-neon-red font-mono font-bold leading-none">
+                      {nuclide.z}
+                    </div>
+                  </div>
 
-              <div className="text-right">
-                 <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-tighter">A</div>
-                 <div className="text-lg md:text-xl text-white font-mono leading-none font-bold">
-                    {nuclide.a}
-                 </div>
+                  <div className="text-right">
+                     <div className="text-[10px] md:text-xs text-gray-500 uppercase tracking-tighter">A</div>
+                     <div className="text-lg md:text-xl text-white font-mono leading-none font-bold">
+                        {nuclide.a}
+                     </div>
+                  </div>
               </div>
           </div>
       </div>
@@ -116,7 +124,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
                 {!nuclide.isStable && !disabled && <span className="text-neon-green animate-pulse">●</span>}
               </div>
               <div className={`text-xs truncate font-bold ${nuclide.isStable ? 'text-neon-green/50' : 'text-neon-green'}`}>
-                  {formatDecayModes(nuclide)}
+                  {formatDecayModes(nuclide, false)}
               </div>
           </button>
 
