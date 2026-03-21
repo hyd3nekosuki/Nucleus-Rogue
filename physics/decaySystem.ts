@@ -326,55 +326,55 @@ export const calculateDecayEffects = (
             const nMatch = mode.match(/(\d)N/);
             const nCount = nMatch ? parseInt(nMatch[1]) : 1;
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = `Beta-delayed ${nCount}n emission`;
+            result.trigger = `β- delayed ${nCount}n emission`;
             result.emissions = new Array(nCount).fill(EntityType.NEUTRON);
             break;
         case DecayMode.B_MINUS_ALPHA:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "Beta-delayed alpha emission";
+            result.trigger = "β- delayed alpha emission";
             result.energyBonus = 5;
             break;
         case DecayMode.B_MINUS_PROTON:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "Beta-delayed proton emission";
+            result.trigger = "β- delayed proton emission";
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_MINUS_SF:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "Beta-delayed fission";
+            result.trigger = "β- delayed fission";
             result.shouldShake = true;
             result.shouldFlash = true;
             result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.B_PLUS_ALPHA:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "Beta-delayed alpha emission";
+            result.trigger = "β+ delayed alpha emission";
             result.energyBonus = 5;
             break;
         case DecayMode.B_PLUS_PROTON:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "Beta-delayed proton emission";
+            result.trigger = "β+ delayed proton emission";
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_PLUS_2PROTON:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "Beta-delayed 2p emission";
+            result.trigger = "β+ delayed 2p emission";
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_ALPHA:
-            result.trigger = "EC-delayed alpha emission";
+            result.trigger = "EC delayed alpha emission";
             result.energyBonus = 5;
             break;
         case DecayMode.EC_PROTON:
-            result.trigger = "EC-delayed proton emission";
+            result.trigger = "EC delayed proton emission";
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.EC_2PROTON:
-            result.trigger = "EC-delayed 2p emission";
+            result.trigger = "EC delayed 2p emission";
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_SF:
-            result.trigger = "EC-delayed fission";
+            result.trigger = "EC delayed fission";
             result.shouldShake = true;
             result.shouldFlash = true;
             result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];

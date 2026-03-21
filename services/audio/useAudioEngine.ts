@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { DecayMode } from '../../types';
 import { playRhythm } from './audioSequencer';
 import { createMasterRack } from './audioGraph';
-import { createShutterSound, createDefeatSound, createFissionExplosionSound, createAlphaDefeatSound } from './audioInstruments';
+import { createShutterSound, createDefeatSound, createFissionExplosionSound, createAlphaDefeatSound, createKatanaSliceSound } from './audioInstruments';
 
 // --- Internal Audio Configuration ---
 const AUDIO_CONFIG = {
@@ -101,6 +101,8 @@ export const useAudioEngine = (hp: number, isGameOver: boolean, decayModes: Deca
 
         if (lastEvent.type === 'ENGRAVE') {
             createShutterSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime);
+        } else if (lastEvent.isAnnihilation) {
+            createKatanaSliceSound(audioCtxRef.current, masterEntryRef.current, audioCtxRef.current.currentTime, 1.2);
         } else if (lastEvent.type === 'DEFEAT' || lastEvent.hasDefeat) {
             const isFission = lastEvent.decayModeTrigger === DecayMode.SPONTANEOUS_FISSION || 
                               lastEvent.decayModeTrigger === DecayMode.B_MINUS_SF || 

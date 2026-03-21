@@ -27,7 +27,8 @@ const GROUP_MAP: string[] = [
     TITLES.ZERO_BARN,           // 18
     TITLES.ELECTRON_SCATTERING, // 19
     TITLES.GLUTTONY,            // 20
-    TITLES.DEMON_CORE            // 21
+    TITLES.DEMON_CORE,           // 21
+    TITLES.REAL_PHYSICS          // 22
 ];
 
 const METHOD_MAP = Object.values(HISTORY_METHODS);
@@ -146,6 +147,21 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     view.setUint16(offset, Math.min(65535, state.reincarnationPool.n)); offset += 2;
     view.setUint16(offset, Math.min(65535, state.reincarnationPool.e)); offset += 2;
 
+    // --- New Progress & Tutorial Flags ---
+    let progressBits = 0;
+    if (state.realPhysicsUnlockProgress.hasScatteredProton) progressBits |= (1 << 0);
+    if (state.realPhysicsUnlockProgress.hasScatteredElectron) progressBits |= (1 << 1);
+    if (state.realPhysicsUnlockProgress.hasAbsorbedNeutron) progressBits |= (1 << 2);
+    view.setUint8(offset++, progressBits);
+
+    let tutorialBits = 0;
+    if (state.hasSeenDecayTutorial) tutorialBits |= (1 << 0);
+    if (state.hasSeenCaptureTutorial) tutorialBits |= (1 << 1);
+    if (state.hasSeenDripLineTutorial) tutorialBits |= (1 << 2);
+    if (state.hasSeenEngraveTutorial) tutorialBits |= (1 << 3);
+    if (state.hasSeenSkillToggleTutorial) tutorialBits |= (1 << 4);
+    view.setUint8(offset++, tutorialBits);
+
     view.setUint16(offset, historyList.length); offset += 2;
     historyList.forEach(h => {
         view.setUint8(offset++, h.pz === null ? 255 : h.pz);
@@ -177,7 +193,27 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
  */
 export const unpackBinary = async (code: string): Promise<Partial<SavePayload> | null> => {
     try {
-        let sanitized = code.trim().replace(/[^A-Za-z0-9+/=]/g, '');
+        // 1. Handle common URL-safe base64 conversions and URL decoding artifacts
+        let sanitized = code.trim()
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .replace(/\r?\n|\r/g, ''); // Remove newlines first
+            
+        // 2. Handle the common '+' -> ' ' conversion from URL parameters
+        // We only do this if it helps make the string valid base64 or if it's a single line
+        if (sanitized.includes(' ')) {
+            sanitized = sanitized.replace(/ /g, '+');
+        }
+            
+        // 3. Remove any remaining invalid characters
+        sanitized = sanitized.replace(/[^A-Za-z0-9+/=]/g, '');
+        
+        // 3. Fix padding if necessary
+        // Base64 strings can't have a length of 1 mod 4
+        if (sanitized.length === 0 || sanitized.length % 4 === 1) {
+            return null;
+        }
+        
         while (sanitized.length % 4 !== 0) sanitized += '=';
         
         const binString = atob(sanitized);
@@ -240,9 +276,39 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const pn = view.getUint16(offset); offset += 2;
         const pe = view.getUint16(offset); offset += 2;
 
-        const historyLen = view.getUint16(offset); offset += 2;
+        // --- New Progress & Tutorial Flags ---
+        // Default values for backward compatibility
+        let rp = { p: false, e: false, n: false };
+        let tf = { d: true, c: true, l: true, e: true, s: true };
+
+        // Check if there's enough space for the new flags (2 bytes) AND at least the history length (2 bytes)
+        if (offset + 4 <= view.byteLength) {
+            const progressBits = view.getUint8(offset++);
+            rp = {
+                p: !!(progressBits & (1 << 0)),
+                e: !!(progressBits & (1 << 1)),
+                n: !!(progressBits & (1 << 2))
+            };
+
+            const tutorialBits = view.getUint8(offset++);
+            tf = {
+                d: !!(tutorialBits & (1 << 0)),
+                c: !!(tutorialBits & (1 << 1)),
+                l: !!(tutorialBits & (1 << 2)),
+                e: !!(tutorialBits & (1 << 3)),
+                s: !!(tutorialBits & (1 << 4))
+            };
+        }
+
+        let historyLen = 0;
+        if (offset + 2 <= view.byteLength) {
+            historyLen = view.getUint16(offset); offset += 2;
+        }
+        
         const ev: Record<string, string> = {};
         for (let i = 0; i < historyLen; i++) {
+            if (offset + 7 > view.byteLength) break; // Minimum size for a history entry header
+
             const rpz = view.getUint8(offset++);
             const pz = rpz === 255 ? null : rpz;
             const pa = view.getUint16(offset); offset += 2;
@@ -273,7 +339,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe };
+        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe, rp, tf };
     } catch (e) {
         console.error("Unpack failed:", e instanceof Error ? e.message : String(e));
         return null;

@@ -151,7 +151,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
                 state.unlockedElements, state.unlockedGroups, null, null,
                 false, false, false, false, 0, 
                 false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved,
-                0, 0, false, isDare, false, false, state.playerLevel, false
+                0, 0, false, isDare, false, false, state.playerLevel
             );
 
             let finalEntities = nextState.gridEntities;

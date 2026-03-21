@@ -108,7 +108,8 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         shake: isForced || decayResult.shouldShake, 
         shakeIntensity: decayResult.shakeIntensity,
         flash: isForced ? undefined : (decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined), 
-        priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [] 
+        priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [],
+        isAnnihilation: decayResult.isAnnihilation
     };
 
     if (!newData.exists) {
@@ -120,7 +121,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             false, false, false, false, false, 
             state.decayStats[DecayMode.BETA_PLUS] + (actualMode === DecayMode.BETA_PLUS ? 1 : 0), 
             state.decayStats[DecayMode.BETA_MINUS] + (actualMode === DecayMode.BETA_MINUS ? 1 : 0),
-            false, isDare, false, false, state.playerLevel, false
+            false, isDare, false, false, state.playerLevel
         );
 
         if (isDaredevilActive) {
@@ -187,9 +188,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         : actualMode === DecayMode.SPONTANEOUS_FISSION ? `Spontaneous fission into ${newData.name}` 
         : actualMode === DecayMode.IT ? `Isomeric transition`
         : actualMode === DecayMode.GAMMA ? `γ decay`
-        : actualMode.startsWith('B-') ? `β- delayed emission into ${newData.name}`
-        : actualMode.startsWith('B+') ? `β+ delayed emission into ${newData.name}`
-        : actualMode === DecayMode.EC_ALPHA || actualMode === DecayMode.EC_PROTON || actualMode === DecayMode.EC_2PROTON || actualMode === DecayMode.EC_SF ? `EC delayed emission into ${newData.name}`
+        : actualMode.startsWith('B-') || actualMode.startsWith('B+') || actualMode.startsWith('EC') ? `${decayResult.trigger} into ${newData.name}`
         : "";
     
     let nextEntities = decayResult.newGridEntities;

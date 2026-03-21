@@ -26,4 +26,5 @@ export interface GameStateEvent {
   flash?: string;
   isPlayed?: boolean;
   hasDefeat?: boolean;
+  isAnnihilation?: boolean;
 }

@@ -26,7 +26,7 @@ export const resolveStabilityCrisis = (
             false, false, false, false, 0, 
             false, false, false, false, false, 
             0, 0, false, isDaredevilAttempt,
-            state.isTimeStopped, false, state.playerLevel, false
+            state.isTimeStopped, false, state.playerLevel
         );
     };
 

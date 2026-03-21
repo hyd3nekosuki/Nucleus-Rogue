@@ -107,8 +107,16 @@ export const usePersistence = (
                 messages: ["Previous research is cited."], 
                 tutorialMessage: null, 
                 tutorialStartTurn: payload.t || 0,
-                hasSeenCaptureTutorial: true, 
-                hasSeenDecayTutorial: true, 
+                hasSeenDecayTutorial: payload.tf?.d ?? true,
+                hasSeenCaptureTutorial: payload.tf?.c ?? true,
+                hasSeenDripLineTutorial: payload.tf?.l ?? true,
+                hasSeenEngraveTutorial: payload.tf?.e ?? true,
+                hasSeenSkillToggleTutorial: payload.tf?.s ?? true,
+                realPhysicsUnlockProgress: payload.rp ? {
+                    hasScatteredProton: payload.rp.p,
+                    hasScatteredElectron: payload.rp.e,
+                    hasAbsorbedNeutron: payload.rp.n
+                } : getInitialState().realPhysicsUnlockProgress,
                 gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, payload.t || 0) 
             });
 
