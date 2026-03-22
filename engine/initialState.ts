@@ -40,6 +40,7 @@ export const getInitialState = (): GameState => ({
     magicBarrierCharges: 0,
     elapsedTime: 0,
     recordTime: undefined,
+    achievementTimes: {},
     tutorialMessage: TUTORIAL_MESSAGES.CAPTURE,
     tutorialStartTurn: 0,
     hasSeenDecayTutorial: false,
@@ -49,6 +50,7 @@ export const getInitialState = (): GameState => ({
     hasSeenSkillToggleTutorial: false,
     comboOrigin: undefined,
     reincarnationPool: { p: 0, n: 0, e: 0 },
+    hasPerformedActiveReincarnation: false,
     emptyTurnCount: 0,
     realPhysicsUnlockProgress: {
         hasScatteredProton: false,
@@ -64,6 +66,15 @@ export const getInitialState = (): GameState => ({
         [DecayMode.NEUTRON_EMISSION]: 0,
         [DecayMode.PROTON_EMISSION]: 0,
         [DecayMode.GAMMA]: 0,
+        'PURE_ALPHA': 0,
+        'PURE_BETA_MINUS': 0,
+        [DecayMode.DOUBLE_BETA_MINUS]: 0,
+        [DecayMode.B_MINUS_N]: 0,
+        [DecayMode.B_MINUS_ALPHA]: 0,
+        [DecayMode.B_MINUS_PROTON]: 0,
+        [DecayMode.B_MINUS_SF]: 0,
+        [DecayMode.B_PLUS_ALPHA]: 0,
+        [DecayMode.EC_ALPHA]: 0,
     },
     reactionStats: {
         [HISTORY_METHODS.REACTION_NG]: 0,
@@ -71,5 +82,6 @@ export const getInitialState = (): GameState => ({
         [HISTORY_METHODS.REACTION_N2N]: 0,
         [HISTORY_METHODS.REACTION_NA]: 0,
         [HISTORY_METHODS.REACTION_NF]: 0,
+        [HISTORY_METHODS.REACTION_PA]: 0,
     }
 });

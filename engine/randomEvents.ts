@@ -1,4 +1,4 @@
-import { GameState, EntityType, GridEntity, Position } from '../types';
+import { GameState, EntityType, GridEntity, Position, GameStateEvent } from '../types';
 import { generateEntities } from './moveSimulator';
 import { moveAntiNuclides, consumeMatterWithAntiNuclides } from './behaviors/antiNuclideBehavior';
 import { moveAnotherNuclides, consumeParticlesWithAnotherNuclides, resolveMatterStruggle } from './behaviors/anotherNuclideBehavior';
@@ -10,6 +10,7 @@ export interface BackgroundEventResult {
     gridEntities: GridEntity[];
     messages: string[];
     activeEvent?: { type: string; color: string; timestamp: number };
+    lastEvent?: GameStateEvent;
     emptyTurnCount: number;
     assaultingEntity: GridEntity | null; // Step 3: Added for Hard Mode assault detection
 }
@@ -21,6 +22,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     let nextEntities = [...state.gridEntities];
     let nextMessages = [...state.messages];
     let activeEvent = state.activeEvent;
+    let lastEvent: GameStateEvent | undefined = undefined;
     let eventTriggered = false;
     let nextEmptyTurnCount = state.emptyTurnCount;
 
@@ -54,6 +56,17 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     nextEntities = struggleResult.nextEntities;
     if (struggleResult.struggleMessages.length > 0) {
         nextMessages = [...nextMessages, ...struggleResult.struggleMessages].slice(-10);
+        if (struggleResult.hasStruggle) {
+            activeEvent = { type: "MATTER_STRUGGLE", color: "#ef4444", timestamp: Date.now() };
+            lastEvent = {
+                id: Date.now(),
+                type: 'COLLISION',
+                subType: 'MATTER_STRUGGLE',
+                shake: true,
+                shakeIntensity: 'light',
+                flash: 'bg-red-500/20'
+            };
+        }
     }
 
     nextEntities = consumeParticlesWithAnotherNuclides(nextEntities);
@@ -68,8 +81,14 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     ) || null;
 
     // 3. Spawning "Another Nuclide" (Mid-boss) with Linked Spawning Logic
-    const hasAnother = nextEntities.some(e => e.type === EntityType.ANOTHER_NUCLIDE);
-    if (!hasAnother && state.turn > 20 && Math.random() < 0.015) {
+    const hasEnemyAnother = nextEntities.some(e => e.type === EntityType.ANOTHER_NUCLIDE && !e.isFriendly);
+    const hasFriendlyAnother = nextEntities.some(e => e.type === EntityType.ANOTHER_NUCLIDE && e.isFriendly);
+    
+    // Demon core ON: Allow spawning enemy if no ENEMY exists (even if friend exists)
+    // Demon core OFF: Allow spawning enemy only if NO another nuclide exists
+    const canSpawnEnemy = isDaredevilActive ? !hasEnemyAnother : (!hasEnemyAnother && !hasFriendlyAnother);
+
+    if (canSpawnEnemy && state.turn > 20 && Math.random() < 0.015) {
         const curZ = state.currentNuclide.z;
         const curA = state.currentNuclide.a;
         
@@ -183,6 +202,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         gridEntities: nextEntities,
         messages: nextMessages,
         activeEvent,
+        lastEvent,
         emptyTurnCount: nextEmptyTurnCount,
         assaultingEntity // Return detection result to the handler
     };

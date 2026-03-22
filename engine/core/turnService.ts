@@ -18,12 +18,28 @@ export const finalizeAction = (state: GameState): GameState => {
     const bgResult = processRandomBackgroundEvents(state);
     
     // 2. Destructure result to separate pure state updates from transient flags (assaultingEntity)
-    const { assaultingEntity, ...stateUpdates } = bgResult;
+    const { assaultingEntity, lastEvent: bgLastEvent, ...stateUpdates } = bgResult;
     
     // 3. Create the intermediate state after world updates
     let nextState: GameState = { ...state, ...stateUpdates };
+
+    // 4. Merge lastEvent if background event is important (like a struggle)
+    if (bgLastEvent) {
+        if (!nextState.lastEvent || nextState.lastEvent.isPlayed) {
+            nextState.lastEvent = bgLastEvent;
+        } else if (bgLastEvent.subType === 'MATTER_STRUGGLE') {
+            // Combat takes high priority for feedback, merge with existing messages
+            nextState.lastEvent = {
+                ...bgLastEvent,
+                priorityMessages: [
+                    ...(nextState.lastEvent.priorityMessages || []),
+                    ...(bgLastEvent.priorityMessages || [])
+                ]
+            };
+        }
+    }
     
-    // 4. Collision Resolution: In Hard Mode, if an enemy moved onto the player position,
+    // 5. Collision Resolution: In Hard Mode, if an enemy moved onto the player position,
     // we must trigger the collision logic immediately as an "assault".
     if (assaultingEntity) {
         // Fix: Pass nextState.turn as the fourth argument required by handleAnotherNuclideCollision

@@ -23,7 +23,7 @@ interface Particle {
 
 interface EmissionParticle {
     id: string;
-    type: 'ALPHA' | 'BETA_PLUS' | 'BETA_MINUS' | 'ELECTRON' | 'NEUTRON' | 'PROTON' | 'PHOTON';
+    type: 'ALPHA' | 'BETA_PLUS' | 'BETA_MINUS' | 'ELECTRON' | 'NEUTRON' | 'PROTON' | 'PHOTON' | 'DEUTERON' | 'TRITON' | 'HELIUM3';
     angle: number; // radians
     startDist: number;
 }
@@ -140,6 +140,17 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
           newParticles.push({ id: `alpha-${idBase}`, type: 'ALPHA', angle: randomAngle, startDist: r });
       }
 
+      // Primary Deuteron / Triton / He3
+      if (mode === DecayMode.DEUTERON_EMISSION) {
+          newParticles.push({ id: `deut-${idBase}`, type: 'DEUTERON', angle: randomAngle, startDist: r });
+      }
+      if (mode === DecayMode.TRITON_EMISSION) {
+          newParticles.push({ id: `trit-${idBase}`, type: 'TRITON', angle: randomAngle, startDist: r });
+      }
+      if (mode === DecayMode.HELIUM3_EMISSION) {
+          newParticles.push({ id: `he3-${idBase}`, type: 'HELIUM3', angle: randomAngle, startDist: r });
+      }
+
       // Primary Gamma / IT
       if (mode === DecayMode.GAMMA || mode === DecayMode.IT) {
           newParticles.push({ id: `g-${idBase}`, type: 'PHOTON', angle: randomAngle, startDist: 0 });
@@ -223,6 +234,53 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
                        <circle r={2.5} fill="#ff0055" cx={2} cy={2} />
                        <circle r={2.5} fill="#00f3ff" cx={-2} cy={2} />
                        <circle r={2.5} fill="#00f3ff" cx={2} cy={-2} />
+                  </g>
+              );
+          }
+          if (p.type === 'DEUTERON') {
+              return (
+                  <g key={p.id} className="animate-shoot-out" style={{
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center',
+                      '--angle': `${p.angle}rad`,
+                      '--start-dist': `${p.startDist}px`,
+                      '--end-dist': `${halfSize * 1.5}px`
+                  } as React.CSSProperties}>
+                       <circle r={4} fill="none" stroke="gold" strokeWidth={1} opacity={0.5} cx={0} cy={0} />
+                       <circle r={2.5} fill="#ff0055" cx={-1.5} cy={0} />
+                       <circle r={2.5} fill="#00f3ff" cx={1.5} cy={0} />
+                  </g>
+              );
+          }
+          if (p.type === 'TRITON') {
+              return (
+                  <g key={p.id} className="animate-shoot-out" style={{
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center',
+                      '--angle': `${p.angle}rad`,
+                      '--start-dist': `${p.startDist}px`,
+                      '--end-dist': `${halfSize * 1.5}px`
+                  } as React.CSSProperties}>
+                       <circle r={5} fill="none" stroke="gold" strokeWidth={1} opacity={0.5} cx={0} cy={0} />
+                       <circle r={2.5} fill="#ff0055" cx={0} cy={-2} />
+                       <circle r={2.5} fill="#00f3ff" cx={-1.8} cy={1.2} />
+                       <circle r={2.5} fill="#00f3ff" cx={1.8} cy={1.2} />
+                  </g>
+              );
+          }
+          if (p.type === 'HELIUM3') {
+              return (
+                  <g key={p.id} className="animate-shoot-out" style={{
+                      transformBox: 'fill-box',
+                      transformOrigin: 'center',
+                      '--angle': `${p.angle}rad`,
+                      '--start-dist': `${p.startDist}px`,
+                      '--end-dist': `${halfSize * 1.5}px`
+                  } as React.CSSProperties}>
+                       <circle r={5} fill="none" stroke="gold" strokeWidth={1} opacity={0.5} cx={0} cy={0} />
+                       <circle r={2.5} fill="#00f3ff" cx={0} cy={-2} />
+                       <circle r={2.5} fill="#ff0055" cx={-1.8} cy={1.2} />
+                       <circle r={2.5} fill="#ff0055" cx={1.8} cy={1.2} />
                   </g>
               );
           }

@@ -88,6 +88,7 @@ export const resolveStabilityCrisis = (
                 e: state.reincarnationPool.e - usage.e
             },
             reincarnations: state.reincarnations + 1,
+            hasPerformedActiveReincarnation: true,
             combo: 0, comboScore: 0, comboOrigin: undefined,
             consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
             lastEvent: { id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', message: 'Reincarnation' }

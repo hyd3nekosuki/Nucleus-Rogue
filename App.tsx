@@ -102,6 +102,10 @@ function App() {
             canTransmute={ui.transmutationReady} 
             onSelectElement={ui.handleTransmuteWrapper}
             saveCode={ui.saveCode}
+            recordTime={gameState.recordTime}
+            achievementTimes={gameState.achievementTimes}
+            elapsedTime={gameState.elapsedTime}
+            hasPerformedActiveReincarnation={gameState.hasPerformedActiveReincarnation}
         />
       )}
 
@@ -194,7 +198,7 @@ function App() {
                 <div key={gameState.tutorialMessage} className="flex flex-col items-center animate-fade-in">
                   <div className="text-xs md:text-sm font-bold text-yellow-400 uppercase tracking-[0.3em] mb-2 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">Achievement Unlocked</div>
                   <div className="text-3xl md:text-5xl font-black italic text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] uppercase tracking-tighter text-center px-4">
-                    {gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'Boundary Reached'}
+                    {gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'FAR BEYOND BOUNDARY'}
                   </div>
                   <div className="mt-6 flex flex-col items-center">
                     <div className="text-[10px] text-yellow-400/70 uppercase tracking-widest font-bold">Completion Time</div>

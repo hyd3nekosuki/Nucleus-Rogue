@@ -34,6 +34,33 @@ const GROUP_MAP: string[] = [
 const METHOD_MAP = Object.values(HISTORY_METHODS);
 const DECAY_MODE_MAP = Object.values(DecayMode);
 
+const ACHIEVEMENT_MAP: string[] = [
+    'reincarnated',
+    'combo_master',
+    'alpha_master',
+    'beta_master',
+    'seasoned_nuclide',
+    'oganesson',
+    'all_elements'
+];
+
+// Achievement-critical stats that need to be persisted
+const EXTENDED_DECAY_STATS = [
+    'PURE_ALPHA',
+    'PURE_BETA_MINUS',
+    DecayMode.DOUBLE_BETA_MINUS,
+    DecayMode.B_MINUS_N,
+    DecayMode.B_MINUS_ALPHA,
+    DecayMode.B_MINUS_PROTON,
+    DecayMode.B_MINUS_SF,
+    DecayMode.B_PLUS_ALPHA,
+    DecayMode.EC_ALPHA
+];
+
+const EXTENDED_REACTION_STATS = [
+    HISTORY_METHODS.REACTION_PA
+];
+
 /**
  * Robust stream-to-buffer utility.
  */
@@ -90,8 +117,10 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
     const historyList = Object.values(history);
     
-    // Buffer size calculation: 1024 base + (16 bytes per history entry)
-    const bufferSize = 1024 + (historyList.length * 16);
+    // Buffer size calculation: 1024 base + (16 bytes per history entry) + (extended stats) + (achievements)
+    const extendedStatsSize = (EXTENDED_DECAY_STATS.length + EXTENDED_REACTION_STATS.length) * 2;
+    const achievementSize = 1 + (ACHIEVEMENT_MAP.length * 5); // 1 byte count + (1 byte index + 4 bytes time)
+    const bufferSize = 1024 + (historyList.length * 16) + extendedStatsSize + achievementSize;
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
@@ -160,7 +189,25 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     if (state.hasSeenDripLineTutorial) tutorialBits |= (1 << 2);
     if (state.hasSeenEngraveTutorial) tutorialBits |= (1 << 3);
     if (state.hasSeenSkillToggleTutorial) tutorialBits |= (1 << 4);
+    if (state.hasPerformedActiveReincarnation) tutorialBits |= (1 << 5);
     view.setUint8(offset++, tutorialBits);
+
+    // --- Extended Achievement Stats ---
+    EXTENDED_DECAY_STATS.forEach(mode => {
+        view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
+    });
+    EXTENDED_REACTION_STATS.forEach(r => {
+        view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
+    });
+
+    // --- Achievement Times ---
+    const achievedIds = Object.keys(state.achievementTimes).filter(id => ACHIEVEMENT_MAP.includes(id));
+    view.setUint8(offset++, achievedIds.length);
+    achievedIds.forEach(id => {
+        const idx = ACHIEVEMENT_MAP.indexOf(id);
+        view.setUint8(offset++, idx);
+        view.setUint32(offset, Math.floor(state.achievementTimes[id])); offset += 4;
+    });
 
     view.setUint16(offset, historyList.length); offset += 2;
     historyList.forEach(h => {
@@ -279,7 +326,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         // --- New Progress & Tutorial Flags ---
         // Default values for backward compatibility
         let rp = { p: false, e: false, n: false };
-        let tf = { d: true, c: true, l: true, e: true, s: true };
+        let tf = { d: true, c: true, l: true, e: true, s: true, ar: false };
 
         // Check if there's enough space for the new flags (2 bytes) AND at least the history length (2 bytes)
         if (offset + 4 <= view.byteLength) {
@@ -296,8 +343,35 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
                 c: !!(tutorialBits & (1 << 1)),
                 l: !!(tutorialBits & (1 << 2)),
                 e: !!(tutorialBits & (1 << 3)),
-                s: !!(tutorialBits & (1 << 4))
+                s: !!(tutorialBits & (1 << 4)),
+                ar: !!(tutorialBits & (1 << 5))
             };
+        }
+
+        // --- Extended Achievement Stats ---
+        const extendedStatsSize = (EXTENDED_DECAY_STATS.length + EXTENDED_REACTION_STATS.length) * 2;
+        if (offset + extendedStatsSize + 2 <= view.byteLength) {
+            EXTENDED_DECAY_STATS.forEach(mode => {
+                st[mode] = view.getUint16(offset); offset += 2;
+            });
+            EXTENDED_REACTION_STATS.forEach(r => {
+                rs[r] = view.getUint16(offset); offset += 2;
+            });
+        }
+
+        // --- Achievement Times ---
+        const at: Record<string, number> = {};
+        if (offset + 1 <= view.byteLength) {
+            const achievementCount = view.getUint8(offset++);
+            for (let i = 0; i < achievementCount; i++) {
+                if (offset + 5 <= view.byteLength) {
+                    const idx = view.getUint8(offset++);
+                    const time = view.getUint32(offset); offset += 4;
+                    if (ACHIEVEMENT_MAP[idx]) {
+                        at[ACHIEVEMENT_MAP[idx]] = time;
+                    }
+                }
+            }
         }
 
         let historyLen = 0;
@@ -339,7 +413,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
         }
 
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe, rp, tf };
+        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe, rp, tf, at };
     } catch (e) {
         console.error("Unpack failed:", e instanceof Error ? e.message : String(e));
         return null;

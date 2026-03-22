@@ -221,8 +221,14 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const nextDecayStats = { ...state.decayStats };
     const updateStats = (mode: DecayMode) => {
         switch (mode) {
-            case DecayMode.ALPHA: nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
-            case DecayMode.BETA_MINUS: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; break;
+            case DecayMode.ALPHA: 
+                nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; 
+                nextDecayStats['PURE_ALPHA'] = (nextDecayStats['PURE_ALPHA'] || 0) + 1;
+                break;
+            case DecayMode.BETA_MINUS: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; 
+                nextDecayStats['PURE_BETA_MINUS'] = (nextDecayStats['PURE_BETA_MINUS'] || 0) + 1;
+                break;
             case DecayMode.BETA_PLUS: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; break;
             case DecayMode.ELECTRON_CAPTURE: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; break;
             case DecayMode.SPONTANEOUS_FISSION: nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;
@@ -232,26 +238,53 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             case DecayMode.TWO_NEUTRON_EMISSION: nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 2; break;
             case DecayMode.GAMMA: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
             case DecayMode.IT: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
-            case DecayMode.DOUBLE_BETA_MINUS: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 2; break;
+            case DecayMode.DOUBLE_BETA_MINUS: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 2; 
+                nextDecayStats[DecayMode.DOUBLE_BETA_MINUS] = (nextDecayStats[DecayMode.DOUBLE_BETA_MINUS] || 0) + 1;
+                break;
             case DecayMode.DOUBLE_BETA_PLUS: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 2; break;
             case DecayMode.DOUBLE_ELECTRON_CAPTURE: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 2; break;
             
-            case DecayMode.B_MINUS_N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 1; break;
+            case DecayMode.B_MINUS_N: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; 
+                nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 1; 
+                nextDecayStats[DecayMode.B_MINUS_N] = (nextDecayStats[DecayMode.B_MINUS_N] || 0) + 1;
+                break;
             case DecayMode.B_MINUS_2N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 2; break;
             case DecayMode.B_MINUS_3N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 3; break;
             case DecayMode.B_MINUS_4N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 4; break;
             case DecayMode.B_MINUS_5N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 5; break;
             case DecayMode.B_MINUS_6N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 6; break;
             case DecayMode.B_MINUS_7N: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 7; break;
-            case DecayMode.B_MINUS_ALPHA: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
-            case DecayMode.B_MINUS_PROTON: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
-            case DecayMode.B_MINUS_SF: nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;
+            case DecayMode.B_MINUS_ALPHA: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; 
+                nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; 
+                nextDecayStats[DecayMode.B_MINUS_ALPHA] = (nextDecayStats[DecayMode.B_MINUS_ALPHA] || 0) + 1;
+                break;
+            case DecayMode.B_MINUS_PROTON: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; 
+                nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; 
+                nextDecayStats[DecayMode.B_MINUS_PROTON] = (nextDecayStats[DecayMode.B_MINUS_PROTON] || 0) + 1;
+                break;
+            case DecayMode.B_MINUS_SF: 
+                nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 1; 
+                nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; 
+                nextDecayStats[DecayMode.B_MINUS_SF] = (nextDecayStats[DecayMode.B_MINUS_SF] || 0) + 1;
+                break;
             
-            case DecayMode.B_PLUS_ALPHA: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.B_PLUS_ALPHA: 
+                nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; 
+                nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; 
+                nextDecayStats[DecayMode.B_PLUS_ALPHA] = (nextDecayStats[DecayMode.B_PLUS_ALPHA] || 0) + 1;
+                break;
             case DecayMode.B_PLUS_PROTON: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
             case DecayMode.B_PLUS_2PROTON: nextDecayStats[DecayMode.BETA_PLUS] = (nextDecayStats[DecayMode.BETA_PLUS] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 2; break;
             
-            case DecayMode.EC_ALPHA: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; break;
+            case DecayMode.EC_ALPHA: 
+                nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; 
+                nextDecayStats[DecayMode.ALPHA] = (nextDecayStats[DecayMode.ALPHA] || 0) + 1; 
+                nextDecayStats[DecayMode.EC_ALPHA] = (nextDecayStats[DecayMode.EC_ALPHA] || 0) + 1;
+                break;
             case DecayMode.EC_PROTON: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 1; break;
             case DecayMode.EC_2PROTON: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.PROTON_EMISSION] = (nextDecayStats[DecayMode.PROTON_EMISSION] || 0) + 2; break;
             case DecayMode.EC_SF: nextDecayStats[DecayMode.ELECTRON_CAPTURE] = (nextDecayStats[DecayMode.ELECTRON_CAPTURE] || 0) + 1; nextDecayStats[DecayMode.SPONTANEOUS_FISSION] = (nextDecayStats[DecayMode.SPONTANEOUS_FISSION] || 0) + 1; break;

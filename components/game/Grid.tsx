@@ -30,14 +30,10 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       const dy = Math.abs(y - gameState.playerPos.y);
       const isAdjacent = (dx <= 1 && dy <= 1) && !(dx === 0 && dy === 0);
       
-      let entity = undefined;
-      for (let i = gameState.gridEntities.length - 1; i >= 0; i--) {
-        const e = gameState.gridEntities[i];
-        if (e.position.x === x && e.position.y === y) {
-          entity = e;
-          break;
-        }
-      }
+      // Prioritize rendering ANOTHER_NUCLIDE and ANTI_NUCLIDE over other particles
+      const cellEntities = gameState.gridEntities.filter(e => e.position.x === x && e.position.y === y);
+      let entity = cellEntities.find(e => e.type === EntityType.ANOTHER_NUCLIDE || e.type === EntityType.ANTI_NUCLIDE) 
+                || cellEntities[cellEntities.length - 1];
       
       const now = Date.now();
       const activeEffects = gameState.effects.filter(e => 

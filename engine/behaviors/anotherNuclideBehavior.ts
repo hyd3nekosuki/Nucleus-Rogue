@@ -13,13 +13,40 @@ export const moveAnotherNuclides = (
     currentTurn: number,
     isDaredevilActive: boolean = false // Added in Step 1
 ): GridEntity[] => {
-    return entities.map(e => {
+    const nextEntities = [...entities];
+    
+    for (let i = 0; i < nextEntities.length; i++) {
+        const e = nextEntities[i];
         if (e.type === EntityType.ANOTHER_NUCLIDE) {
             const elapsed = currentTurn - e.spawnTurn;
             // Moves on every 2nd turn relative to spawn
             if (elapsed > 0 && elapsed % 2 === 0) {
-                const dx = playerPos.x - e.position.x;
-                const dy = playerPos.y - e.position.y;
+                let targetPos = playerPos;
+
+                // If friendly, prioritize targeting the closest enemy another nuclide to "challenge" it
+                if (e.isFriendly) {
+                    const enemies = nextEntities.filter(other => 
+                        other.type === EntityType.ANOTHER_NUCLIDE && !other.isFriendly
+                    );
+
+                    if (enemies.length > 0) {
+                        // Find closest enemy
+                        let closest = enemies[0];
+                        let minDistance = Math.abs(closest.position.x - e.position.x) + Math.abs(closest.position.y - e.position.y);
+                        
+                        for (let j = 1; j < enemies.length; j++) {
+                            const dist = Math.abs(enemies[j].position.x - e.position.x) + Math.abs(enemies[j].position.y - e.position.y);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closest = enemies[j];
+                            }
+                        }
+                        targetPos = closest.position;
+                    }
+                }
+
+                const dx = targetPos.x - e.position.x;
+                const dy = targetPos.y - e.position.y;
                 
                 // Potential move candidates prioritizing the direction that closes the largest gap
                 const candidates: Position[] = [];
@@ -40,7 +67,8 @@ export const moveAnotherNuclides = (
                     if (isWithinBounds(nextPos) && (!isPlayerPos || canOverlapPlayer)) {
                         
                         // Check if this cell is already occupied by a nuclide of the SAME affiliation
-                        const isAllyOccupied = entities.some(other => 
+                        // We check nextEntities to account for moves already made in this turn
+                        const isAllyOccupied = nextEntities.some(other => 
                             other.id !== e.id && 
                             other.type === EntityType.ANOTHER_NUCLIDE &&
                             (!!other.isFriendly === !!e.isFriendly) &&
@@ -48,88 +76,98 @@ export const moveAnotherNuclides = (
                         );
 
                         if (!isAllyOccupied) {
-                            return { ...e, position: nextPos };
+                            nextEntities[i] = { ...e, position: nextPos };
+                            break;
                         }
                     }
                 }
-                // If all gap-closing options are blocked by allies or bounds, stay in place
-                return e;
             }
         }
-        return e;
-    });
+    }
+    return nextEntities;
 };
 
 /**
  * Step 4: Resolves "Matter Struggle" between nuclides of different camps sharing the same position.
  */
-export const resolveMatterStruggle = (entities: GridEntity[]): { nextEntities: GridEntity[], struggleMessages: string[] } => {
+export const resolveMatterStruggle = (entities: GridEntity[]): { nextEntities: GridEntity[], struggleMessages: string[], hasStruggle: boolean } => {
     const struggleMessages: string[] = [];
-    const processedIds = new Set<string>();
-    const resultEntities: GridEntity[] = [];
-
-    // Sort entities to ensure consistent processing (by Z then A)
-    const sorted = [...entities].sort((a, b) => {
-        if (a.type !== b.type) return a.type === EntityType.ANOTHER_NUCLIDE ? -1 : 1;
-        return ((b.z || 0) - (a.z || 0)) || ((b.a || 0) - (a.a || 0));
+    let hasStruggle = false;
+    
+    // Group entities by position to handle multi-combatant cells
+    const posMap = new Map<string, GridEntity[]>();
+    entities.forEach(e => {
+        const key = `${e.position.x},${e.position.y}`;
+        if (!posMap.has(key)) posMap.set(key, []);
+        posMap.get(key)!.push(e);
     });
 
-    for (let i = 0; i < sorted.length; i++) {
-        const e1 = sorted[i];
-        if (processedIds.has(e1.id)) continue;
-        if (e1.type !== EntityType.ANOTHER_NUCLIDE) {
-            resultEntities.push(e1);
-            processedIds.add(e1.id);
+    const resultEntities: GridEntity[] = [];
+
+    for (const [_, cellEntities] of posMap.entries()) {
+        const friends = cellEntities.filter(e => e.type === EntityType.ANOTHER_NUCLIDE && e.isFriendly);
+        const enemies = cellEntities.filter(e => e.type === EntityType.ANOTHER_NUCLIDE && !e.isFriendly);
+        const others = cellEntities.filter(e => e.type !== EntityType.ANOTHER_NUCLIDE);
+
+        // Non-nuclide entities always survive the struggle
+        resultEntities.push(...others);
+
+        if (friends.length === 0 || enemies.length === 0) {
+            // No conflict in this cell
+            resultEntities.push(...friends, ...enemies);
             continue;
         }
 
-        // Find opponent at same position with DIFFERENT affiliation
-        const opponentIndex = sorted.findIndex((e2, idx) => 
-            idx > i &&
-            !processedIds.has(e2.id) &&
-            e2.type === EntityType.ANOTHER_NUCLIDE &&
-            e2.position.x === e1.position.x &&
-            e2.position.y === e1.position.y &&
-            (!!e2.isFriendly !== !!e1.isFriendly)
-        );
+        // Struggle occurs!
+        hasStruggle = true;
+        
+        // Sort both sides by strength (Z then A)
+        const sortFn = (a: GridEntity, b: GridEntity) => ((b.z || 0) - (a.z || 0)) || ((b.a || 0) - (a.a || 0));
+        friends.sort(sortFn);
+        enemies.sort(sortFn);
 
-        if (opponentIndex !== -1) {
-            const e2 = sorted[opponentIndex];
-            const z1 = e1.z || 0;
-            const a1 = e1.a || 0;
-            const z2 = e2.z || 0;
-            const a2 = e2.a || 0;
+        // Primary resolution: Strongest Friend vs Strongest Enemy
+        const f = friends[0];
+        const e = enemies[0];
+        
+        const zf = f.z || 0;
+        const af = f.a || 0;
+        const ze = e.z || 0;
+        const ae = e.a || 0;
 
-            const name1 = getNuclideDataSync(z1, a1).name;
-            const name2 = getNuclideDataSync(z2, a2).name;
+        const nameF = getNuclideDataSync(zf, af).name;
+        const nameE = getNuclideDataSync(ze, ae).name;
 
-            // Determine winner: 1. Higher Z, 2. Higher A, 3. 50% Chance
-            let winner: GridEntity;
-            let loser: GridEntity;
+        let winnerIsFriend: boolean;
 
-            if (z1 > z2) { winner = e1; loser = e2; }
-            else if (z2 > z1) { winner = e2; loser = e1; }
-            else if (a1 > a2) { winner = e1; loser = e2; }
-            else if (a2 > a1) { winner = e2; loser = e1; }
-            else {
-                const p1Wins = Math.random() > 0.5;
-                winner = p1Wins ? e1 : e2;
-                loser = p1Wins ? e2 : e1;
+        if (zf > ze) { winnerIsFriend = true; }
+        else if (ze > zf) { winnerIsFriend = false; }
+        else if (af > ae) { winnerIsFriend = true; }
+        else if (ae > af) { winnerIsFriend = false; }
+        else {
+            // Friend wins tie
+            winnerIsFriend = true;
+        }
+
+        const winnerName = winnerIsFriend ? nameF : nameE;
+        struggleMessages.push(`💥 Matter Struggle: ${nameF} vs ${nameE} -> ${winnerName} remained`);
+
+        if (winnerIsFriend) {
+            // All friends in this cell survive, all enemies are removed
+            resultEntities.push(...friends);
+            if (enemies.length > 1) {
+                struggleMessages.push(`   (Other enemies in the cell were also annihilated)`);
             }
-
-            const winnerName = winner === e1 ? name1 : name2;
-            struggleMessages.push(`💥 Matter Struggle: ${name1} vs ${name2} -> ${winnerName} remained`);
-            
-            resultEntities.push(winner);
-            processedIds.add(e1.id);
-            processedIds.add(e2.id);
         } else {
-            resultEntities.push(e1);
-            processedIds.add(e1.id);
+            // All enemies in this cell survive, all friends are removed
+            resultEntities.push(...enemies);
+            if (friends.length > 1) {
+                struggleMessages.push(`   (Other friends in the cell were also annihilated)`);
+            }
         }
     }
 
-    return { nextEntities: resultEntities, struggleMessages };
+    return { nextEntities: resultEntities, struggleMessages, hasStruggle };
 };
 
 /**
@@ -142,50 +180,51 @@ export const consumeParticlesWithAnotherNuclides = (entities: GridEntity[]): Gri
 
     let nextEntities = [...entities];
     
-    anotherNuclides.forEach(enemy => {
+    anotherNuclides.forEach(nuclide => {
         // Find index in current evolving entity list
-        const enemyIndexInNext = nextEntities.findIndex(e => e.id === enemy.id);
-        if (enemyIndexInNext === -1) return;
+        const nuclideIndexInNext = nextEntities.findIndex(e => e.id === nuclide.id);
+        if (nuclideIndexInNext === -1) return;
 
         const consumedIndex = nextEntities.findIndex(e => 
-            e.id !== enemy.id && 
-            e.position.x === enemy.position.x && 
-            e.position.y === enemy.position.y &&
+            e.id !== nuclide.id && 
+            e.position.x === nuclide.position.x && 
+            e.position.y === nuclide.position.y &&
             [EntityType.PROTON, EntityType.NEUTRON, EntityType.ENEMY_ELECTRON, EntityType.ENEMY_POSITRON].includes(e.type)
         );
 
         if (consumedIndex !== -1) {
             const target = nextEntities[consumedIndex];
-            const updatedEnemy = { ...nextEntities[enemyIndexInNext] };
+            const updatedNuclide = { ...nextEntities[nuclideIndexInNext] };
             
             switch (target.type) {
                 case EntityType.PROTON:
-                    updatedEnemy.z = (updatedEnemy.z || 0) + 1;
-                    updatedEnemy.a = (updatedEnemy.a || 0) + 1;
+                    updatedNuclide.z = (updatedNuclide.z || 0) + 1;
+                    updatedNuclide.a = (updatedNuclide.a || 0) + 1;
                     break;
                 case EntityType.NEUTRON:
-                    updatedEnemy.a = (updatedEnemy.a || 0) + 1;
+                    updatedNuclide.a = (updatedNuclide.a || 0) + 1;
                     break;
                 case EntityType.ENEMY_ELECTRON:
-                    updatedEnemy.z = Math.max(0, (updatedEnemy.z || 0) - 1);
+                    updatedNuclide.z = Math.max(0, (updatedNuclide.z || 0) - 1);
                     break;
                 case EntityType.ENEMY_POSITRON:
-                    updatedEnemy.z = (updatedEnemy.z || 0) + 1;
+                    updatedNuclide.z = (updatedNuclide.z || 0) + 1;
                     break;
             }
 
             // Remove the consumed particle
             nextEntities.splice(consumedIndex, 1);
             
-            // Re-find enemy index because splice shifts things
-            const finalEnemyIndex = nextEntities.findIndex(e => e.id === enemy.id);
-            if (finalEnemyIndex !== -1) {
-                const existenceCheck = getNuclideDataSync(updatedEnemy.z || 0, updatedEnemy.a || 0);
-                if (!existenceCheck.exists) {
-                    // Mid-boss vanished due to reaching an impossible configuration
-                    nextEntities.splice(finalEnemyIndex, 1);
+            // Re-find nuclide index because splice shifts things
+            const finalNuclideIndex = nextEntities.findIndex(e => e.id === nuclide.id);
+            if (finalNuclideIndex !== -1) {
+                const existenceCheck = getNuclideDataSync(updatedNuclide.z || 0, updatedNuclide.a || 0);
+                // Friendly nuclides never vanish from consumption; enemies only vanish if they hit a non-existent state
+                if (!existenceCheck.exists && !updatedNuclide.isFriendly) {
+                    // Nuclide vanished due to reaching an impossible configuration
+                    nextEntities.splice(finalNuclideIndex, 1);
                 } else {
-                    nextEntities[finalEnemyIndex] = updatedEnemy;
+                    nextEntities[finalNuclideIndex] = updatedNuclide;
                 }
             }
         }

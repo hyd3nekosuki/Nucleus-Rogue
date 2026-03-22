@@ -102,6 +102,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
         d = "M0 50 L10 50 L10 10 L30 10 L30 50 L50 50 L50 10 L70 10 L70 50 L90 50 L90 10 L100 10"; 
     } else if (activeEvent.type === "ELECTRON_FLUCTUATION") {
         d = "M0 50 Q 25 10, 50 50 T 100 50 M0 50 Q 25 90, 50 50 T 100 50"; 
+    } else if (activeEvent.type === "MATTER_STRUGGLE") {
+        d = "M0 50 L10 50 L15 10 L20 90 L25 30 L30 70 L35 50 L100 50"; 
     }
 
     return (

@@ -239,13 +239,33 @@ export const calculateNeutronReaction = (
         const data = NEUTRON_CROSS_SECTIONS[`${currentNuclide.z}-${currentNuclide.a}`];
         if (data) {
             const energyIdx = target.isHighEnergy ? 1 : 0;
-            const reactions = Object.entries(data.reactions);
-            const totalXS = reactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
+            const isDaredevilActive = unlockedGroups.includes(TITLES.DEMON_CORE) && !disabledSkills.includes(TITLES.DEMON_CORE);
+            
+            // Filter reactions based on existence if Demon core is OFF
+            const allReactions = Object.entries(data.reactions);
+            const validReactions = allReactions.filter(([key, xs]) => {
+                if (xs[energyIdx] <= 0) return false;
+                if (isDaredevilActive || key === "n,f") return true;
+                
+                let dZ = 0, dA = 0;
+                switch (key) {
+                    case "n,g": dZ = 0; dA = 1; break;
+                    case "n,p": dZ = -1; dA = 0; break;
+                    case "n,d": dZ = -1; dA = -1; break;
+                    case "n,t": dZ = -1; dA = -2; break;
+                    case "n,2n": dZ = 0; dA = -1; break;
+                    case "n,a": dZ = -2; dA = -3; break;
+                    default: dZ = 0; dA = 1;
+                }
+                return getNuclideDataSync(currentNuclide.z + dZ, currentNuclide.a + dA).exists;
+            });
+
+            const totalXS = validReactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
 
             if (totalXS > 0) {
                 let r = Math.random() * totalXS;
-                let chosenKey = reactions[0][0];
-                for (const [key, xs] of reactions) {
+                let chosenKey = validReactions[0][0];
+                for (const [key, xs] of validReactions) {
                     r -= xs[energyIdx];
                     if (r <= 0) {
                         chosenKey = key;
@@ -259,6 +279,8 @@ export const calculateNeutronReaction = (
                     case "n,g": mode = DecayMode.GAMMA; label = HISTORY_METHODS.REACTION_NG; break;
                     case "n,p": mode = DecayMode.PROTON_EMISSION; label = HISTORY_METHODS.REACTION_NP; break;
                     case "n,2n": mode = DecayMode.NEUTRON_EMISSION; label = HISTORY_METHODS.REACTION_N2N; break;
+                    case "n,d": mode = DecayMode.DEUTERON_EMISSION; label = HISTORY_METHODS.REACTION_ND; break;
+                    case "n,t": mode = DecayMode.TRITON_EMISSION; label = HISTORY_METHODS.REACTION_NT; break;
                     case "n,a": mode = DecayMode.ALPHA; label = HISTORY_METHODS.REACTION_NA; break;
                     case "n,f": mode = DecayMode.SPONTANEOUS_FISSION; label = HISTORY_METHODS.REACTION_NF; break;
                     default: mode = DecayMode.GAMMA; label = HISTORY_METHODS.REACTION_NG;
@@ -343,13 +365,34 @@ export const calculateProtonReaction = (
     if (!data) return null;
 
     const energyIdx = 1; // High energy
-    const reactions = Object.entries(data.reactions);
-    const totalXS = reactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
+    const isDaredevilActive = unlockedGroups.includes(TITLES.DEMON_CORE) && !disabledSkills.includes(TITLES.DEMON_CORE);
+
+    // Filter reactions based on existence if Demon core is OFF
+    const allReactions = Object.entries(data.reactions);
+    const validReactions = allReactions.filter(([key, xs]) => {
+        if (xs[energyIdx] <= 0) return false;
+        if (isDaredevilActive || key === "p,f") return true;
+
+        let dZ = 0, dA = 0;
+        switch (key) {
+            case "p,n": dZ = 1; dA = 0; break;
+            case "p,2n": dZ = 1; dA = -1; break;
+            case "p,g": dZ = 1; dA = 1; break;
+            case "p,n+p": dZ = 0; dA = -1; break;
+            case "p,2p": dZ = -1; dA = -1; break;
+            case "p,p+a": dZ = -2; dA = -4; break;
+            case "p,a": dZ = -1; dA = -3; break;
+            default: dZ = 1; dA = 1;
+        }
+        return getNuclideDataSync(currentNuclide.z + dZ, currentNuclide.a + dA).exists;
+    });
+
+    const totalXS = validReactions.reduce((sum, [_, xs]) => sum + xs[energyIdx], 0);
 
     if (totalXS > 0) {
         let r = Math.random() * totalXS;
-        let chosenKey = reactions[0][0];
-        for (const [key, xs] of reactions) {
+        let chosenKey = validReactions[0][0];
+        for (const [key, xs] of validReactions) {
             r -= xs[energyIdx];
             if (r <= 0) {
                 chosenKey = key;
@@ -365,6 +408,10 @@ export const calculateProtonReaction = (
             case "p,n": 
                 mode = DecayMode.NEUTRON_EMISSION; 
                 label = HISTORY_METHODS.REACTION_PN; 
+                break;
+            case "p,2n":
+                mode = DecayMode.TWO_NEUTRON_EMISSION;
+                label = HISTORY_METHODS.REACTION_P2N;
                 break;
             case "p,g": 
                 mode = DecayMode.GAMMA; 

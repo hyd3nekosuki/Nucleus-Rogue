@@ -30,6 +30,9 @@ export const consumeMatterWithAntiNuclides = (entities: GridEntity[]): GridEntit
 
     return entities.filter(e => {
         if (e.type === EntityType.ANTI_NUCLIDE) return true;
+        // Friendly nuclides ignore anti-nuclides (immunity)
+        if (e.type === EntityType.ANOTHER_NUCLIDE && e.isFriendly) return true;
+        
         // Erase any normal particle sharing a cell with an anti-nuclide
         return !antiNuclides.some(a => a.position.x === e.position.x && a.position.y === e.position.y);
     });

@@ -91,6 +91,7 @@ export const usePersistence = (
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
                 elapsedTime: payload.et || 0,
+                achievementTimes: payload.at || {},
                 reincarnationPool: {
                     p: payload.pp || 0,
                     n: payload.pn || 0,
@@ -112,6 +113,7 @@ export const usePersistence = (
                 hasSeenDripLineTutorial: payload.tf?.l ?? true,
                 hasSeenEngraveTutorial: payload.tf?.e ?? true,
                 hasSeenSkillToggleTutorial: payload.tf?.s ?? true,
+                hasPerformedActiveReincarnation: payload.tf?.ar ?? false,
                 realPhysicsUnlockProgress: payload.rp ? {
                     hasScatteredProton: payload.rp.p,
                     hasScatteredElectron: payload.rp.e,

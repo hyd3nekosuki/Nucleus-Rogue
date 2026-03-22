@@ -47,7 +47,10 @@ export enum DecayMode {
   EC_PROTON = 'ECP',
   EC_2PROTON = 'EC2P',
   EC_SF = 'ECSF',
-  EC_B_PLUS = 'EC+B+'
+  EC_B_PLUS = 'EC+B+',
+  DEUTERON_EMISSION = 'DEUTERON_EMISSION',
+  TRITON_EMISSION = 'TRITON_EMISSION',
+  HELIUM3_EMISSION = 'HELIUM3_EMISSION'
 }
 
 export enum NuclideCategory {

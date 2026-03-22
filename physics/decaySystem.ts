@@ -311,6 +311,18 @@ export const calculateDecayEffects = (
             result.trigger = "Two Neutron Emission";
             result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
+        case DecayMode.DEUTERON_EMISSION:
+            result.trigger = HISTORY_METHODS.DEUTERON_EMISSION;
+            result.emissions = [EntityType.PROTON, EntityType.NEUTRON];
+            break;
+        case DecayMode.TRITON_EMISSION:
+            result.trigger = HISTORY_METHODS.TRITON_EMISSION;
+            result.emissions = [EntityType.PROTON, EntityType.NEUTRON, EntityType.NEUTRON];
+            break;
+        case DecayMode.HELIUM3_EMISSION:
+            result.trigger = HISTORY_METHODS.HELIUM3_EMISSION;
+            result.emissions = [EntityType.PROTON, EntityType.PROTON, EntityType.NEUTRON];
+            break;
         case DecayMode.IT:
             result.trigger = "Isomeric Transition";
             result.actionBonusScore = BONUS_SCORES.GAMMA_ACTION;

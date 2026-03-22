@@ -47,6 +47,7 @@ export interface GameState {
   magicBarrierCharges: number;
   elapsedTime: number;
   recordTime?: number;
+  achievementTimes: Record<string, number>;
   tutorialMessage: string | null;
   tutorialStartTurn: number;
   hasSeenDecayTutorial: boolean;
@@ -55,6 +56,7 @@ export interface GameState {
   hasSeenEngraveTutorial: boolean;
   hasSeenSkillToggleTutorial: boolean;
   reincarnationPool: { p: number; n: number; e: number };
+  hasPerformedActiveReincarnation: boolean;
   emptyTurnCount: number;
   lastEvent?: GameStateEvent; 
   realPhysicsUnlockProgress: {
@@ -79,4 +81,5 @@ export type GameAction =
   | { type: 'NOTIFY_TUTORIAL_EVENT'; payload: { event: 'MASTERY_OPENED' } }
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
-  | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } };
+  | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } }
+  | { type: 'RECORD_ACHIEVEMENT'; payload: { id: string; time: number } };

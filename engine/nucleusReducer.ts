@@ -81,6 +81,17 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             return { ...state, effects, activeEvent: activeEventExpired ? undefined : state.activeEvent };
         }
 
+        case 'RECORD_ACHIEVEMENT': {
+            if (state.achievementTimes[action.payload.id]) return state;
+            return {
+                ...state,
+                achievementTimes: {
+                    ...state.achievementTimes,
+                    [action.payload.id]: action.payload.time
+                }
+            };
+        }
+
         default: 
             return state;
     }

@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
+import { DecayMode } from '../types';
 import { generateEntities } from './moveSimulator';
 import { getInitialState } from './initialState';
 import { useNucleusState } from './useNucleusState';
@@ -127,6 +128,81 @@ export const useNucleusCoordinator = () => {
     const handleOpenMastery = useCallback(() => {
         dispatch({ type: 'NOTIFY_TUTORIAL_EVENT', payload: { event: 'MASTERY_OPENED' } });
     }, [dispatch]);
+
+    // 8. Achievement Tracking
+    useEffect(() => {
+        const checkAchievement = (id: string, condition: boolean) => {
+            if (condition && !gameState.achievementTimes[id]) {
+                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: gameState.elapsedTime } });
+            }
+        };
+
+        checkAchievement('all_elements', gameState.unlockedElements.filter(z => z > 0).length >= 118);
+        checkAchievement('combo_master', gameState.maxCombo >= 20);
+        checkAchievement('reincarnated', gameState.hasPerformedActiveReincarnation);
+        
+        // Master of Alpha: Experience all alpha-related events at least once
+        const hasPureAlpha = (gameState.decayStats['PURE_ALPHA'] || 0) > 0;
+        const hasBMinusAlpha = (gameState.decayStats[DecayMode.B_MINUS_ALPHA] || 0) > 0;
+        const hasBPlusAlpha = (gameState.decayStats[DecayMode.B_PLUS_ALPHA] || 0) > 0;
+        const hasECAlpha = (gameState.decayStats[DecayMode.EC_ALPHA] || 0) > 0;
+        const hasNA = (gameState.reactionStats[HISTORY_METHODS.REACTION_NA] || 0) > 0;
+        const hasPA = (gameState.reactionStats[HISTORY_METHODS.REACTION_PA] || 0) > 0;
+        
+        checkAchievement('alpha_master', hasPureAlpha && hasBMinusAlpha && hasBPlusAlpha && hasECAlpha && hasNA && hasPA);
+
+        // Master of Beta: Experience all beta-minus related events at least once
+        const hasPureBMinus = (gameState.decayStats['PURE_BETA_MINUS'] || 0) > 0;
+        const hasDoubleBMinus = (gameState.decayStats[DecayMode.DOUBLE_BETA_MINUS] || 0) > 0;
+        const hasBMinusN = (gameState.decayStats[DecayMode.B_MINUS_N] || 0) > 0;
+        const hasBMinusAlpha_B = (gameState.decayStats[DecayMode.B_MINUS_ALPHA] || 0) > 0;
+        const hasBMinusProton = (gameState.decayStats[DecayMode.B_MINUS_PROTON] || 0) > 0;
+        const hasBMinusSF = (gameState.decayStats[DecayMode.B_MINUS_SF] || 0) > 0;
+
+        checkAchievement('beta_master', hasPureBMinus && hasDoubleBMinus && hasBMinusN && hasBMinusAlpha_B && hasBMinusProton && hasBMinusSF);
+
+        // Seasoned Nuclide: All major decay modes and neutron reactions experienced at least once
+        const checkSeasonedNuclide = () => {
+            if (gameState.achievementTimes['seasoned_nuclide']) return;
+
+            const requiredDecays = [
+                DecayMode.ALPHA,
+                DecayMode.BETA_MINUS,
+                DecayMode.BETA_PLUS,
+                DecayMode.ELECTRON_CAPTURE,
+                DecayMode.SPONTANEOUS_FISSION,
+                DecayMode.NEUTRON_EMISSION,
+                DecayMode.PROTON_EMISSION,
+                DecayMode.GAMMA
+            ];
+
+            const requiredReactions = [
+                HISTORY_METHODS.REACTION_NG,
+                HISTORY_METHODS.REACTION_NP,
+                HISTORY_METHODS.REACTION_N2N,
+                HISTORY_METHODS.REACTION_NA,
+                HISTORY_METHODS.REACTION_NF
+            ];
+
+            const allDecaysDone = requiredDecays.every(mode => (gameState.decayStats[mode] || 0) > 0);
+            const allReactionsDone = requiredReactions.every(method => (gameState.reactionStats[method] || 0) > 0);
+
+            if (allDecaysDone && allReactionsDone) {
+                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id: 'seasoned_nuclide', time: gameState.elapsedTime } });
+            }
+        };
+
+        checkSeasonedNuclide();
+    }, [
+        gameState.unlockedElements, 
+        gameState.maxCombo, 
+        gameState.reincarnations, 
+        gameState.decayStats, 
+        gameState.reactionStats, 
+        gameState.elapsedTime,
+        gameState.achievementTimes,
+        dispatch
+    ]);
 
     return {
         // Raw Data

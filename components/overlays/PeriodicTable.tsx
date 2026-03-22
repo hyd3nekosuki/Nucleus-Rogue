@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 import { getSymbol  } from '../../constants/atomicData';
 import { SKILL_METADATA } from '../../constants/periodicTableData';
 
 import { DecayMode } from '../../types';
 import { getElementGridPosition, getElementCategoryInfo } from '../../utils/periodicTableUtils';
+import { CHALLENGES } from '../../constants/challenges';
 
 interface Props {
     unlocked: number[];
@@ -19,6 +21,10 @@ interface Props {
     canTransmute?: boolean;
     onSelectElement?: (z: number) => void;
     saveCode: string;
+    recordTime?: number;
+    achievementTimes: Record<string, number>;
+    elapsedTime: number;
+    hasPerformedActiveReincarnation: boolean;
 }
 
 const PeriodicTable: React.FC<Props> = ({ 
@@ -33,10 +39,15 @@ const PeriodicTable: React.FC<Props> = ({
     onClose, 
     canTransmute, 
     onSelectElement,
-    saveCode
+    saveCode,
+    recordTime,
+    achievementTimes,
+    elapsedTime,
+    hasPerformedActiveReincarnation
 }) => {
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'table' | 'challenges'>('table');
 
     const renderPeriodicTable = () => {
         const elements = [];
@@ -87,6 +98,84 @@ const PeriodicTable: React.FC<Props> = ({
         );
     };
 
+    const renderChallenges = () => {
+        return (
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {CHALLENGES.map(c => {
+                        const achTime = achievementTimes[c.id];
+                        
+                        // Condition checking logic
+                        let isMet = false;
+                        switch (c.id) {
+                            case 'oganesson': isMet = unlocked.includes(118); break;
+                            case 'all_elements': isMet = unlocked.filter(z => z > 0).length >= 118; break;
+                            case 'combo_master': isMet = maxCombo >= 20; break;
+                            case 'reincarnated': isMet = hasPerformedActiveReincarnation; break;
+                            case 'alpha_master': isMet = (decayStats[DecayMode.ALPHA] || 0) >= 100; break;
+                            case 'beta_master': isMet = (decayStats[DecayMode.BETA_MINUS] || 0) >= 100; break;
+                            case 'fission_master': isMet = (decayStats[DecayMode.SPONTANEOUS_FISSION] || 0) >= 50; break;
+                            case 'reaction_master': isMet = (reactionStats["(n,γ)"] || 0) >= 100; break;
+                        }
+
+                        return (
+                            <div key={c.id} className={`p-4 rounded-lg border transition-all ${isMet ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : 'bg-gray-900/50 border-gray-800 opacity-60'}`}>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`flex items-center justify-center ${isMet ? 'text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.5)]' : 'text-gray-700'}`}>
+                                            {isMet ? (
+                                                <CheckCircle2 size={20} strokeWidth={3} />
+                                            ) : (
+                                                <Circle size={20} strokeWidth={2} />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className={`font-bold uppercase tracking-wider text-xs md:text-sm ${isMet ? 'text-white' : 'text-gray-500'}`}>{c.title}</h4>
+                                            <p className="text-[9px] md:text-[10px] text-gray-500 mt-0.5 uppercase tracking-widest italic">{c.hint}</p>
+                                        </div>
+                                    </div>
+                                    {achTime && (
+                                        <div className="text-right">
+                                            <div className="text-[8px] text-neon-blue/70 uppercase tracking-widest font-bold">Achieved at</div>
+                                            <div className="text-xs md:text-sm font-mono text-white">{(achTime / 1000).toFixed(2)}s</div>
+                                        </div>
+                                    )}
+                                </div>
+                                {isMet && (
+                                    <div className="mt-3 h-1 bg-gray-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-neon-blue w-full shadow-[0_0_5px_#00f3ff]"></div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+                
+                <div className="mt-8 p-6 bg-black/40 border border-gray-800 rounded-xl">
+                    <h3 className="text-xs text-gray-400 uppercase tracking-[0.4em] mb-4 font-black">Current Session Stats</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-600 uppercase tracking-widest font-bold">Elapsed Time</span>
+                            <span className="text-xl font-mono text-neon-blue">{(elapsedTime / 1000).toFixed(1)}s</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-600 uppercase tracking-widest font-bold">Max Combo</span>
+                            <span className="text-xl font-mono text-neon-green">{maxCombo}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-600 uppercase tracking-widest font-bold">Elements Found</span>
+                            <span className="text-xl font-mono text-white">{discoveredCount} / 118</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-600 uppercase tracking-widest font-bold">Reincarnations</span>
+                            <span className="text-xl font-mono text-neon-purple">{reincarnations}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const handleCopy = () => {
         if (!saveCode) return;
         navigator.clipboard.writeText(saveCode).then(() => {
@@ -126,80 +215,101 @@ const PeriodicTable: React.FC<Props> = ({
                 >
                     Close [X]
                 </button>
-                <div className="flex flex-col justify-start items-start mb-4 shrink-0 gap-2 mr-20">
-                    <div>
-                        <h2 className="text-xl md:text-2xl font-bold text-white tracking-widest uppercase">
-                            <span className="text-neon-blue">Periodic Table</span>
-                        </h2>
-                        {canTransmute ? (
-                             <div className="mt-1 px-3 py-1 bg-yellow-400/20 border border-yellow-400/50 rounded text-yellow-400 font-black text-xs md:text-sm animate-bounce tracking-tight">
-                                ✨ READY FOR REPLICATION ✨
-                             </div>
-                        ) : (
-                            <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-2 items-center">
-                                <span>Found: <span className="text-neon-green font-bold">{discoveredCount}</span> / 118</span>
-                                <span className="opacity-30">|</span>
-                                <span>Titles: <span className="text-yellow-400 font-bold">{unlockedGroups.length}</span></span>
-                                <span className="opacity-30">|</span>
-                                <span>Reborn: <span className="text-neon-purple font-bold">{reincarnations}</span></span>
-                                <span className="opacity-30">|</span>
-                                <span>Best Chain: <span className="text-neon-blue font-black">{maxCombo}</span></span>
-                                <span className="opacity-30">|</span>
-                                <span className="text-gray-500 font-mono">{statsStr}</span>
-                                <span className="opacity-30">|</span>
-                                <span className="text-neon-blue/70 font-mono">{reactionStr}</span>
-                            </div>
-                        )}
-                        <div className="mt-2 min-h-[1.5rem] flex items-center">
-                            {selectedInfo && (
-                                <div className="text-[10px] md:text-xs text-neon-blue font-bold tracking-wider">
-                                    {selectedInfo}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="shrink-0 mb-6">
-                    {renderPeriodicTable()}
-                </div>
-
-                {displayLegendItems.length > 0 && (
-                  <div className="mt-2 border-t border-gray-800/50 pt-4 pb-4 shrink-0">
-                    <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Unlocked Skills</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider">
-                        {displayLegendItems.map(item => {
-                            const isDisabled = disabledSkills.includes(item.name);
-                            return (
-                                <div key={item.name} onClick={() => onToggleSkill(item.name)}
-                                    className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[40px] text-center cursor-pointer hover:brightness-125 active:scale-95 ${item.class} ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}`}>
-                                    <span className="absolute -top-2 left-0.5 text-base drop-shadow-md z-20">{item.icon}</span>
-                                    <span className="truncate w-full block px-1">{item.name}</span>
-                                    {isDisabled && <span className="ml-1 opacity-60 text-[7px] shrink-0">(OFF)</span>}
-                                </div>
-                            );
-                        })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4 border-t border-gray-800 pt-6 shrink-0">
-                    <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-2 font-bold flex items-center gap-2">
-                        research password
-                        {copyFeedback && <span className="text-neon-green text-[8px] animate-pulse">COPIED TO CLIPBOARD!</span>}
-                    </h3>
-                    <div 
-                        onClick={handleCopy}
-                        className="bg-black/60 border border-gray-800 p-3 rounded-lg cursor-pointer hover:border-neon-blue/50 transition-all group relative overflow-hidden mb-8"
+                <div className="flex gap-4 mb-6 shrink-0 border-b border-gray-800">
+                    <button 
+                        onClick={() => setActiveTab('table')}
+                        className={`pb-2 px-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 ${activeTab === 'table' ? 'border-neon-blue text-neon-blue' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                     >
-                        <div className="text-[10px] md:text-xs font-mono text-gray-400 break-all transition-colors group-hover:text-neon-blue max-h-24 overflow-y-auto pr-2">
-                            {saveCode}
-                        </div>
-                        <div className="absolute inset-0 bg-neon-blue/5 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none">
-                            <span className="text-neon-blue font-bold uppercase tracking-widest text-[10px] bg-black/80 px-4 py-2 rounded-full border border-neon-blue/30 shadow-2xl">Click Window to Copy Full Code</span>
-                        </div>
-                    </div>
+                        RESEARCH
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('challenges')}
+                        className={`pb-2 px-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-b-2 ${activeTab === 'challenges' ? 'border-neon-green text-neon-green' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                    >
+                        Challenges
+                    </button>
                 </div>
+
+                {activeTab === 'table' ? (
+                    <>
+                        <div className="flex flex-col justify-start items-start mb-4 shrink-0 gap-2 mr-20">
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-bold text-white tracking-widest uppercase">
+                                    <span className="text-neon-blue">Periodic Table</span>
+                                </h2>
+                                {canTransmute ? (
+                                    <div className="mt-1 px-3 py-1 bg-yellow-400/20 border border-yellow-400/50 rounded text-yellow-400 font-black text-xs md:text-sm animate-bounce tracking-tight">
+                                        ✨ READY FOR REPLICATION ✨
+                                    </div>
+                                ) : (
+                                    <div className="text-[10px] md:text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-2 items-center">
+                                        <span>Found: <span className="text-neon-green font-bold">{discoveredCount}</span> / 118</span>
+                                        <span className="opacity-30">|</span>
+                                        <span>Titles: <span className="text-yellow-400 font-bold">{unlockedGroups.length}</span></span>
+                                        <span className="opacity-30">|</span>
+                                        <span>Reborn: <span className="text-neon-purple font-bold">{reincarnations}</span></span>
+                                        <span className="opacity-30">|</span>
+                                        <span>Best Chain: <span className="text-neon-blue font-black">{maxCombo}</span></span>
+                                        <span className="opacity-30">|</span>
+                                        <span className="text-gray-500 font-mono">{statsStr}</span>
+                                        <span className="opacity-30">|</span>
+                                        <span className="text-neon-blue/70 font-mono">{reactionStr}</span>
+                                    </div>
+                                )}
+                                <div className="mt-2 min-h-[1.5rem] flex items-center">
+                                    {selectedInfo && (
+                                        <div className="text-[10px] md:text-xs text-neon-blue font-bold tracking-wider">
+                                            {selectedInfo}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="shrink-0 mb-6">
+                            {renderPeriodicTable()}
+                        </div>
+
+                        {displayLegendItems.length > 0 && (
+                        <div className="mt-2 border-t border-gray-800/50 pt-4 pb-4 shrink-0">
+                            <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] mb-3 font-bold">Unlocked Skills</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-[9px] font-bold uppercase tracking-wider">
+                                {displayLegendItems.map(item => {
+                                    const isDisabled = disabledSkills.includes(item.name);
+                                    return (
+                                        <div key={item.name} onClick={() => onToggleSkill(item.name)}
+                                            className={`px-2 py-2 rounded border flex items-center justify-center relative transition-all duration-300 min-h-[40px] text-center cursor-pointer hover:brightness-125 active:scale-95 ${item.class} ${isDisabled ? 'grayscale opacity-40 shadow-none border-gray-600' : ''}`}>
+                                            <span className="absolute -top-2 left-0.5 text-base drop-shadow-md z-20">{item.icon}</span>
+                                            <span className="truncate w-full block px-1">{item.name}</span>
+                                            {isDisabled && <span className="ml-1 opacity-60 text-[7px] shrink-0">(OFF)</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        )}
+
+                        <div className="mt-4 border-t border-gray-800 pt-6 shrink-0">
+                            <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-2 font-bold flex items-center gap-2">
+                                research password
+                                {copyFeedback && <span className="text-neon-green text-[8px] animate-pulse">COPIED TO CLIPBOARD!</span>}
+                            </h3>
+                            <div 
+                                onClick={handleCopy}
+                                className="bg-black/60 border border-gray-800 p-3 rounded-lg cursor-pointer hover:border-neon-blue/50 transition-all group relative overflow-hidden mb-8"
+                            >
+                                <div className="text-[10px] md:text-xs font-mono text-gray-400 break-all transition-colors group-hover:text-neon-blue max-h-24 overflow-y-auto pr-2">
+                                    {saveCode}
+                                </div>
+                                <div className="absolute inset-0 bg-neon-blue/5 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none">
+                                    <span className="text-neon-blue font-bold uppercase tracking-widest text-[10px] bg-black/80 px-4 py-2 rounded-full border border-neon-blue/30 shadow-2xl">Click Window to Copy Full Code</span>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    renderChallenges()
+                )}
             </div>
         </div>
     );

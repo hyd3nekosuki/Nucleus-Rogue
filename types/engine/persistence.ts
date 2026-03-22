@@ -29,5 +29,6 @@ export interface SavePayload {
   pn: number;  // Reincarnation Pool Neutrons
   pe: number;  // Reincarnation Pool Electrons
   rp: { p: boolean; e: boolean; n: boolean }; // Real Physics Progress
-  tf: { d: boolean; c: boolean; l: boolean; e: boolean; s: boolean }; // Tutorial Flags
+  tf: { d: boolean; c: boolean; l: boolean; e: boolean; s: boolean; ar: boolean }; // Tutorial Flags
+  at: Record<string, number>; // Achievement Times
 }

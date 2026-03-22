@@ -40,5 +40,8 @@ export const DECAY_PHYSICS: Record<string, DecayDelta> = {
     [DecayMode.EC_2PROTON]: { dZ: -3, dA: -2 },
     [DecayMode.EC_SF]: { dZ: -39, dA: -96 },
     [DecayMode.EC_B_PLUS]: { dZ: -1, dA: 0 },
+    [DecayMode.DEUTERON_EMISSION]: { dZ: -1, dA: -2 },
+    [DecayMode.TRITON_EMISSION]: { dZ: -1, dA: -3 },
+    [DecayMode.HELIUM3_EMISSION]: { dZ: -2, dA: -3 },
     [DecayMode.UNKNOWN]: { dZ: 0, dA: 0 }
 };
