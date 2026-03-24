@@ -16,6 +16,11 @@ export const useQuantumOverride = (
      * Used for real-time UI highlighting via useOverrideValidator.
      */
     const validateOverridePotential = useCallback((code: string) => {
+        const KONAMI_PREFIX = "UUDDLRLRBA";
+        if (code && code.startsWith(KONAMI_PREFIX)) {
+            return { idsToConsume: [] };
+        }
+
         if (gameState.playerLevel < 8 || !code.trim()) return null;
         
         const coords = parseNuclideCommand(code);
@@ -34,7 +39,24 @@ export const useQuantumOverride = (
      * Dispatches a Reducer action to ensure consistent turn progression and finalization.
      */
     const executeQuantumOverride = useCallback((code: string): boolean => {
-        if (!code || code.trim().length === 0 || gameState.playerLevel < 8) return false;
+        if (!code || code.trim().length === 0) return false;
+        
+        const KONAMI_PREFIX = "UUDDLRLRBA";
+        if (code.startsWith(KONAMI_PREFIX)) {
+            // Clean up visual effect ghost states before the world state leaps forward
+            resetVisualEvents();
+
+            dispatch({
+                type: 'USE_SKILL',
+                payload: { 
+                    skillType: 'QUANTUM_OVERRIDE',
+                    params: { code }
+                }
+            });
+            return true;
+        }
+
+        if (gameState.playerLevel < 8) return false;
         
         const requirements = validateOverridePotential(code);
         if (requirements) {

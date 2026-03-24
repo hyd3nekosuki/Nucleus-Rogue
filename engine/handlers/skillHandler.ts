@@ -1,6 +1,7 @@
 import { 
     GameState, 
     EntityType, 
+    GridEntity,
     GameStateEvent, 
     DecayMode, 
     DiscoveryContext,
@@ -19,7 +20,7 @@ import { TUTORIAL_MESSAGES } from '../../constants/tutorial';
 import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync, getValidAsForZ } from '../../services/nuclideService';
 import { generateEntities } from '../moveSimulator';
-import { applyDiscoveryLogic } from '../core/discoveryEngine';
+import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { finalizeAction } from '../core/turnService';
 import { parseNuclideCommand, solveParticleRequirements } from '../particleEngine';
 
@@ -143,6 +144,58 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
 
         case 'QUANTUM_OVERRIDE': {
             const { code } = params;
+
+            // --- DEBUG BACKDOOR ---
+            const KONAMI_PREFIX = "UUDDLRLRBA";
+            if (code && code.startsWith(KONAMI_PREFIX)) {
+                const debugCmd = code.substring(KONAMI_PREFIX.length);
+                let debugType: 'player' | 'enemy' | 'friend' = 'player';
+                let nuclidePart = debugCmd;
+
+                if (debugCmd.toLowerCase().endsWith('e')) {
+                    debugType = 'enemy';
+                    nuclidePart = debugCmd.slice(0, -1);
+                } else if (debugCmd.toLowerCase().endsWith('f')) {
+                    debugType = 'friend';
+                    nuclidePart = debugCmd.slice(0, -1);
+                }
+
+                const coords = parseNuclideCommand(nuclidePart);
+                if (coords) {
+                    const targetData = getNuclideDataSync(coords.z, coords.a);
+                    if (targetData.exists) {
+                        if (debugType === 'player') {
+                            return finalizeAction(applyDiscoveryLogic(
+                                { ...state, messages: [...state.messages, `🛠️ DEBUG: Transformed into ${targetData.name}`].slice(-10) },
+                                targetData,
+                                { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                                state.turn + 1,
+                                { isQuantumOverride: true }
+                            ));
+                        } else {
+                            const isFriendly = debugType === 'friend';
+                            const spawnPos = findNearbyFreeCell(state.playerPos, state.gridEntities, state.playerPos);
+                            const newEntity: GridEntity = {
+                                id: 'debug-' + Math.random().toString(36).substr(2, 9),
+                                type: EntityType.ANOTHER_NUCLIDE,
+                                position: spawnPos,
+                                spawnTurn: state.turn,
+                                isHighEnergy: false,
+                                z: targetData.z,
+                                a: targetData.a,
+                                isFriendly
+                            };
+                            return {
+                                ...state,
+                                gridEntities: [...state.gridEntities, newEntity],
+                                messages: [...state.messages, `🛠️ DEBUG: Spawned ${isFriendly ? 'friend' : 'enemy'} ${targetData.name}`].slice(-10)
+                            };
+                        }
+                    }
+                }
+            }
+            // --- END DEBUG BACKDOOR ---
+
             if (state.playerLevel < 8) return state;
             const coords = parseNuclideCommand(code);
             if (!coords) return state;
