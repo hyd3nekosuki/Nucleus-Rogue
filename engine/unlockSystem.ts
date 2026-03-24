@@ -27,7 +27,8 @@ export const processUnlocks = (
     isDaredevilAchieved: boolean = false,
     isTimeStopped: boolean = false,
     isQuantumOverride: boolean = false,
-    playerLevel: number = 0
+    playerLevel: number = 0,
+    isPositronAbsorbed: boolean = false
 ) => {
     let updatedElements = currentUnlockedElements;
     let updatedGroups = currentUnlockedGroups;
@@ -179,6 +180,13 @@ export const processUnlocks = (
         updatedGroups = [...updatedGroups, TITLES.DEMON_CORE];
         scoreBonus += BONUS_SCORES.DEMON_CORE;
         messages.push(` 🫀 HIDDEN TITLE: Demon core! Attempting the impossible from the brink. (+${BONUS_SCORES.DEMON_CORE.toLocaleString()} PTS)`);
+    }
+
+    // NEW: Special Hidden Title: Forbidden Capture
+    if (isPositronAbsorbed && !updatedGroups.includes(TITLES.FORBIDDEN_CAPTURE)) {
+        updatedGroups = [...updatedGroups, TITLES.FORBIDDEN_CAPTURE];
+        scoreBonus += BONUS_SCORES.FORBIDDEN_CAPTURE;
+        messages.push(` 🌌 HIDDEN TITLE: Forbidden Capture! Consumed the elusive anti-matter. (+${BONUS_SCORES.FORBIDDEN_CAPTURE.toLocaleString()} PTS)`);
     }
 
     return { updatedElements, updatedGroups, scoreBonus, messages };

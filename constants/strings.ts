@@ -38,5 +38,8 @@ export const HISTORY_METHODS = {
   REACTION_PA: "(p,α)",
   REACTION_P2P: "(p,2p)",
   REACTION_PF: "(p,fission)",
-  REACTION_PPA: "(p,p+α)"
+  REACTION_PPA: "(p,p+α)",
+  REACTION_PD: "(p,d)",
+  REACTION_PT: "(p,t)",
+  REACTION_PHE3: "(p,He3)"
 };

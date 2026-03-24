@@ -41,7 +41,8 @@ const ACHIEVEMENT_MAP: string[] = [
     'beta_master',
     'seasoned_nuclide',
     'oganesson',
-    'all_elements'
+    'all_elements',
+    'forbidden_capture'
 ];
 
 // Achievement-critical stats that need to be persisted

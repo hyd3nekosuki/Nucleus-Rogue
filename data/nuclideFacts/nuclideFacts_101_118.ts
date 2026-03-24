@@ -1,0 +1,21 @@
+
+export const FACTS_SEGMENT_5: Record<string, string> = {
+  "101-258": "The most stable mendelevium isotope, with a half-life of 51 days.",
+  "102-259": "Long-lived nobelium isotope used to study the chemical behavior of heavy elements.",
+  "103-262": "One of the most stable lawrencium isotopes; marks the end of the actinides.",
+  "104-267": "The most stable isotope of rutherfordium, the first transactinide element.",
+  "105-268": "Long-lived isotope used to study the chemical position of dubnium.",
+  "106-269": "Most stable seaborgium isotope, named in honor of Glenn T. Seaborg.",
+  "107-270": "Long-lived isotope of bohrium; decays primarily via alpha emission.",
+  "108-277": "One of the longest-lived isotopes of the superheavy element hassium.",
+  "109-278": "Named in honor of Lise Meitner, a co-discoverer of nuclear fission.",
+  "110-281": "A very heavy, short-lived isotope of darmstadtium discovered in Germany.",
+  "111-282": "Named after Wilhelm Conrad Roentgen, the discoverer of X-rays.",
+  "112-285": "Named after astronomer Copernicus; the most stable isotope of element 112.",
+  "113-286": "The first element discovered in an Asian country (Japan).",
+  "114-289": "Named after physicist Georgy Flyorov; a heavy and short-lived nucleus.",
+  "115-290": "Named after the Moscow region where it was first synthesized.",
+  "116-293": "Named after the Lawrence Livermore National Laboratory in California.",
+  "117-294": "Named after Tennessee, home to the Oak Ridge National Laboratory.",
+  "118-294": "The heaviest recognized element (Oganesson); only a few atoms ever synthesized.",
+};

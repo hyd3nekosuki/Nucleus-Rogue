@@ -104,19 +104,7 @@ const PeriodicTable: React.FC<Props> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {CHALLENGES.map(c => {
                         const achTime = achievementTimes[c.id];
-                        
-                        // Condition checking logic
-                        let isMet = false;
-                        switch (c.id) {
-                            case 'oganesson': isMet = unlocked.includes(118); break;
-                            case 'all_elements': isMet = unlocked.filter(z => z > 0).length >= 118; break;
-                            case 'combo_master': isMet = maxCombo >= 20; break;
-                            case 'reincarnated': isMet = hasPerformedActiveReincarnation; break;
-                            case 'alpha_master': isMet = (decayStats[DecayMode.ALPHA] || 0) >= 100; break;
-                            case 'beta_master': isMet = (decayStats[DecayMode.BETA_MINUS] || 0) >= 100; break;
-                            case 'fission_master': isMet = (decayStats[DecayMode.SPONTANEOUS_FISSION] || 0) >= 50; break;
-                            case 'reaction_master': isMet = (reactionStats["(n,γ)"] || 0) >= 100; break;
-                        }
+                        const isMet = !!achTime;
 
                         return (
                             <div key={c.id} className={`p-4 rounded-lg border transition-all ${isMet ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : 'bg-gray-900/50 border-gray-800 opacity-60'}`}>

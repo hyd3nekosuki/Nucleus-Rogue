@@ -56,8 +56,9 @@ export const applyDiscoveryLogic = (
         isFissionAchieved?: boolean;
         isZeroBarnAchieved?: boolean;
         isBremsAchieved?: boolean;
-        gluttonyTrigger?: boolean;
+        isGluttonyAchieved?: boolean;
         isDaredevilAchieved?: boolean;
+        isPositronAbsorbed?: boolean;
         skipComboSettlement?: boolean;
         isExplicitReplication?: boolean; 
         isQuantumOverride?: boolean;
@@ -109,11 +110,12 @@ export const applyDiscoveryLogic = (
         !!flags.isBremsAchieved,
         state.decayStats[DecayMode.BETA_PLUS] + (inducedDecayMode === DecayMode.BETA_PLUS ? 1 : 0),
         state.decayStats[DecayMode.BETA_MINUS] + (inducedDecayMode === DecayMode.BETA_MINUS ? 1 : 0),
-        !!flags.gluttonyTrigger,
+        !!flags.isGluttonyAchieved,
         !!flags.isDaredevilAchieved,
         state.isTimeStopped,
         !!flags.isQuantumOverride,
-        state.playerLevel
+        state.playerLevel,
+        !!flags.isPositronAbsorbed
     );
 
     // 5. Level Up Messaging
@@ -146,6 +148,12 @@ export const applyDiscoveryLogic = (
         finalTutorialMsg = TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE;
         finalRecordTime = state.elapsedTime;
         nextMessages = [...nextMessages, `🏆 ACHIEVEMENT: Periodic Table Completed!`];
+    }
+
+    // Achievement Time Recording
+    const nextAchievementTimes = { ...state.achievementTimes };
+    if (unlockResult.updatedGroups.includes(TITLES.FORBIDDEN_CAPTURE) && !state.unlockedGroups.includes(TITLES.FORBIDDEN_CAPTURE)) {
+        nextAchievementTimes['forbidden_capture'] = state.elapsedTime;
     }
 
     // 7. Chain / Combo Logic
@@ -224,6 +232,7 @@ export const applyDiscoveryLogic = (
         score: state.score + (addedScore * (state.combo || 1)) + unlockResult.scoreBonus,
         unlockedElements: unlockResult.updatedElements,
         unlockedGroups: unlockResult.updatedGroups,
+        achievementTimes: nextAchievementTimes,
         tutorialMessage: finalTutorialMsg,
         recordTime: finalRecordTime,
         gridEntities: finalEntities

@@ -52,19 +52,19 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const cost = NUCLEOSYNTHESIS_COST;
             if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
             
-            // Special Case: Og-294 Hidden Message
-            const isOg294 = state.currentNuclide.z === 118 && state.currentNuclide.a === 294;
-            if (isOg294) {
+            // Special Case: Z=118 Boundary
+            if (state.currentNuclide.z === 118) {
+                const isOg294 = state.currentNuclide.a === 294;
                 const nextState: GameState = { 
                     ...state, 
                     turn: state.turn + 1,
                     energyPoints: Math.max(0, state.energyPoints - cost),
-                    tutorialMessage: TUTORIAL_MESSAGES.OGANESSON_CONGRATS,
+                    tutorialMessage: isOg294 ? TUTORIAL_MESSAGES.OGANESSON_CONGRATS : state.tutorialMessage,
                     recordTime: state.elapsedTime,
                     achievementTimes: state.achievementTimes['oganesson'] 
                         ? state.achievementTimes 
                         : { ...state.achievementTimes, oganesson: state.elapsedTime },
-                    messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Boundary reached. Message unlocked.`].slice(-10),
+                    messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Boundary reached. ${isOg294 ? 'Message unlocked.' : ''}`].slice(-10),
                     lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: ['Nucleosynthesis'] }
                 };
                 return finalizeAction(nextState);
@@ -106,7 +106,16 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 { isNucleosynthesis: true }
             );
 
-            return finalizeAction(nextState);
+            // Check for Forbidden Capture achievement: 1 or more positrons absorbed and successful transformation
+            let achievementTimes = nextState.achievementTimes;
+            if (absorbedPos > 0 && !achievementTimes['forbidden_capture']) {
+                achievementTimes = {
+                    ...achievementTimes,
+                    forbidden_capture: state.elapsedTime
+                };
+            }
+
+            return finalizeAction({ ...nextState, achievementTimes });
         }
 
         case 'TIME_STOP': {
@@ -149,6 +158,9 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const nextTurn = state.turn + 1;
             
             // Execute transformation through discoveryEngine to handle all side-effects (history, level, unlock)
+            const consumedEntities = state.gridEntities.filter(e => requirements.idsToConsume.includes(e.id));
+            const absorbedPos = consumedEntities.filter(e => e.type === EntityType.ENEMY_POSITRON).length;
+
             const nextState = applyDiscoveryLogic(
                 { 
                     ...state, 
@@ -166,7 +178,16 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 { isExplicitReplication: true, isQuantumOverride: true }
             );
 
-            return finalizeAction(nextState);
+            // Check for Forbidden Capture achievement
+            let achievementTimes = nextState.achievementTimes;
+            if (absorbedPos > 0 && !achievementTimes['forbidden_capture']) {
+                achievementTimes = {
+                    ...achievementTimes,
+                    forbidden_capture: state.elapsedTime
+                };
+            }
+
+            return finalizeAction({ ...nextState, achievementTimes });
         }
 
         case 'TOGGLE_SKILL': {

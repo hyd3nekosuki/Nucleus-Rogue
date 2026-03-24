@@ -35,6 +35,7 @@ export interface MoveResult {
     targetEntity?: GridEntity;
     evolvedEntities: GridEntity[];
     scatteredMessage?: string;
+    messages?: string[];
     magicProtectionBonus?: number;
     chargesUsed: number;
     consecutiveProtons: number;
@@ -132,6 +133,7 @@ export const calculateMoveResult = (
     let gluttonyTrigger = false;
     let chargesUsed = 0;
     let poolInc = { p: 0, n: 0, e: 0 };
+    let messages: string[] = [];
 
     let cP = prev.consecutiveProtons;
     let cN = prev.consecutiveNeutrons;
@@ -251,6 +253,7 @@ export const calculateMoveResult = (
         reactionLabel = interactionResult.inducedReactionLabel || "";
         flashColor = interactionResult.flashColor;
         chargesUsed = interactionResult.chargesUsed || 0;
+        messages = interactionResult.messages || [];
 
         // Real Physics Unlock Progress Tracking
         const isRealPhysicsUnlocked = prev.unlockedGroups.includes(TITLES.REAL_PHYSICS);
@@ -353,6 +356,7 @@ export const calculateMoveResult = (
         targetEntity,
         evolvedEntities,
         scatteredMessage: interactionResult?.scatteredMessage,
+        messages,
         magicProtectionBonus: interactionResult?.magicProtectionBonus,
         chargesUsed,
         consecutiveProtons: cP,

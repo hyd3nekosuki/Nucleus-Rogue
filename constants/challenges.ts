@@ -40,6 +40,11 @@ export const CHALLENGES: ChallengeMetadata[] = [
         hint: 'The horizon fades into the infinite.' 
     },
     { 
+        id: 'forbidden_capture', 
+        title: 'Forbidden Capture', 
+        hint: "A phantom's touch, light and shadow merge." 
+    },
+    { 
         id: 'all_elements', 
         title: 'Periodic Table Complete', 
         hint: 'A complete song of all that is.' 

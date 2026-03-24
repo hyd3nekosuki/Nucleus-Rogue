@@ -35,12 +35,12 @@ export const calculateInteraction = (
 
     switch (target.type) {
         case EntityType.PROTON:
-            if (isRealPhysicsActive) {
-                // Real Physics ON: Always scattered by Coulomb barrier regardless of energy if no specific reaction
+            if (isFusionDisabled) {
+                res.messages.push("⚠️ Proton was blocked by Coulomb barrier. (+1 Core)");
+                // No dZ, dA, no isCoulombScattered -> pool in moveSimulator
+            } else if (isRealPhysicsActive) {
                 res.isCoulombScattered = true;
                 res.scatteredMessage = "Proton was scattered by Coulomb barrier";
-            } else if (isFusionDisabled) {
-                res.scatteredMessage = "Proton was blocked by Coulomb barrier";
             } else if (currentNuclide.z === 1 && currentNuclide.a === 1 && target.isHighEnergy) {
                 res.isPpFusion = true;
                 res.dA = 1; 
@@ -68,7 +68,7 @@ export const calculateInteraction = (
 
         case EntityType.NEUTRON:
             if (isZeroBarnActive) {
-                res.scatteredMessage = "Neutron was not absorbed due to 0 barn";
+                res.messages.push("⚠️ Neutron was not absorbed due to 0 barn. (+1 Core)");
             } else {
                 res.dA = 1;
             }
@@ -91,13 +91,14 @@ export const calculateInteraction = (
                 if (isECCapable) {
                     res.dZ = -1;
                     res.messages = [`Electron captured via ${primaryDecay} channel`].filter(Boolean);
+                } else if (scatteringActive) {
+                    res.messages.push("⚠️ Electron scattering prevents capture. (+1 Core)");
                 } else {
                     res.isCoulombScattered = true;
                     res.scatteredMessage = "Electron scattered due to mass-energy stability";
                 }
             } else if (scatteringActive) {
-                res.isCoulombScattered = true;
-                res.scatteredMessage = "Electron scattering prevents capture";
+                res.messages.push("⚠️ Electron scattering prevents capture. (+1 Core)");
             } else {
                 if (hp <= 10 && consecutiveElectrons >= 5) res.isBremsAchieved = true;
                 if (charges > 0 || target.isHighEnergy) {
@@ -151,8 +152,7 @@ export const calculateNeutronReaction = (
             hpPenalty: 0,
             energyBonus: 0,
             actionBonusScore: 0,
-            messages: [],
-            scatteredMessage: `${target.isHighEnergy ? "High energy neutron" : "Neutron"} was not absorbed due to 0 barn`,
+            messages: [`⚠️ ${target.isHighEnergy ? "High energy neutron" : "Neutron"} was not absorbed due to 0 barn. (+1 Core)`],
             chargesUsed: 0,
             newGridEntities: currentEntities,
             shouldFlash: false
@@ -359,6 +359,16 @@ export const calculateProtonReaction = (
     if (target.type !== EntityType.PROTON || !target.isHighEnergy) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
+    const isFusionDisabled = disabledSkills.includes(TITLES.FUSION);
+
+    if (isFusionDisabled) {
+        return {
+            dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0,
+            messages: ["⚠️ Proton was blocked by Coulomb barrier. (+1 Core)"],
+            chargesUsed: 0
+        };
+    }
+
     if (!isRealPhysicsActive) return null;
 
     const data = PROTON_CROSS_SECTIONS[`${currentNuclide.z}-${currentNuclide.a}`];
@@ -382,6 +392,9 @@ export const calculateProtonReaction = (
             case "p,2p": dZ = -1; dA = -1; break;
             case "p,p+a": dZ = -2; dA = -4; break;
             case "p,a": dZ = -1; dA = -3; break;
+            case "p,d": dZ = 0; dA = -1; break;
+            case "p,t": dZ = 0; dA = -2; break;
+            case "p,he3": dZ = -1; dA = -2; break;
             default: dZ = 1; dA = 1;
         }
         return getNuclideDataSync(currentNuclide.z + dZ, currentNuclide.a + dA).exists;
@@ -439,6 +452,18 @@ export const calculateProtonReaction = (
             case "p,a":
                 mode = DecayMode.ALPHA;
                 label = HISTORY_METHODS.REACTION_PA;
+                break;
+            case "p,d":
+                mode = DecayMode.DEUTERON_EMISSION;
+                label = HISTORY_METHODS.REACTION_PD;
+                break;
+            case "p,t":
+                mode = DecayMode.TRITON_EMISSION;
+                label = HISTORY_METHODS.REACTION_PT;
+                break;
+            case "p,he3":
+                mode = DecayMode.HELIUM3_EMISSION;
+                label = HISTORY_METHODS.REACTION_PHE3;
                 break;
             default: 
                 mode = DecayMode.GAMMA; 

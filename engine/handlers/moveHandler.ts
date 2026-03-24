@@ -98,6 +98,9 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             n: state.reincarnationPool.n + result.reincarnationPoolIncrement.n, 
             e: state.reincarnationPool.e + result.reincarnationPoolIncrement.e 
         }, 
+        messages: result.messages && result.messages.length > 0 
+            ? [...state.messages, ...result.messages].slice(-10) 
+            : state.messages,
         turn: nextTurn, 
         realPhysicsUnlockProgress: result.realPhysicsUnlockProgress || state.realPhysicsUnlockProgress,
         tutorialMessage: result.tutorialMessage !== undefined ? result.tutorialMessage : state.tutorialMessage,
@@ -182,7 +185,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             hp: nextHp, 
             ...calculateTutorialFlagUpdates(state, finalTutorialMsg, nextTurn, 'TURN_ADVANCED'), 
             tutorialMessage: finalTutorialMsg, 
-            messages: result.scatteredMessage ? [...state.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : state.messages 
+            messages: result.scatteredMessage ? [...nextState.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : nextState.messages 
         });
         if (nextHp === 0) reason = REASON.FATAL_CAPTURE;
     }
