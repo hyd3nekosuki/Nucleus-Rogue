@@ -62,6 +62,7 @@ export const applyDiscoveryLogic = (
         skipComboSettlement?: boolean;
         isExplicitReplication?: boolean; 
         isQuantumOverride?: boolean;
+        gluttonyTrigger?: boolean;
     } = {}
 ): GameState => {
     const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;

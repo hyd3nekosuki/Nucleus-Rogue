@@ -7,6 +7,7 @@ import { HISTORY_METHODS } from '../constants/strings';
 
 import { getFissionFragmentOutcome, getPromptNeutronCount } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
+import { processFissionChainReaction } from './chainReactionSystem';
 
 export interface DecayResult {
     dZ: number;
@@ -173,28 +174,37 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const byproductZ = currentNuclide.z - fragment.z;
     const byproductA = currentNuclide.a - fragment.a - neutronCount;
     
+    // --- FISSION CHAIN REACTION (Special Event) ---
+    const chainResult = processFissionChainReaction(neutronCount, playerPos, gridEntities);
+    let currentEntities = chainResult.finalEntities;
+    const finalNeutronCount = chainResult.remainingNeutrons;
+
     // Detection before shockwave filters entities
-    const antisInBlast = gridEntities.filter(e => 
+    const antisInBlast = currentEntities.filter(e => 
         e.type === EntityType.ANTI_NUCLIDE &&
         Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
     );
 
     // Find non-friendly Another Nuclides in blast radius
-    const enemiesInBlast = gridEntities.filter(e => 
+    const enemiesInBlast = currentEntities.filter(e => 
         e.type === EntityType.ANOTHER_NUCLIDE &&
         !e.isFriendly &&
         Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
     );
 
-    let currentEntities = calculateFissionShockwave(playerPos, gridEntities, 2);
+    currentEntities = calculateFissionShockwave(playerPos, currentEntities, 2);
 
     // --- EMISSION LOGIC ---
-    // Use the dynamically calculated neutron count
-    const emissions: EntityType[] = new Array(neutronCount).fill(EntityType.NEUTRON);
+    // Use the remaining neutrons from the chain reaction
+    const emissions: EntityType[] = new Array(finalNeutronCount).fill(EntityType.NEUTRON);
 
     let energyBonus = 200;
     let score = BONUS_SCORES.FISSION_TITLE;
     const messages: string[] = [];
+
+    if (chainResult.chainReactionCount > 0) {
+        messages.push(`⚛️ FISSION CHAIN REACTION: ${chainResult.chainReactionCount} nuclides triggered!`);
+    }
 
     if (antisInBlast.length > 0) {
         energyBonus += 1000;
