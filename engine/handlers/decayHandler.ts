@@ -237,7 +237,10 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             case DecayMode.NEUTRON_EMISSION: nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 1; break;
             case DecayMode.TWO_NEUTRON_EMISSION: nextDecayStats[DecayMode.NEUTRON_EMISSION] = (nextDecayStats[DecayMode.NEUTRON_EMISSION] || 0) + 2; break;
             case DecayMode.GAMMA: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
-            case DecayMode.IT: nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; break;
+            case DecayMode.IT: 
+                nextDecayStats[DecayMode.GAMMA] = (nextDecayStats[DecayMode.GAMMA] || 0) + 1; 
+                nextDecayStats[DecayMode.IT] = (nextDecayStats[DecayMode.IT] || 0) + 1;
+                break;
             case DecayMode.DOUBLE_BETA_MINUS: 
                 nextDecayStats[DecayMode.BETA_MINUS] = (nextDecayStats[DecayMode.BETA_MINUS] || 0) + 2; 
                 nextDecayStats[DecayMode.DOUBLE_BETA_MINUS] = (nextDecayStats[DecayMode.DOUBLE_BETA_MINUS] || 0) + 1;

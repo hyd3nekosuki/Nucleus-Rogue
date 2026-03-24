@@ -49,4 +49,9 @@ export const CHALLENGES: ChallengeMetadata[] = [
         title: 'Periodic Table Complete', 
         hint: 'A complete song of all that is.' 
     },
+    { 
+        id: 'this_is_it', 
+        title: 'This is IT', 
+        hint: "A quiet shift in the heart of the atom." 
+    },
 ];

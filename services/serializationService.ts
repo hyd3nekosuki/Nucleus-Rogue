@@ -43,7 +43,8 @@ const ACHIEVEMENT_MAP: string[] = [
     'seasoned_nuclide',
     'oganesson',
     'all_elements',
-    'forbidden_capture'
+    'forbidden_capture',
+    'this_is_it'
 ];
 
 // Achievement-critical stats that need to be persisted
@@ -56,7 +57,8 @@ const EXTENDED_DECAY_STATS = [
     DecayMode.B_MINUS_PROTON,
     DecayMode.B_MINUS_SF,
     DecayMode.B_PLUS_ALPHA,
-    DecayMode.EC_ALPHA
+    DecayMode.EC_ALPHA,
+    DecayMode.IT
 ];
 
 const EXTENDED_REACTION_STATS = [
