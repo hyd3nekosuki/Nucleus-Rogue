@@ -32,3 +32,11 @@ export interface SavePayload {
   tf: { d: boolean; c: boolean; l: boolean; e: boolean; s: boolean; ar: boolean }; // Tutorial Flags
   at: Record<string, number>; // Achievement Times
 }
+
+export enum SaveSectionId {
+  CORE = 1,
+  UNLOCKED = 2,
+  STATISTICS = 3,
+  ACHIEVEMENTS = 4,
+  HISTORY = 5
+}

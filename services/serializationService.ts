@@ -1,7 +1,8 @@
-import { DecayMode, GameState, HistoryEntry, SavePayload } from '../types';
+import { DecayMode, GameState, HistoryEntry, SavePayload, SaveSectionId } from '../types';
 import { HISTORY_METHODS } from '../constants';
 import { TITLES } from '../constants/titles';
 import { BASE_MASTERY_MODES } from '../utils/masteryUtils';
+import { APP_VERSION } from '../constants/gameConfig';
 
 // ID mapping for binary serialization
 // CAUTION: Index order must be preserved to maintain save code compatibility.
@@ -113,115 +114,144 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 }
 
 /**
- * Packs game state into a compressed binary Base64 string
+ * Packs game state into a compressed binary Base64 string using a section-based format
  */
 export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
     const historyList = Object.values(history);
     
-    // Buffer size calculation: 1024 base + (16 bytes per history entry) + (extended stats) + (achievements)
+    // Buffer size calculation: 2048 (increased for section headers) + (16 bytes per history entry) + (extended stats) + (achievements)
     const extendedStatsSize = (EXTENDED_DECAY_STATS.length + EXTENDED_REACTION_STATS.length) * 2;
-    const achievementSize = 1 + (ACHIEVEMENT_MAP.length * 5); // 1 byte count + (1 byte index + 4 bytes time)
-    const bufferSize = 1024 + (historyList.length * 16) + extendedStatsSize + achievementSize;
+    const achievementSize = 1 + (ACHIEVEMENT_MAP.length * 5); 
+    const bufferSize = 2048 + (historyList.length * 16) + extendedStatsSize + achievementSize;
     const buffer = new ArrayBuffer(bufferSize);
     const view = new DataView(buffer);
     let offset = 0;
 
-    view.setFloat64(offset, state.score); offset += 8;
-    view.setUint32(offset, state.energyPoints); offset += 4;
-    view.setUint8(offset++, state.gameOver ? 0 : state.hp);
-    view.setUint8(offset++, state.playerLevel);
-    view.setUint16(offset, state.reincarnations); offset += 2;
-    view.setUint32(offset, state.turn); offset += 4;
-    view.setUint8(offset++, state.currentNuclide.z);
-    view.setUint16(offset, state.currentNuclide.a); offset += 2;
-    view.setUint16(offset, state.maxCombo); offset += 2;
-    view.setUint8(offset++, state.magicBarrierCharges);
-    view.setUint32(offset, Math.floor(state.elapsedTime)); offset += 4;
+    // --- Magic Number (4 bytes) ---
+    view.setUint32(offset, 0x53415645); offset += 4; // "SAVE"
 
-    const elementBits = new Uint8Array(15);
-    state.unlockedElements.forEach(z => {
-        if (z >= 0 && z < 120) elementBits[Math.floor(z / 8)] |= (1 << (z % 8));
-    });
-    for(let i=0; i<15; i++) view.setUint8(offset++, elementBits[i]);
+    const writeSection = (id: SaveSectionId, writer: () => void) => {
+        view.setUint8(offset++, id);
+        const lengthOffset = offset;
+        offset += 4; // Reserve space for length (Uint32)
+        const dataStart = offset;
+        writer();
+        const length = offset - dataStart;
+        view.setUint32(lengthOffset, length);
+    };
 
-    let groupBits = 0;
-    state.unlockedGroups.forEach(g => {
-        const idx = GROUP_MAP.indexOf(g);
-        if (idx !== -1) groupBits |= (1 << idx);
-    });
-    view.setUint32(offset, groupBits); offset += 4;
+    // Section 1: CORE
+    writeSection(SaveSectionId.CORE, () => {
+        // Version string
+        view.setUint8(offset++, APP_VERSION.length);
+        for (let i = 0; i < APP_VERSION.length; i++) {
+            view.setUint8(offset++, APP_VERSION.charCodeAt(i));
+        }
 
-    let disabledBits = 0;
-    state.disabledSkills.forEach(s => {
-        const idx = GROUP_MAP.indexOf(s);
-        if (idx !== -1) disabledBits |= (1 << idx);
-    });
-    view.setUint32(offset, disabledBits); offset += 4;
-
-    DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
-        view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
-    });
-    [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
-        view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
+        view.setFloat64(offset, state.score); offset += 8;
+        view.setUint32(offset, state.energyPoints); offset += 4;
+        view.setUint8(offset++, state.gameOver ? 0 : state.hp);
+        view.setUint8(offset++, state.playerLevel);
+        view.setUint16(offset, state.reincarnations); offset += 2;
+        view.setUint32(offset, state.turn); offset += 4;
+        view.setUint8(offset++, state.currentNuclide.z);
+        view.setUint16(offset, state.currentNuclide.a); offset += 2;
+        view.setUint16(offset, state.maxCombo); offset += 2;
+        view.setUint8(offset++, state.magicBarrierCharges);
+        view.setUint32(offset, Math.floor(state.elapsedTime)); offset += 4;
     });
 
-    let masteredBits = 0;
-    state.masteredDecays.forEach(m => {
-        const idx = BASE_MASTERY_MODES.indexOf(m);
-        if (idx !== -1) masteredBits |= (1 << idx);
-    });
-    view.setUint32(offset, masteredBits); offset += 4;
+    // Section 2: UNLOCKED
+    writeSection(SaveSectionId.UNLOCKED, () => {
+        const elementBits = new Uint8Array(15);
+        state.unlockedElements.forEach(z => {
+            if (z >= 0 && z < 120) elementBits[Math.floor(z / 8)] |= (1 << (z % 8));
+        });
+        for(let i=0; i<15; i++) view.setUint8(offset++, elementBits[i]);
 
-    // --- Reincarnation Pool counts (capped at 65535) ---
-    view.setUint16(offset, Math.min(65535, state.reincarnationPool.p)); offset += 2;
-    view.setUint16(offset, Math.min(65535, state.reincarnationPool.n)); offset += 2;
-    view.setUint16(offset, Math.min(65535, state.reincarnationPool.e)); offset += 2;
+        let groupBits = 0;
+        state.unlockedGroups.forEach(g => {
+            const idx = GROUP_MAP.indexOf(g);
+            if (idx !== -1) groupBits |= (1 << idx);
+        });
+        view.setUint32(offset, groupBits); offset += 4;
 
-    // --- New Progress & Tutorial Flags ---
-    let progressBits = 0;
-    if (state.realPhysicsUnlockProgress.hasScatteredProton) progressBits |= (1 << 0);
-    if (state.realPhysicsUnlockProgress.hasScatteredElectron) progressBits |= (1 << 1);
-    if (state.realPhysicsUnlockProgress.hasAbsorbedNeutron) progressBits |= (1 << 2);
-    view.setUint8(offset++, progressBits);
-
-    let tutorialBits = 0;
-    if (state.hasSeenDecayTutorial) tutorialBits |= (1 << 0);
-    if (state.hasSeenCaptureTutorial) tutorialBits |= (1 << 1);
-    if (state.hasSeenDripLineTutorial) tutorialBits |= (1 << 2);
-    if (state.hasSeenEngraveTutorial) tutorialBits |= (1 << 3);
-    if (state.hasSeenSkillToggleTutorial) tutorialBits |= (1 << 4);
-    if (state.hasPerformedActiveReincarnation) tutorialBits |= (1 << 5);
-    view.setUint8(offset++, tutorialBits);
-
-    // --- Extended Achievement Stats ---
-    EXTENDED_DECAY_STATS.forEach(mode => {
-        view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
-    });
-    EXTENDED_REACTION_STATS.forEach(r => {
-        view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
+        let disabledBits = 0;
+        state.disabledSkills.forEach(s => {
+            const idx = GROUP_MAP.indexOf(s);
+            if (idx !== -1) disabledBits |= (1 << idx);
+        });
+        view.setUint32(offset, disabledBits); offset += 4;
     });
 
-    // --- Achievement Times ---
-    const achievedIds = Object.keys(state.achievementTimes).filter(id => ACHIEVEMENT_MAP.includes(id));
-    view.setUint8(offset++, achievedIds.length);
-    achievedIds.forEach(id => {
-        const idx = ACHIEVEMENT_MAP.indexOf(id);
-        view.setUint8(offset++, idx);
-        view.setUint32(offset, Math.floor(state.achievementTimes[id])); offset += 4;
+    // Section 3: STATISTICS
+    writeSection(SaveSectionId.STATISTICS, () => {
+        DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
+            view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
+        });
+        [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
+            view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
+        });
+
+        let masteredBits = 0;
+        state.masteredDecays.forEach(m => {
+            const idx = BASE_MASTERY_MODES.indexOf(m);
+            if (idx !== -1) masteredBits |= (1 << idx);
+        });
+        view.setUint32(offset, masteredBits); offset += 4;
+
+        view.setUint16(offset, Math.min(65535, state.reincarnationPool.p)); offset += 2;
+        view.setUint16(offset, Math.min(65535, state.reincarnationPool.n)); offset += 2;
+        view.setUint16(offset, Math.min(65535, state.reincarnationPool.e)); offset += 2;
+
+        let progressBits = 0;
+        if (state.realPhysicsUnlockProgress.hasScatteredProton) progressBits |= (1 << 0);
+        if (state.realPhysicsUnlockProgress.hasScatteredElectron) progressBits |= (1 << 1);
+        if (state.realPhysicsUnlockProgress.hasAbsorbedNeutron) progressBits |= (1 << 2);
+        view.setUint8(offset++, progressBits);
+
+        let tutorialBits = 0;
+        if (state.hasSeenDecayTutorial) tutorialBits |= (1 << 0);
+        if (state.hasSeenCaptureTutorial) tutorialBits |= (1 << 1);
+        if (state.hasSeenDripLineTutorial) tutorialBits |= (1 << 2);
+        if (state.hasSeenEngraveTutorial) tutorialBits |= (1 << 3);
+        if (state.hasSeenSkillToggleTutorial) tutorialBits |= (1 << 4);
+        if (state.hasPerformedActiveReincarnation) tutorialBits |= (1 << 5);
+        view.setUint8(offset++, tutorialBits);
+
+        EXTENDED_DECAY_STATS.forEach(mode => {
+            view.setUint16(offset, state.decayStats[mode] || 0); offset += 2;
+        });
+        EXTENDED_REACTION_STATS.forEach(r => {
+            view.setUint16(offset, state.reactionStats[r] || 0); offset += 2;
+        });
     });
 
-    view.setUint16(offset, historyList.length); offset += 2;
-    historyList.forEach(h => {
-        view.setUint8(offset++, h.pz === null ? 255 : h.pz);
-        view.setUint16(offset, h.pa || 0); offset += 2;
-        view.setUint8(offset++, h.z);
-        view.setUint16(offset, h.a); offset += 2;
-        const mIdx = METHOD_MAP.indexOf(h.method);
-        view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
-        view.setUint32(offset, h.firstTurn); offset += 4;
-        view.setUint32(offset, h.lastTurn); offset += 4;
-        // Engrave flag (1 byte for extensibility)
-        view.setUint8(offset++, h.isEngraved ? 1 : 0);
+    // Section 4: ACHIEVEMENTS
+    writeSection(SaveSectionId.ACHIEVEMENTS, () => {
+        const achievedIds = Object.keys(state.achievementTimes).filter(id => ACHIEVEMENT_MAP.includes(id));
+        view.setUint8(offset++, achievedIds.length);
+        achievedIds.forEach(id => {
+            const idx = ACHIEVEMENT_MAP.indexOf(id);
+            view.setUint8(offset++, idx);
+            view.setUint32(offset, Math.floor(state.achievementTimes[id])); offset += 4;
+        });
+    });
+
+    // Section 5: HISTORY
+    writeSection(SaveSectionId.HISTORY, () => {
+        view.setUint16(offset, historyList.length); offset += 2;
+        historyList.forEach(h => {
+            view.setUint8(offset++, h.pz === null ? 255 : h.pz);
+            view.setUint16(offset, h.pa || 0); offset += 2;
+            view.setUint8(offset++, h.z);
+            view.setUint16(offset, h.a); offset += 2;
+            const mIdx = METHOD_MAP.indexOf(h.method);
+            view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
+            view.setUint32(offset, h.firstTurn); offset += 4;
+            view.setUint32(offset, h.lastTurn); offset += 4;
+            view.setUint8(offset++, h.isEngraved ? 1 : 0);
+        });
     });
 
     const packedData = buffer.slice(0, offset);
@@ -248,7 +278,6 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
             .replace(/\r?\n|\r/g, ''); // Remove newlines first
             
         // 2. Handle the common '+' -> ' ' conversion from URL parameters
-        // We only do this if it helps make the string valid base64 or if it's a single line
         if (sanitized.includes(' ')) {
             sanitized = sanitized.replace(/ /g, '+');
         }
@@ -256,8 +285,6 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         // 3. Remove any remaining invalid characters
         sanitized = sanitized.replace(/[^A-Za-z0-9+/=]/g, '');
         
-        // 3. Fix padding if necessary
-        // Base64 strings can't have a length of 1 mod 4
         if (sanitized.length === 0 || sanitized.length % 4 === 1) {
             return null;
         }
@@ -274,147 +301,149 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
         const view = new DataView(finalBytes.buffer);
         let offset = 0;
 
-        const score = view.getFloat64(offset); offset += 8;
-        const energy = view.getUint32(offset); offset += 4;
-        const hp = view.getUint8(offset++);
-        const level = view.getUint8(offset++);
-        const reincarnations = view.getUint16(offset); offset += 2;
-        
-        const globalTurn = view.getUint32(offset); offset += 4;
-        
-        const cz = view.getUint8(offset++);
-        const ca = view.getUint16(offset); offset += 2;
-        const mc = view.getUint16(offset); offset += 2;
-        const mb = view.getUint8(offset++);
-        const et = view.getUint32(offset); offset += 4;
-
-        const ue: number[] = [];
-        for (let i = 0; i < 15; i++) {
-            const byte = view.getUint8(offset++);
-            for (let bit = 0; bit < 8; bit++) {
-                if (byte & (1 << bit)) ue.push(i * 8 + bit);
-            }
+        // --- Format Detection ---
+        // Check for Magic Number "SAVE" (0x53415645)
+        if (view.byteLength < 4) return null;
+        const magic = view.getUint32(offset);
+        if (magic !== 0x53415645) {
+            console.error("Invalid save format: Missing magic number");
+            return null;
         }
+        offset += 4;
 
-        const ugBits = view.getUint32(offset); offset += 4;
-        const ug = GROUP_MAP.filter((_, i) => ugBits & (1 << i));
+        const payload: Partial<SavePayload> = {
+            st: {},
+            rs: {},
+            at: {},
+            ev: {}
+        };
 
-        const dsBits = view.getUint32(offset); offset += 4;
-        const ds = GROUP_MAP.filter((_, i) => dsBits & (1 << i));
+        while (offset < view.byteLength) {
+            if (offset + 5 > view.byteLength) break; // Need at least ID (1) + Length (4)
+            const sectionId = view.getUint8(offset++);
+            const sectionLength = view.getUint32(offset); offset += 4;
+            const nextSectionOffset = offset + sectionLength;
 
-        const st: Record<string, number> = {};
-        DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
-            if (offset + 2 <= view.byteLength) {
-                st[mode] = view.getUint16(offset); offset += 2;
-            }
-        });
+            if (nextSectionOffset > view.byteLength) break; // Corrupted section
 
-        const rs: Record<string, number> = {};
-        [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
-            if (offset + 2 <= view.byteLength) {
-                rs[r] = view.getUint16(offset); offset += 2;
-            }
-        });
-
-        const mdBits = view.getUint32(offset); offset += 4;
-        const md = BASE_MASTERY_MODES.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
-
-        // --- Reincarnation Pool counts ---
-        const pp = view.getUint16(offset); offset += 2;
-        const pn = view.getUint16(offset); offset += 2;
-        const pe = view.getUint16(offset); offset += 2;
-
-        // --- New Progress & Tutorial Flags ---
-        // Default values for backward compatibility
-        let rp = { p: false, e: false, n: false };
-        let tf = { d: true, c: true, l: true, e: true, s: true, ar: false };
-
-        // Check if there's enough space for the new flags (2 bytes) AND at least the history length (2 bytes)
-        if (offset + 4 <= view.byteLength) {
-            const progressBits = view.getUint8(offset++);
-            rp = {
-                p: !!(progressBits & (1 << 0)),
-                e: !!(progressBits & (1 << 1)),
-                n: !!(progressBits & (1 << 2))
-            };
-
-            const tutorialBits = view.getUint8(offset++);
-            tf = {
-                d: !!(tutorialBits & (1 << 0)),
-                c: !!(tutorialBits & (1 << 1)),
-                l: !!(tutorialBits & (1 << 2)),
-                e: !!(tutorialBits & (1 << 3)),
-                s: !!(tutorialBits & (1 << 4)),
-                ar: !!(tutorialBits & (1 << 5))
-            };
-        }
-
-        // --- Extended Achievement Stats ---
-        const extendedStatsSize = (EXTENDED_DECAY_STATS.length + EXTENDED_REACTION_STATS.length) * 2;
-        if (offset + extendedStatsSize + 2 <= view.byteLength) {
-            EXTENDED_DECAY_STATS.forEach(mode => {
-                st[mode] = view.getUint16(offset); offset += 2;
-            });
-            EXTENDED_REACTION_STATS.forEach(r => {
-                rs[r] = view.getUint16(offset); offset += 2;
-            });
-        }
-
-        // --- Achievement Times ---
-        const at: Record<string, number> = {};
-        if (offset + 1 <= view.byteLength) {
-            const achievementCount = view.getUint8(offset++);
-            for (let i = 0; i < achievementCount; i++) {
-                if (offset + 5 <= view.byteLength) {
-                    const idx = view.getUint8(offset++);
-                    const time = view.getUint32(offset); offset += 4;
-                    if (ACHIEVEMENT_MAP[idx]) {
-                        at[ACHIEVEMENT_MAP[idx]] = time;
+            switch (sectionId) {
+                case SaveSectionId.CORE:
+                    const vLen = view.getUint8(offset++);
+                    let v = "";
+                    for (let i = 0; i < vLen; i++) {
+                        v += String.fromCharCode(view.getUint8(offset++));
                     }
-                }
+                    payload.v = v;
+
+                    payload.s = view.getFloat64(offset); offset += 8;
+                    payload.e = view.getUint32(offset); offset += 4;
+                    payload.h = view.getUint8(offset++);
+                    payload.l = view.getUint8(offset++);
+                    payload.r = view.getUint16(offset); offset += 2;
+                    payload.t = view.getUint32(offset); offset += 4;
+                    payload.cz = view.getUint8(offset++);
+                    payload.ca = view.getUint16(offset); offset += 2;
+                    payload.mc = view.getUint16(offset); offset += 2;
+                    payload.mb = view.getUint8(offset++);
+                    payload.et = view.getUint32(offset); offset += 4;
+                    break;
+                case SaveSectionId.UNLOCKED:
+                    const ue: number[] = [];
+                    for (let i = 0; i < 15; i++) {
+                        const byte = view.getUint8(offset++);
+                        for (let bit = 0; bit < 8; bit++) {
+                            if (byte & (1 << bit)) ue.push(i * 8 + bit);
+                        }
+                    }
+                    payload.ue = ue;
+                    const ugBits = view.getUint32(offset); offset += 4;
+                    payload.ug = GROUP_MAP.filter((_, i) => ugBits & (1 << i));
+                    const dsBits = view.getUint32(offset); offset += 4;
+                    payload.ds = GROUP_MAP.filter((_, i) => dsBits & (1 << i));
+                    break;
+                case SaveSectionId.STATISTICS:
+                    DECAY_MODE_MAP.slice(0, 8).forEach(mode => {
+                        if (offset + 2 <= nextSectionOffset) {
+                            payload.st![mode] = view.getUint16(offset); offset += 2;
+                        }
+                    });
+                    [HISTORY_METHODS.REACTION_NG, HISTORY_METHODS.REACTION_NP, HISTORY_METHODS.REACTION_N2N, HISTORY_METHODS.REACTION_NA, HISTORY_METHODS.REACTION_NF].forEach(r => {
+                        if (offset + 2 <= nextSectionOffset) {
+                            payload.rs![r] = view.getUint16(offset); offset += 2;
+                        }
+                    });
+                    const mdBits = view.getUint32(offset); offset += 4;
+                    payload.md = BASE_MASTERY_MODES.filter((_, i) => mdBits & (1 << i)) as DecayMode[];
+                    payload.pp = view.getUint16(offset); offset += 2;
+                    payload.pn = view.getUint16(offset); offset += 2;
+                    payload.pe = view.getUint16(offset); offset += 2;
+                    const progressBits = view.getUint8(offset++);
+                    payload.rp = {
+                        p: !!(progressBits & (1 << 0)),
+                        e: !!(progressBits & (1 << 1)),
+                        n: !!(progressBits & (1 << 2))
+                    };
+                    const tutorialBits = view.getUint8(offset++);
+                    payload.tf = {
+                        d: !!(tutorialBits & (1 << 0)),
+                        c: !!(tutorialBits & (1 << 1)),
+                        l: !!(tutorialBits & (1 << 2)),
+                        e: !!(tutorialBits & (1 << 3)),
+                        s: !!(tutorialBits & (1 << 4)),
+                        ar: !!(tutorialBits & (1 << 5))
+                    };
+                    EXTENDED_DECAY_STATS.forEach(mode => {
+                        if (offset + 2 <= nextSectionOffset) {
+                            payload.st![mode] = view.getUint16(offset); offset += 2;
+                        }
+                    });
+                    EXTENDED_REACTION_STATS.forEach(r => {
+                        if (offset + 2 <= nextSectionOffset) {
+                            payload.rs![r] = view.getUint16(offset); offset += 2;
+                        }
+                    });
+                    break;
+                case SaveSectionId.ACHIEVEMENTS:
+                    const achievementCount = view.getUint8(offset++);
+                    for (let i = 0; i < achievementCount; i++) {
+                        if (offset + 5 <= nextSectionOffset) {
+                            const idx = view.getUint8(offset++);
+                            const time = view.getUint32(offset); offset += 4;
+                            if (ACHIEVEMENT_MAP[idx]) {
+                                payload.at![ACHIEVEMENT_MAP[idx]] = time;
+                            }
+                        }
+                    }
+                    break;
+                case SaveSectionId.HISTORY:
+                    const historyLen = view.getUint16(offset); offset += 2;
+                    for (let i = 0; i < historyLen; i++) {
+                        if (offset + 7 > nextSectionOffset) break;
+                        const rpz = view.getUint8(offset++);
+                        const pz = rpz === 255 ? null : rpz;
+                        const pa = view.getUint16(offset); offset += 2;
+                        const z = view.getUint8(offset++);
+                        const a = view.getUint16(offset); offset += 2;
+                        const mIdx = view.getUint8(offset++);
+                        const method = mIdx === 255 ? TITLES.UNKNOWN : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
+                        let firstTurn = 0;
+                        let lastTurn = 0;
+                        if (offset + 8 <= nextSectionOffset) {
+                            firstTurn = view.getUint32(offset); offset += 4;
+                            lastTurn = view.getUint32(offset); offset += 4;
+                        }
+                        let isEngraved = false;
+                        if (offset < nextSectionOffset) {
+                            isEngraved = view.getUint8(offset++) === 1;
+                        }
+                        const key = `${z}-${a}`;
+                        payload.ev![key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
+                    }
+                    break;
             }
+            offset = nextSectionOffset;
         }
-
-        let historyLen = 0;
-        if (offset + 2 <= view.byteLength) {
-            historyLen = view.getUint16(offset); offset += 2;
-        }
-        
-        const ev: Record<string, string> = {};
-        for (let i = 0; i < historyLen; i++) {
-            if (offset + 7 > view.byteLength) break; // Minimum size for a history entry header
-
-            const rpz = view.getUint8(offset++);
-            const pz = rpz === 255 ? null : rpz;
-            const pa = view.getUint16(offset); offset += 2;
-            const z = view.getUint8(offset++);
-            const a = view.getUint16(offset); offset += 2;
-            const mIdx = view.getUint8(offset++);
-            const method = mIdx === 255 ? TITLES.UNKNOWN : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);
-            
-            let firstTurn = 0;
-            let lastTurn = 0;
-            
-            if (offset + 8 <= view.byteLength) {
-                firstTurn = view.getUint32(offset); offset += 4;
-                lastTurn = view.getUint32(offset); offset += 4;
-            } else if (offset + 4 <= view.byteLength) {
-                firstTurn = view.getUint32(offset); offset += 4;
-                lastTurn = firstTurn;
-            }
-
-            // Read Engraved flag
-            let isEngraved = false;
-            if (offset < view.byteLength) {
-                isEngraved = view.getUint8(offset++) === 1;
-            }
-            
-            const key = `${z}-${a}`;
-            // ev format: pz:pa:method:firstTurn:lastTurn:isEngraved
-            ev[key] = `${pz === null ? 'null' : pz}:${pa}:${method}:${firstTurn}:${lastTurn}:${isEngraved ? 1 : 0}`;
-        }
-
-        return { s: score, e: energy, h: hp, l: level, r: reincarnations, t: globalTurn, cz, ca, ue, ug, ds, st, rs, ev, md, mc, mb, et, pp, pn, pe, rp, tf, at };
+        return payload as SavePayload;
     } catch (e) {
         console.error("Unpack failed:", e instanceof Error ? e.message : String(e));
         return null;
