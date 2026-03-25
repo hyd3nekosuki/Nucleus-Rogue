@@ -129,6 +129,10 @@ export const useNucleusCoordinator = () => {
         dispatch({ type: 'NOTIFY_TUTORIAL_EVENT', payload: { event: 'MASTERY_OPENED' } });
     }, [dispatch]);
 
+    const handleCommitFission = useCallback(() => {
+        dispatch({ type: 'COMMIT_FISSION' });
+    }, [dispatch]);
+
     // 8. Achievement Tracking
     useEffect(() => {
         const checkAchievement = (id: string, condition: boolean) => {
@@ -150,7 +154,7 @@ export const useNucleusCoordinator = () => {
         const hasNA = (gameState.reactionStats[HISTORY_METHODS.REACTION_NA] || 0) > 0;
         const hasPA = (gameState.reactionStats[HISTORY_METHODS.REACTION_PA] || 0) > 0;
         
-        checkAchievement('alpha_master', hasPureAlpha && hasBMinusAlpha && hasBPlusAlpha && hasECAlpha && hasNA && hasPA);
+        checkAchievement('i_am_the_alpha', hasPureAlpha && hasBMinusAlpha && hasBPlusAlpha && hasECAlpha && hasNA && hasPA);
 
         // Master of Beta: Experience all beta-minus related events at least once
         const hasPureBMinus = (gameState.decayStats['PURE_BETA_MINUS'] || 0) > 0;
@@ -223,6 +227,7 @@ export const useNucleusCoordinator = () => {
         handleDecayAction, 
         handlePlayerInteract, 
         handleEngraveCurrent,
+        handleCommitFission,
         
         // Advanced Mastery Skills
         handleStabilize, 

@@ -66,6 +66,9 @@ export const calculateFissionShockwave = (
     radius: number = 2
 ): GridEntity[] => {
     return entities.filter(e => {
+        // Protect friendly entities (Another Nuclides synthesized by player) from the shockwave
+        if (e.isFriendly) return true;
+        
         const dist = Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2));
         return dist > radius; 
     });

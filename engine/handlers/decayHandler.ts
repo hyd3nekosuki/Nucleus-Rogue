@@ -107,9 +107,10 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         decayModeTrigger: actualMode, 
         shake: isForced || decayResult.shouldShake, 
         shakeIntensity: decayResult.shakeIntensity,
-        flash: isForced ? undefined : (decayResult.shouldFlash ? (actualMode === DecayMode.SPONTANEOUS_FISSION ? 'bg-yellow-400' : 'bg-white') : undefined), 
+        flash: isForced ? undefined : (decayResult.shouldFlash ? (decayResult.flashColor || 'bg-white') : undefined), 
         priorityMessages: decayResult.speechOverride ? [decayResult.speechOverride] : [],
-        isAnnihilation: decayResult.isAnnihilation
+        isAnnihilation: decayResult.isAnnihilation,
+        chainReactionPath: decayResult.chainReactionPath
     };
 
     if (!newData.exists) {

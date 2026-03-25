@@ -28,6 +28,7 @@ export interface DecayResult {
     emissions?: EntityType[]; // Procedure 2: Abstraction of emitted particles
     byproduct?: { z: number, a: number }; // Added for fission fragment handling
     defeatedNuclides?: GridEntity[]; // Added to track enemies defeated by reaction
+    chainReactionPath?: Position[];
 }
 
 export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
@@ -178,6 +179,7 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const chainResult = processFissionChainReaction(neutronCount, playerPos, gridEntities);
     let currentEntities = chainResult.finalEntities;
     const finalNeutronCount = chainResult.remainingNeutrons;
+    const chainReactionPath = chainResult.path;
 
     // Detection before shockwave filters entities
     const antisInBlast = currentEntities.filter(e => 
@@ -224,7 +226,8 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         extraMessages: messages,
         emissions, // Return list of particles to be spawned by engine
         byproduct,  // Procedure 2: Secondary fragment for conservation
-        defeatedNuclides: [...antisInBlast, ...enemiesInBlast]
+        defeatedNuclides: [...antisInBlast, ...enemiesInBlast],
+        chainReactionPath
     };
 };
 
@@ -363,10 +366,9 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.B_MINUS_SF:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            const bMinusFission = handleSpontaneousFission(currentNuclide, playerPos, result.newGridEntities, currentTime);
+            Object.assign(result, bMinusFission);
             result.trigger = "β- delayed fission";
-            result.shouldShake = true;
-            result.shouldFlash = true;
-            result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.B_PLUS_ALPHA:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
@@ -396,10 +398,9 @@ export const calculateDecayEffects = (
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_SF:
+            const ecFission = handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime);
+            Object.assign(result, ecFission);
             result.trigger = "EC delayed fission";
-            result.shouldShake = true;
-            result.shouldFlash = true;
-            result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.GAMMA:
              result.trigger = HISTORY_METHODS.GAMMA_DECAY;

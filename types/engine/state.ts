@@ -59,6 +59,15 @@ export interface GameState {
   hasPerformedActiveReincarnation: boolean;
   emptyTurnCount: number;
   lastEvent?: GameStateEvent; 
+  persistentPath?: Position[];
+  pathExpiryTurn?: number;
+  isAnimatingFission: boolean;
+  pendingFission?: {
+    mode: DecayMode;
+    result: any; // DecayResult
+    newData: any; // NuclideData
+    context: any; // DiscoveryContext
+  };
   realPhysicsUnlockProgress: {
     hasScatteredProton: boolean;
     hasScatteredElectron: boolean;
@@ -82,4 +91,7 @@ export type GameAction =
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
   | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } }
+  | { type: 'START_FISSION_ANIMATION'; payload: { mode: DecayMode; result: any; newData: any; context: any } }
+  | { type: 'COMMIT_FISSION' }
+  | { type: 'CANCEL_FISSION_ANIMATION' }
   | { type: 'RECORD_ACHIEVEMENT'; payload: { id: string; time: number } };

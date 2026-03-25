@@ -27,4 +27,5 @@ export interface GameStateEvent {
   isPlayed?: boolean;
   hasDefeat?: boolean;
   isAnnihilation?: boolean;
+  chainReactionPath?: Position[];
 }

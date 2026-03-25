@@ -32,13 +32,15 @@ export const processFissionChainReaction = (
     finalEntities: GridEntity[];
     remainingNeutrons: number;
     chainReactionCount: number;
+    path: Position[];
 } => {
     let currentEntities = [...gridEntities];
     let m = initialNeutronCount;
     let chainReactionCount = 0;
+    const path: Position[] = [playerPos];
 
     if (m <= 0) {
-        return { finalEntities: currentEntities, remainingNeutrons: 0, chainReactionCount: 0 };
+        return { finalEntities: currentEntities, remainingNeutrons: 0, chainReactionCount: 0, path: [] };
     }
 
     while (m >= 1) {
@@ -61,6 +63,9 @@ export const processFissionChainReaction = (
         const target = targetNuclides[Math.floor(Math.random() * targetNuclides.length)];
         const targetIndex = currentEntities.findIndex(e => e.id === target.id);
         
+        // Add to path
+        path.push(target.position);
+
         // Remove target
         currentEntities.splice(targetIndex, 1);
         chainReactionCount++;
@@ -105,6 +110,7 @@ export const processFissionChainReaction = (
     return {
         finalEntities: currentEntities,
         remainingNeutrons: m,
-        chainReactionCount
+        chainReactionCount,
+        path: path.length > 1 ? path : []
     };
 };

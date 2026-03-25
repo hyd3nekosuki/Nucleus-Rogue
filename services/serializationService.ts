@@ -38,7 +38,7 @@ const DECAY_MODE_MAP = Object.values(DecayMode);
 const ACHIEVEMENT_MAP: string[] = [
     'reincarnated',
     'combo_master',
-    'alpha_master',
+    'i_am_the_alpha',
     'beta_master',
     'seasoned_nuclide',
     'oganesson',

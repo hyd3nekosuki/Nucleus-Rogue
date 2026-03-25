@@ -52,6 +52,9 @@ export const getInitialState = (): GameState => ({
     reincarnationPool: { p: 0, n: 0, e: 0 },
     hasPerformedActiveReincarnation: false,
     emptyTurnCount: 0,
+    persistentPath: undefined,
+    pathExpiryTurn: 0,
+    isAnimatingFission: false,
     realPhysicsUnlockProgress: {
         hasScatteredProton: false,
         hasScatteredElectron: false,

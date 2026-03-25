@@ -108,7 +108,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         unlockedGroups: result.newlyUnlockedGroups && result.newlyUnlockedGroups.length > 0 
             ? [...new Set([...state.unlockedGroups, ...result.newlyUnlockedGroups])]
             : state.unlockedGroups,
-        lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion || result.inducedDecayMode || defeatedCount > 0 || isAnti) ? { 
+        lastEvent: (result.shouldShake || result.shouldFlash || result.isPpFusion || result.inducedDecayMode || defeatedCount > 0 || isAnti || (result.chainDecayResult?.chainReactionPath && result.chainDecayResult.chainReactionPath.length > 0)) ? { 
             id: Date.now(), 
             type: 'COLLISION', 
             shake: result.shouldShake || defeatedCount > 0 || isAnti, 
@@ -116,7 +116,8 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             flash: result.flashColor || (result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined), 
             priorityMessages: result.isPpFusion ? ['Nuclear Fusion'] : [],
             decayModeTrigger: result.inducedDecayMode,
-            hasDefeat: defeatedCount > 0 || isAnti
+            hasDefeat: defeatedCount > 0 || isAnti,
+            chainReactionPath: result.chainDecayResult?.chainReactionPath
         } : undefined 
     };
 

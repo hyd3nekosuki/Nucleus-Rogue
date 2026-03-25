@@ -212,7 +212,12 @@ function App() {
                 </div>
               </div>
             )}
-            <Grid width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} onCellClick={engine.handleCellClick} finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} />
+            <Grid 
+                width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} 
+                onCellClick={engine.handleCellClick} 
+                onFissionAnimationComplete={engine.handleCommitFission}
+                finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} 
+            />
             <GridStatusFooter gameState={gameState} />
             <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { ui.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={ui.isSoundTestActive} onToggleSoundTest={ui.toggleSoundTest} />
          </div>

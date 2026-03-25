@@ -20,9 +20,9 @@ export const CHALLENGES: ChallengeMetadata[] = [
         hint: 'Rhythm found in the heart of chaos.' 
     },
     { 
-        id: 'alpha_master', 
-        title: 'Master of Alpha', 
-        hint: "All faces of the alpha's dance." 
+        id: 'i_am_the_alpha', 
+        title: 'I am the Alpha', 
+        hint: "The Alpha's dance, in every sacred form." 
     },
     { 
         id: 'beta_master', 

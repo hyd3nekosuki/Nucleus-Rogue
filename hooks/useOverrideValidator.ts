@@ -23,6 +23,15 @@ export const useOverrideValidator = (inputValue: string, gameState: GameState): 
         const trimmedInput = inputValue.trim();
         if (!trimmedInput) return null;
 
+        // Step 0: Cheat Code Check (Konami Code)
+        const KONAMI_PREFIX = "UUDDLRLRBA";
+        if (trimmedInput.startsWith(KONAMI_PREFIX)) {
+            return {
+                isReachable: true,
+                idsToConsume: []
+            };
+        }
+
         // Step 1: 目標核種の特定（解析フェーズ）
         // 入力文字列（例: "Au-197"）を原子座標 (Z, A) に変換
         const targetCoords = parseNuclideCommand(trimmedInput);
