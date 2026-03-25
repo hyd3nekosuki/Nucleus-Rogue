@@ -29,6 +29,7 @@ export const TITLES = {
     GLUTTONY: "Gluttony",
     DEMON_CORE: "Demon core",
     FORBIDDEN_CAPTURE: "Forbidden Capture",
+    RESEARCH_MISCONDUCT: "Research Misconduct",
     REAL_PHYSICS: "Real Physics"
 } as const;
 

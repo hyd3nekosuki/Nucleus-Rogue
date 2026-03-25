@@ -11,28 +11,13 @@ interface GridProps {
   height: number;
   gameState: GameState;
   onCellClick: (x: number, y: number) => void;
-  onFissionAnimationComplete?: () => void;
   finalCombo?: { count: number, id: number } | null;
   overrideResult?: OverrideValidationResult | null;
 }
 
-const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, onFissionAnimationComplete, finalCombo, overrideResult }) => {
+const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, finalCombo, overrideResult }) => {
   const cells = [];
   const componentStartTime = React.useRef<number>(Date.now());
-
-  // Handle fission animation completion
-  React.useEffect(() => {
-    if (gameState.isAnimatingFission && gameState.pendingFission?.result.chainReactionPath) {
-      const path = gameState.pendingFission.result.chainReactionPath;
-      const segmentDuration = 200; // ms per segment
-      const duration = Math.max(50, (path.length - 1) * segmentDuration + 800); // Dynamic duration based on path length
-      
-      const timer = setTimeout(() => {
-        onFissionAnimationComplete?.();
-      }, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [gameState.isAnimatingFission, gameState.pendingFission, onFissionAnimationComplete]);
 
   // Determine if Daredevil (Hard Mode) is active
   const isDaredevilActive = gameState.unlockedGroups.includes(TITLES.DEMON_CORE) && !gameState.disabledSkills.includes(TITLES.DEMON_CORE);
@@ -371,9 +356,8 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, onFi
                 const ent = gameState.gridEntities.find(e => e.id === id);
                 return ent ? renderResonanceLine(ent.position, id) : null;
             })}
-            {gameState.isAnimatingFission && gameState.pendingFission?.result.chainReactionPath && renderChainReactionPath(gameState.pendingFission.result.chainReactionPath, true)}
-            {gameState.lastEvent?.chainReactionPath && renderChainReactionPath(gameState.lastEvent.chainReactionPath)}
-            {gameState.persistentPath && renderChainReactionPath(gameState.persistentPath, false, true)}
+            {gameState.lastEvent?.chainReactionPath && !gameState.gameOver && renderChainReactionPath(gameState.lastEvent.chainReactionPath)}
+            {gameState.persistentPath && !gameState.gameOver && renderChainReactionPath(gameState.persistentPath, false, true)}
         </svg>
         
         {finalCombo && !gameState.isTimeStopped && (
@@ -407,8 +391,6 @@ export default memo(Grid, (prevProps, nextProps) => {
     p.magicBarrierCharges === n.magicBarrierCharges &&
     p.unlockedGroups === n.unlockedGroups &&
     p.disabledSkills === n.disabledSkills &&
-    p.isAnimatingFission === n.isAnimatingFission &&
-    p.pendingFission === n.pendingFission &&
     p.lastEvent === n.lastEvent &&
     p.persistentPath === n.persistentPath
   );

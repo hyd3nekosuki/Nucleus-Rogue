@@ -29,7 +29,8 @@ const GROUP_MAP: string[] = [
     TITLES.ELECTRON_SCATTERING, // 19
     TITLES.GLUTTONY,            // 20
     TITLES.DEMON_CORE,           // 21
-    TITLES.REAL_PHYSICS          // 22
+    TITLES.REAL_PHYSICS,         // 22
+    TITLES.RESEARCH_MISCONDUCT   // 23
 ];
 
 const METHOD_MAP = Object.values(HISTORY_METHODS);
@@ -44,7 +45,8 @@ const ACHIEVEMENT_MAP: string[] = [
     'oganesson',
     'all_elements',
     'forbidden_capture',
-    'this_is_it'
+    'this_is_it',
+    'research_misconduct'
 ];
 
 // Achievement-critical stats that need to be persisted

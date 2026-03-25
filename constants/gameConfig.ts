@@ -3,7 +3,7 @@ import { DecayMode, NuclideData, NuclideCategory } from '../types';
 export const GRID_WIDTH = 15;
 export const GRID_HEIGHT = 15;
 export const INITIAL_HP = 100;
-export const APP_VERSION = "1.3.9.7";
+export const APP_VERSION = "1.3.9.8";
 export const MAX_MASTERY_LEVEL = 8;
 
 // --- Game Balance/Pacing Constants ---

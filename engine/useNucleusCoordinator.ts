@@ -129,10 +129,6 @@ export const useNucleusCoordinator = () => {
         dispatch({ type: 'NOTIFY_TUTORIAL_EVENT', payload: { event: 'MASTERY_OPENED' } });
     }, [dispatch]);
 
-    const handleCommitFission = useCallback(() => {
-        dispatch({ type: 'COMMIT_FISSION' });
-    }, [dispatch]);
-
     // 8. Achievement Tracking
     useEffect(() => {
         const checkAchievement = (id: string, condition: boolean) => {
@@ -227,7 +223,6 @@ export const useNucleusCoordinator = () => {
         handleDecayAction, 
         handlePlayerInteract, 
         handleEngraveCurrent,
-        handleCommitFission,
         
         // Advanced Mastery Skills
         handleStabilize, 

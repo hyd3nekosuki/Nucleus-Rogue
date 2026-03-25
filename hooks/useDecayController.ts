@@ -31,34 +31,6 @@ export const useDecayController = (
 
         const fissionEnabled = !gameState.disabledSkills.includes(TITLES.FISSION);
         
-        // Check if it's a fission event that needs animation
-        if (actualMode === DecayMode.SPONTANEOUS_FISSION && fissionEnabled) {
-            const now = Date.now();
-            const result = calculateDecayEffects(
-                actualMode, 
-                gameState.currentNuclide, 
-                gameState.playerPos, 
-                gameState.gridEntities, 
-                now, 
-                gameState.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !gameState.disabledSkills.includes(TITLES.PAIR_ANNIHILATION), 
-                fissionEnabled, 
-                gameState.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !gameState.disabledSkills.includes(TITLES.NEUTRONIZATION)
-            );
-            const newData = getNuclideDataSync(gameState.currentNuclide.z + result.dZ, gameState.currentNuclide.a + result.dA);
-            
-            // If there's a chain reaction path, start animation
-            if (result.chainReactionPath && result.chainReactionPath.length > 1) {
-                const totalBaseActionPoints = (newData.a * 10) + (newData.isStable ? 1000 : 500) + result.actionBonusScore;
-                const context = { method: result.trigger, pz: gameState.currentNuclide.z, pa: gameState.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
-                
-                dispatch({
-                    type: 'START_FISSION_ANIMATION',
-                    payload: { mode: actualMode, result, newData, context }
-                });
-                return;
-            }
-        }
-
         dispatch({
             type: 'MANUAL_DECAY',
             payload: { mode: actualMode }

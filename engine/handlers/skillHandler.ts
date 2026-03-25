@@ -152,6 +152,18 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 let debugType: 'player' | 'enemy' | 'friend' = 'player';
                 let nuclidePart = debugCmd;
 
+                // Unlock Research Misconduct title if not already unlocked
+                let updatedGroups = state.unlockedGroups;
+                if (!updatedGroups.includes(TITLES.RESEARCH_MISCONDUCT)) {
+                    updatedGroups = [...updatedGroups, TITLES.RESEARCH_MISCONDUCT];
+                }
+
+                // Record achievement for Research Misconduct
+                let achievementTimes = { ...state.achievementTimes };
+                if (achievementTimes['research_misconduct'] === undefined) {
+                    achievementTimes['research_misconduct'] = state.elapsedTime;
+                }
+
                 if (debugCmd.toLowerCase().endsWith('e')) {
                     debugType = 'enemy';
                     nuclidePart = debugCmd.slice(0, -1);
@@ -166,7 +178,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     if (targetData.exists) {
                         if (debugType === 'player') {
                             return finalizeAction(applyDiscoveryLogic(
-                                { ...state, messages: [...state.messages, `🛠️ DEBUG: Transformed into ${targetData.name}`].slice(-10) },
+                                { ...state, unlockedGroups: updatedGroups, achievementTimes, messages: [...state.messages, `🛠️ DEBUG: Transformed into ${targetData.name}`].slice(-10) },
                                 targetData,
                                 { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
                                 state.turn + 1,
@@ -187,12 +199,22 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                             };
                             return {
                                 ...state,
+                                unlockedGroups: updatedGroups,
+                                achievementTimes,
                                 gridEntities: [...state.gridEntities, newEntity],
                                 messages: [...state.messages, `🛠️ DEBUG: Spawned ${isFriendly ? 'friend' : 'enemy'} ${targetData.name}`].slice(-10)
                             };
                         }
                     }
                 }
+                
+                // If no valid coords but prefix was used, still unlock the title
+                return {
+                    ...state,
+                    unlockedGroups: updatedGroups,
+                    achievementTimes,
+                    messages: [...state.messages, "🛠️ DEBUG: Cheat Activated (Research Misconduct)"].slice(-10)
+                };
             }
             // --- END DEBUG BACKDOOR ---
 

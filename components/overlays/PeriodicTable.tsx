@@ -104,7 +104,7 @@ const PeriodicTable: React.FC<Props> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {CHALLENGES.map(c => {
                         const achTime = achievementTimes[c.id];
-                        const isMet = !!achTime;
+                        const isMet = achTime !== undefined;
 
                         return (
                             <div key={c.id} className={`p-4 rounded-lg border transition-all ${isMet ? 'bg-neon-blue/10 border-neon-blue/50 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : 'bg-gray-900/50 border-gray-800 opacity-60'}`}>

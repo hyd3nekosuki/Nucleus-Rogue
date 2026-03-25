@@ -7,7 +7,6 @@ import { handleUseSkill } from './handlers/skillHandler';
 import { handleEngraveCurrent } from './handlers/historyHandler';
 import { handleMovePlayer } from './handlers/moveHandler';
 import { handleManualDecay } from './handlers/decayHandler';
-import { handleCommitFission } from './handlers/fissionAnimationHandler';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from './tutorialManager';
 
 /**
@@ -82,24 +81,6 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 const { effects, activeEventExpired } = action.payload;
                 return { ...state, effects, activeEvent: activeEventExpired ? undefined : state.activeEvent };
             }
-
-            case 'START_FISSION_ANIMATION':
-                return {
-                    ...state,
-                    isAnimatingFission: true,
-                    pendingFission: action.payload
-                };
-
-            case 'COMMIT_FISSION': {
-                return handleCommitFission(state);
-            }
-
-            case 'CANCEL_FISSION_ANIMATION':
-                return {
-                    ...state,
-                    isAnimatingFission: false,
-                    pendingFission: undefined
-                };
 
             case 'RECORD_ACHIEVEMENT': {
                 if (state.achievementTimes[action.payload.id]) return state;

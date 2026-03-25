@@ -54,4 +54,9 @@ export const CHALLENGES: ChallengeMetadata[] = [
         title: 'This is IT', 
         hint: "A quiet shift in the heart of the atom." 
     },
+    { 
+        id: 'research_misconduct', 
+        title: 'Research Misconduct', 
+        hint: 'D4Cheat' 
+    },
 ];

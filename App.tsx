@@ -215,7 +215,6 @@ function App() {
             <Grid 
                 width={GRID_WIDTH} height={GRID_HEIGHT} gameState={gameState} 
                 onCellClick={engine.handleCellClick} 
-                onFissionAnimationComplete={engine.handleCommitFission}
                 finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} 
             />
             <GridStatusFooter gameState={gameState} />

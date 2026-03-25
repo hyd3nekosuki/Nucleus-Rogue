@@ -54,7 +54,6 @@ export const getInitialState = (): GameState => ({
     emptyTurnCount: 0,
     persistentPath: undefined,
     pathExpiryTurn: 0,
-    isAnimatingFission: false,
     realPhysicsUnlockProgress: {
         hasScatteredProton: false,
         hasScatteredElectron: false,
