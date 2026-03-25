@@ -71,6 +71,63 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
 
     nextEntities = consumeParticlesWithAnotherNuclides(nextEntities);
 
+    // --- NEW: Fission Chain Chance (Monster House Event) ---
+    if (state.currentNuclide.z >= 92 && Math.random() < 0.01) {
+        const fissionMessages = ["⚠️ CRITICALITY ALERT: Fission Chain Chance!"];
+        const fissionEntities: GridEntity[] = [];
+        
+        // Spawn 6-10 fissionable nuclides randomly across the grid
+        const spawnCount = Math.floor(Math.random() * 5) + 6;
+        const fissionableNuclides = [
+            { z: 92, a: 235 }, // U-235
+            { z: 94, a: 239 }  // Pu-239
+        ];
+
+        const freeCells: Position[] = [];
+        for (let y = 0; y < 15; y++) {
+            for (let x = 0; x < 15; x++) {
+                // Avoid spawning directly on player or too close (3x3 area)
+                if (Math.abs(x - state.playerPos.x) > 1 || Math.abs(y - state.playerPos.y) > 1) {
+                    if (!nextEntities.some(e => e.position.x === x && e.position.y === y)) {
+                        freeCells.push({ x, y });
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < spawnCount && freeCells.length > 0; i++) {
+            const cellIdx = Math.floor(Math.random() * freeCells.length);
+            const pos = freeCells.splice(cellIdx, 1)[0];
+            const nuclide = fissionableNuclides[Math.floor(Math.random() * fissionableNuclides.length)];
+            
+            fissionEntities.push({
+                id: 'fission-house-' + Math.random().toString(36).substr(2, 9),
+                type: EntityType.ANOTHER_NUCLIDE,
+                position: pos,
+                spawnTurn: state.turn,
+                isHighEnergy: true, 
+                z: nuclide.z,
+                a: nuclide.a,
+                isFriendly: false
+            });
+        }
+
+        if (fissionEntities.length > 0) {
+            nextEntities = [...nextEntities, ...fissionEntities];
+            nextMessages = [...nextMessages, ...fissionMessages].slice(-10);
+            activeEvent = { type: "CRITICALITY_ALERT", color: "#f59e0b", timestamp: Date.now() };
+            lastEvent = {
+                id: Date.now(),
+                type: 'COLLISION',
+                subType: 'FISSION_HOUSE',
+                shake: true,
+                shakeIntensity: 'normal',
+                flash: 'bg-yellow-500/40'
+            };
+            eventTriggered = true;
+        }
+    }
+
     // Step 3 Logic: Detect if any predator (enemy) nuclide has moved onto the player position.
     // This overlap is only possible during Hard Mode (isDaredevilActive) as per Step 1.
     const assaultingEntity = nextEntities.find(e => 
@@ -161,7 +218,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         const randEvent = Math.random();
         let eventMsg = "", signalType = "", signalColor = "";
         
-        if (randEvent < 0.5) {
+        if (randEvent < 0.45) {
             eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!"; 
             signalType = "INVERSION"; 
             signalColor = "#bc13fe";
@@ -170,21 +227,57 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 e.type === EntityType.NEUTRON ? { ...e, type: EntityType.PROTON } : 
                 e.type === EntityType.ENEMY_ELECTRON ? { ...e, isHighEnergy: !e.isHighEnergy } : e
             ));
-        } else if (randEvent < 0.8) {
+        } else if (randEvent < 0.75) {
             eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!"; 
             signalType = "NEUTRON_STORM"; 
             signalColor = "#00f3ff";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.NEUTRON } : e);
-        } else if (randEvent < 0.95) {
+        } else if (randEvent < 0.90) {
             eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!"; 
             signalType = "PROTON_BURST"; 
             signalColor = "#ff0055";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.PROTON } : e);
-        } else {
+        } else if (randEvent < 0.95) {
             eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!"; 
             signalType = "ELECTRON_FLUCTUATION"; 
             signalColor = "#facc15";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.ENEMY_ELECTRON } : e);
+        } else {
+            eventMsg = "⚠️ POSITRON MAZE: Quantum Confinement!"; 
+            signalType = "POSITRON_MAZE"; 
+            signalColor = "#e879f9";
+            
+            // Generate Maze Walls
+            const mazeEntities: GridEntity[] = [];
+            for (let y = 0; y < 15; y++) {
+                for (let x = 0; x < 15; x++) {
+                    // Avoid player position and immediate neighbors to ensure a start
+                    if (Math.abs(x - state.playerPos.x) <= 1 && Math.abs(y - state.playerPos.y) <= 1) continue;
+
+                    // Maze logic: walls on even grid lines with 40% gaps for paths
+                    if ((x % 2 === 0 || y % 2 === 0) && Math.random() > 0.4) {
+                        const existingIdx = nextEntities.findIndex(e => e.position.x === x && e.position.y === y);
+                        
+                        if (existingIdx !== -1) {
+                            const ent = nextEntities[existingIdx];
+                            // If it's a particle (p, n, e-, e+), change it to positron
+                            if ([EntityType.PROTON, EntityType.NEUTRON, EntityType.ENEMY_ELECTRON, EntityType.ENEMY_POSITRON].includes(ent.type)) {
+                                nextEntities[existingIdx] = { ...ent, type: EntityType.ENEMY_POSITRON };
+                            }
+                        } else {
+                            // Create new positron wall
+                            mazeEntities.push({
+                                id: 'maze-' + x + '-' + y + '-' + Math.random().toString(36).substr(2, 5),
+                                type: EntityType.ENEMY_POSITRON,
+                                position: { x, y },
+                                spawnTurn: state.turn,
+                                isHighEnergy: false
+                            });
+                        }
+                    }
+                }
+            }
+            nextEntities = [...nextEntities, ...mazeEntities];
         }
         
         nextMessages = [...nextMessages, eventMsg].slice(-10);
