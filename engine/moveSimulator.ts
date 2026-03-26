@@ -27,6 +27,7 @@ export interface MoveResult {
     additionalEffects?: VisualEffect[];
     isPpFusion?: boolean;
     isPositronAbsorption?: boolean;
+    isAnnihilation?: boolean;
     isCoulombScattered?: boolean;
     isBremsAchieved?: boolean;
     isZeroBarnAchieved?: boolean;
@@ -169,8 +170,8 @@ export const calculateMoveResult = (
             };
         }
 
-        // Collision prevention for positrons unless we are a neutron state
-        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0) {
+        // Collision prevention for positrons unless we are a neutron state or electron state
+        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0 && prev.currentNuclide.z !== -1) {
             return { 
                 moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0,
                 consecutiveProtons: prev.consecutiveProtons,
@@ -185,7 +186,11 @@ export const calculateMoveResult = (
             };
         }
 
-        nextEntities.splice(entityMatch.index, 1);
+        const isNoCapture = prev.currentNuclide.z === -1 && 
+            (targetEntity.type === EntityType.NEUTRON || targetEntity.type === EntityType.ENEMY_ELECTRON || (targetEntity.type === EntityType.PROTON && !targetEntity.isHighEnergy));
+        if (!isNoCapture) {
+            nextEntities.splice(entityMatch.index, 1);
+        }
         if (nextEntities.length === 0) gluttonyTrigger = true;
 
         // Streak maintenance for Neutrons and Electrons
@@ -242,6 +247,24 @@ export const calculateMoveResult = (
                 prev.currentNuclide, targetEntity, cE, prev.hp, prev.magicBarrierCharges, 
                 prev.unlockedGroups, prev.disabledSkills
             );
+        }
+
+        if (interactionResult.isAnnihilation) {
+            return {
+                moved: true,
+                newPos,
+                dZ: 0, dA: 0, hpPenalty: 999, // Fatal
+                isAnnihilation: true,
+                energyBonus: 0, actionBonusScore: 0,
+                evolvedEntities: nextEntities,
+                messages: ["💥 ANNIHILATION: Electron and Positron collided!"],
+                chargesUsed: 0,
+                consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0,
+                lastConsumedType: null,
+                reincarnationPoolIncrement: { p: 0, n: 0, e: 0 },
+                realPhysicsUnlockProgress: unlockProgress,
+                newlyUnlockedGroups: []
+            };
         }
 
         dZ = interactionResult.dZ;
@@ -310,14 +333,37 @@ export const calculateMoveResult = (
         }
 
         if (interactionResult.isCoulombScattered) {
-            // Use getFreeCells for scattering respawn
-            const potentialCells = getFreeCells(nextEntities, newPos);
-            
-            if (potentialCells.length > 0) {
-                const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
-                nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: targetEntity.type, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+            if (prev.currentNuclide.z === -1) {
+                // Electron is scattered
+                const potentialCells = getFreeCells(nextEntities, newPos);
+                if (potentialCells.length > 0) {
+                    const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
+                    return {
+                        ...interactionResult,
+                        moved: true,
+                        newPos: respawnPos,
+                        evolvedEntities: nextEntities, // Proton is NOT removed
+                        consecutiveProtons: cP,
+                        consecutiveNeutrons: cN,
+                        consecutiveElectrons: cE,
+                        lastConsumedType: lT,
+                        reincarnationPoolIncrement: poolInc,
+                        realPhysicsUnlockProgress: unlockProgress,
+                        tutorialMessage: newTutorialMessage,
+                        tutorialStartTurn: newTutorialStartTurn,
+                        newlyUnlockedGroups
+                    };
+                }
+            } else {
+                // Use getFreeCells for scattering respawn
+                const potentialCells = getFreeCells(nextEntities, newPos);
+                
+                if (potentialCells.length > 0) {
+                    const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
+                    nextEntities.push({ id: Math.random().toString(36).substr(2, 9), type: targetEntity.type, position: respawnPos, spawnTurn: prev.turn, isHighEnergy: false });
+                }
+                gluttonyTrigger = false;
             }
-            gluttonyTrigger = false;
         }
     }
 

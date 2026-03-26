@@ -1,6 +1,6 @@
 import { ELEMENT_SYMBOLS, ELEMENT_NAMES } from '../constants/atomicData';
-import { EntityType, GridEntity, NuclideData, HistoryEntry, DecayMode } from '../types';
-import { getNuclideDataSync } from '../services/nuclideService';
+import { EntityType, GridEntity, NuclideData, HistoryEntry, DecayMode, NuclideCategory } from '../types';
+import { getNuclideDataSync, ELECTRON_DATA } from '../services/nuclideService';
 import { DRIP_LINE_LIMITS } from '../data/dripLineLimits';
 import { NUCLIDE_REPOSITORY } from '../data/nuclideRepository';
 
@@ -11,6 +11,8 @@ import { NUCLIDE_REPOSITORY } from '../data/nuclideRepository';
 export const parseNuclideCommand = (input: string): { z: number, a: number } | null => {
     const trimmed = input.trim();
     if (!trimmed) return null;
+
+    if (trimmed.toLowerCase() === 'e-') return { z: -1, a: 0 };
 
     // Matches patterns like "Au-197", "Au197", "197-Au", "197Au"
     const match = trimmed.match(/^([a-z]+)-?(\d+)$/i) || trimmed.match(/^(\d+)-?([a-z]+)$/i);
@@ -132,7 +134,16 @@ export const calculateReincarnationTargets = (
     isDaredevilActive: boolean
 ): { nuclide: NuclideData, usage: { p: number, n: number, e: number } } | null => {
     // 1. Failure check: Must have at least one nucleon (p or n) to form a nucleus
-    if (pool.p + pool.n <= 0) return null;
+    if (pool.p + pool.n <= 0) {
+        // Special Case: Electron Reincarnation
+        if (pool.e > 0) {
+            return {
+                nuclide: ELECTRON_DATA,
+                usage: { p: 0, n: 0, e: 1 }
+            };
+        }
+        return null;
+    }
 
     const reachableCandidates: { nuclide: NuclideData; p: number }[] = [];
 

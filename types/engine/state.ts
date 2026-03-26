@@ -66,6 +66,7 @@ export interface GameState {
     hasScatteredElectron: boolean;
     hasAbsorbedNeutron: boolean;
   };
+  isAnimatingFission?: boolean;
 }
 
 export type GameAction =

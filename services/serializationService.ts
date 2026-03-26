@@ -71,6 +71,11 @@ const EXTENDED_REACTION_STATS = [
  * Robust stream-to-buffer utility.
  */
 async function consumeStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+    if (typeof Response !== "undefined" && typeof Response.prototype.arrayBuffer === "function") {
+        const buffer = await new Response(stream).arrayBuffer();
+        return new Uint8Array(buffer);
+    }
+
     const reader = stream.getReader();
     const chunks: Uint8Array[] = [];
     let totalLength = 0;
@@ -97,23 +102,48 @@ async function consumeStream(stream: ReadableStream<Uint8Array>): Promise<Uint8A
  * Gzip compression utility using pipeThrough for reliability
  */
 async function compress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
-    const blob = new Blob([buffer]);
-    const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
-    const result = await consumeStream(stream as ReadableStream<Uint8Array>);
-    return result.buffer;
+    if (typeof CompressionStream === "undefined") {
+        console.warn("CompressionStream not supported, saving uncompressed");
+        return buffer;
+    }
+    try {
+        const blob = new Blob([buffer]);
+        const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
+        const result = await consumeStream(stream as ReadableStream<Uint8Array>);
+        return result.buffer;
+    } catch (e) {
+        console.error("Compression failed, falling back to uncompressed:", e);
+        return buffer;
+    }
 }
 
 /**
- * Gzip decompression utility with explicit error handling
+ * Gzip decompression utility with explicit error handling and legacy support
  */
 async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+    const bytes = new Uint8Array(buffer);
+    
+    // GZIP magic number check (1f 8b)
+    const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    
+    if (!isGzip) {
+        // Not a GZIP file. Could be a legacy uncompressed save.
+        // We'll return it as-is and let the magic number check in unpackBinary handle it.
+        return buffer;
+    }
+
+    if (typeof DecompressionStream === "undefined") {
+        throw new Error("GZIP decompression not supported by this browser. Please use a modern browser (Chrome 80+, Firefox 113+, Safari 16.4+).");
+    }
+
     try {
         const blob = new Blob([buffer]);
         const stream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
         const result = await consumeStream(stream as ReadableStream<Uint8Array>);
         return result.buffer;
     } catch (e) {
-        throw new Error("Decompression failed: Invalid GZIP format or corrupted data");
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new Error(`Decompression failed: ${msg}. The save data may be corrupted or truncated.`);
     }
 }
 
@@ -158,7 +188,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
         view.setUint8(offset++, state.playerLevel);
         view.setUint16(offset, state.reincarnations); offset += 2;
         view.setUint32(offset, state.turn); offset += 4;
-        view.setUint8(offset++, state.currentNuclide.z);
+        view.setInt8(offset++, state.currentNuclide.z);
         view.setUint16(offset, state.currentNuclide.a); offset += 2;
         view.setUint16(offset, state.maxCombo); offset += 2;
         view.setUint8(offset++, state.magicBarrierCharges);
@@ -246,9 +276,10 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     writeSection(SaveSectionId.HISTORY, () => {
         view.setUint16(offset, historyList.length); offset += 2;
         historyList.forEach(h => {
-            view.setUint8(offset++, h.pz === null ? 255 : h.pz);
+            // Use 127 as null sentinel for pz because Z can be -1 (electron)
+            view.setInt8(offset++, h.pz === null ? 127 : h.pz);
             view.setUint16(offset, h.pa || 0); offset += 2;
-            view.setUint8(offset++, h.z);
+            view.setInt8(offset++, h.z);
             view.setUint16(offset, h.a); offset += 2;
             const mIdx = METHOD_MAP.indexOf(h.method);
             view.setUint8(offset++, mIdx === -1 ? 255 : mIdx);
@@ -263,9 +294,10 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
     
     // Robust binary to base64 conversion
     const bytes = new Uint8Array(compressedData);
+    const CHUNK_SIZE = 0x8000; // 32KB chunks to avoid stack overflow
     let binString = "";
-    for (let i = 0; i < bytes.length; i++) {
-        binString += String.fromCharCode(bytes[i]);
+    for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+        binString += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE) as any);
     }
     return btoa(binString);
 };
@@ -345,7 +377,7 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
                     payload.l = view.getUint8(offset++);
                     payload.r = view.getUint16(offset); offset += 2;
                     payload.t = view.getUint32(offset); offset += 4;
-                    payload.cz = view.getUint8(offset++);
+                    payload.cz = view.getInt8(offset++);
                     payload.ca = view.getUint16(offset); offset += 2;
                     payload.mc = view.getUint16(offset); offset += 2;
                     payload.mb = view.getUint8(offset++);
@@ -423,10 +455,10 @@ export const unpackBinary = async (code: string): Promise<Partial<SavePayload> |
                     const historyLen = view.getUint16(offset); offset += 2;
                     for (let i = 0; i < historyLen; i++) {
                         if (offset + 7 > nextSectionOffset) break;
-                        const rpz = view.getUint8(offset++);
-                        const pz = rpz === 255 ? null : rpz;
+                        const rpz = view.getInt8(offset++);
+                        const pz = rpz === 127 ? null : rpz;
                         const pa = view.getUint16(offset); offset += 2;
-                        const z = view.getUint8(offset++);
+                        const z = view.getInt8(offset++);
                         const a = view.getUint16(offset); offset += 2;
                         const mIdx = view.getUint8(offset++);
                         const method = mIdx === 255 ? TITLES.UNKNOWN : (METHOD_MAP[mIdx] || HISTORY_METHODS.TRANSMUTATION);

@@ -35,6 +35,7 @@ export const DripLineService = {
      * Checks if a specific coordinate pair (Z, A) is outside the boundaries of nuclear existence.
      */
     isBeyondDripLine: (z: number, a: number): boolean => {
+        if (z === -1 && a === 0) return false; // Electron is a special case
         if (z < 0 || z > 118) return true;
         const limits = DRIP_LINE_LIMITS[z];
         if (!limits) return true;

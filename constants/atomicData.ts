@@ -45,13 +45,15 @@ export const ELEMENT_GROUPS: Record<string, number[]> = {
 };
 
 export const getSymbol = (z: number): string => {
+  if (z === -1) return "e-";
   if (z === 0) return "n";
-  if (z < ELEMENT_SYMBOLS.length) return ELEMENT_SYMBOLS[z];
+  if (z > 0 && z < ELEMENT_SYMBOLS.length) return ELEMENT_SYMBOLS[z];
   return `E${z}`;
 };
 
 export const getName = (z: number): string => {
+  if (z === -1) return "Electron";
   if (z === 0) return "Neutron";
-  if (z < ELEMENT_NAMES.length) return ELEMENT_NAMES[z];
+  if (z > 0 && z < ELEMENT_NAMES.length) return ELEMENT_NAMES[z];
   return `Element-${z}`;
 };

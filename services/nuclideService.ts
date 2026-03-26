@@ -4,6 +4,23 @@ import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
 import { DripLineService } from "../engine/dripLineService";
 
+export const ELECTRON_DATA: NuclideData = {
+    z: -1,
+    a: 0,
+    symbol: 'e-',
+    name: 'electron',
+    halfLifeText: 'Stable',
+    halfLifeSeconds: Infinity,
+    decayModes: [DecayMode.STABLE],
+    branches: [],
+    category: NuclideCategory.STABLE,
+    isStable: true,
+    exists: true,
+    isProtonDripLine: false,
+    isNeutronDripLine: false,
+    description: 'A fundamental particle. Not a nucleus, but surviving as a lone electron.'
+};
+
 const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
     if (isStable) return 'Stable nuclide';
     switch(mode) {
@@ -168,6 +185,7 @@ const createNuclide = (
  * Accesses pre-parsed data from the repository and attaches metadata for the UI.
  */
 export const getNuclideDataSync = (z: number, a: number): NuclideData => {
+    if (z === -1 && a === 0) return ELECTRON_DATA;
     const record = NUCLIDE_REPOSITORY.get(`${z}-${a}`);
     if (record) {
         return createNuclide(z, a, record.category, record.branches, record.halflife, record.category === NuclideCategory.STABLE, true);

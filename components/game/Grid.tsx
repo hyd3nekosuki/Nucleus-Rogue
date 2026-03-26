@@ -53,13 +53,14 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
 
       if (isPlayer) {
           const isNeutron = gameState.currentNuclide.z === 0;
+          const isElectron = gameState.currentNuclide.z === -1;
           const isUnknownDecay = gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN);
           const hue = (gameState.currentNuclide.z * 10) % 360;
           const isUnstable = !gameState.currentNuclide.isStable;
           
-          let bgStyle = isNeutron ? '#ffffff' : `hsl(${hue}, 70%, 50%)`;
-          let textStyle = isNeutron ? '#000000' : '#fff';
-          let shadowStyle = isNeutron ? '0 0 20px #ffffff' : undefined;
+          let bgStyle = isNeutron ? '#ffffff' : (isElectron ? '#facc15' : `hsl(${hue}, 70%, 50%)`);
+          let textStyle = (isNeutron || isElectron) ? '#000000' : '#fff';
+          let shadowStyle = isNeutron ? '0 0 20px #ffffff' : (isElectron ? '0 0 20px #facc15' : undefined);
           let borderStyle = undefined;
 
           if (isUnknownDecay) {
@@ -77,14 +78,18 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
 
           content = (
               <div 
-                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
+                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutron && !isElectron && !isUnknownDecay && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
                 style={{ backgroundColor: bgStyle, color: textStyle, boxShadow: shadowStyle, border: borderStyle }}
               >
                  <span className="z-10 relative top-[1px]">{gameState.currentNuclide.symbol}</span>
-                 <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.a}</div>
-                 <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${isNeutron && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.z}</div>
-                 {(gameState.magicBarrierCharges > 0 || isNeutron || isUnknownDecay) && (
-                    <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30')} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
+                 {!isElectron && (
+                   <>
+                     <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutron || isElectron) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.a}</div>
+                     <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutron || isElectron) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.z}</div>
+                   </>
+                 )}
+                 {(gameState.magicBarrierCharges > 0 || isNeutron || isElectron || isUnknownDecay) && (
+                    <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isElectron ? 'border-yellow-400/50' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30'))} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
                  )}
               </div>
           );

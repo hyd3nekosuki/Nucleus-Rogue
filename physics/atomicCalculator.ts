@@ -33,6 +33,40 @@ export const calculateInteraction = (
     const isDaredevilActive = unlockedGroups.includes(TITLES.DEMON_CORE) && !disabledSkills.includes(TITLES.DEMON_CORE);
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
 
+    // Special Case: Player is an Electron (Z=-1)
+    if (currentNuclide.z === -1) {
+        switch (target.type) {
+            case EntityType.PROTON:
+                if (target.isHighEnergy) {
+                    // Forced Capture: e- + p -> n (High energy only)
+                    res.dZ = 1; res.dA = 1;
+                    res.messages.push("⚡ e- + p → n");
+                    res.inducedReactionLabel = "Forced Capture";
+                    res.shouldFlash = true;
+                    res.flashColor = "bg-white";
+                    return res;
+                } else {
+                    // Normal energy p: No reaction, pass through
+                    return res;
+                }
+            case EntityType.NEUTRON:
+                // No reaction, pass through
+                res.messages.push("Electron passes through neutron");
+                return res;
+            case EntityType.ENEMY_ELECTRON:
+                // Coulomb repulsion: e- vs e-
+                res.isCoulombScattered = true;
+                res.scatteredMessage = "Coulomb repulsion: e- vs e-";
+                return res;
+            case EntityType.ENEMY_POSITRON:
+                // Annihilation
+                res.isAnnihilation = true;
+                return res;
+            default:
+                return res;
+        }
+    }
+
     switch (target.type) {
         case EntityType.PROTON:
             if (isFusionDisabled) {
@@ -140,7 +174,7 @@ export const calculateNeutronReaction = (
     unlockedGroups: string[] = [],
     disabledSkills: string[] = []
 ): AtomicReactionResult | null => {
-    if (target.type !== EntityType.NEUTRON) return null;
+    if (target.type !== EntityType.NEUTRON || currentNuclide.z === -1) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
 
@@ -357,7 +391,7 @@ export const calculateProtonReaction = (
     unlockedGroups: string[] = [],
     disabledSkills: string[] = []
 ): AtomicReactionResult | null => {
-    if (target.type !== EntityType.PROTON || !target.isHighEnergy) return null;
+    if (target.type !== EntityType.PROTON || !target.isHighEnergy || currentNuclide.z === -1) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
     const isFusionDisabled = disabledSkills.includes(TITLES.FUSION);

@@ -188,7 +188,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             tutorialMessage: finalTutorialMsg, 
             messages: result.scatteredMessage ? [...nextState.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : nextState.messages 
         });
-        if (nextHp === 0) reason = REASON.FATAL_CAPTURE;
+        if (nextHp === 0) reason = result.isAnnihilation ? REASON.ANNIHILATION : REASON.FATAL_CAPTURE;
     }
 
     if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];

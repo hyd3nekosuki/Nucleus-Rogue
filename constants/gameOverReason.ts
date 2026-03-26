@@ -4,6 +4,7 @@ export const REASON = {
   TRANSFORMATION_FAILED: "TRANSFORMATION_FAILED", // Nuclear transformation fails because escendant nuclide does not exist or is outside the drip lines.
   NUCLEUS_COLLAPSE: "NUCLEUS COLLAPSE", // impossible configuration
   FATAL_CAPTURE: "FATAL_CAPTURE", // due to HP=0 by capturing particle
+  ANNIHILATION: "ANNIHILATION", // electron-positron annihilation
   NOTHINGNESS: "NOTHINGNESS",
   UNKNOWN: "UNKNOWN"
 }

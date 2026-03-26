@@ -219,8 +219,8 @@ export const consumeParticlesWithAnotherNuclides = (entities: GridEntity[]): Gri
             const finalNuclideIndex = nextEntities.findIndex(e => e.id === nuclide.id);
             if (finalNuclideIndex !== -1) {
                 const existenceCheck = getNuclideDataSync(updatedNuclide.z || 0, updatedNuclide.a || 0);
-                // Friendly nuclides never vanish from consumption; enemies only vanish if they hit a non-existent state
-                if (!existenceCheck.exists && !updatedNuclide.isFriendly) {
+                // Both friendly and enemy nuclides vanish if they hit a non-existent state
+                if (!existenceCheck.exists) {
                     // Nuclide vanished due to reaching an impossible configuration
                     nextEntities.splice(finalNuclideIndex, 1);
                 } else {

@@ -108,7 +108,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 isHighEnergy: true, 
                 z: nuclide.z,
                 a: nuclide.a,
-                isFriendly: false
+                isFriendly: isDaredevilActive ? false : (Math.random() < 0.5)
             });
         }
 
@@ -218,7 +218,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         const randEvent = Math.random();
         let eventMsg = "", signalType = "", signalColor = "";
         
-        if (randEvent < 0.45) {
+        if (randEvent < 0.48) {
             eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!"; 
             signalType = "INVERSION"; 
             signalColor = "#bc13fe";
@@ -227,17 +227,17 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 e.type === EntityType.NEUTRON ? { ...e, type: EntityType.PROTON } : 
                 e.type === EntityType.ENEMY_ELECTRON ? { ...e, isHighEnergy: !e.isHighEnergy } : e
             ));
-        } else if (randEvent < 0.75) {
+        } else if (randEvent < 0.78) {
             eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!"; 
             signalType = "NEUTRON_STORM"; 
             signalColor = "#00f3ff";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.NEUTRON } : e);
-        } else if (randEvent < 0.90) {
+        } else if (randEvent < 0.93) {
             eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!"; 
             signalType = "PROTON_BURST"; 
             signalColor = "#ff0055";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.PROTON } : e);
-        } else if (randEvent < 0.95) {
+        } else if (randEvent < 0.98) {
             eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!"; 
             signalType = "ELECTRON_FLUCTUATION"; 
             signalColor = "#facc15";

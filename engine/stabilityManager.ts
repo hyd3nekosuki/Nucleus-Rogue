@@ -70,7 +70,7 @@ export const resolveStabilityCrisis = (
 
     // --- CASE 2: Reincarnation ---
     const isDaredevilActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
-    const reinc = calculateReincarnationTargets(state.currentNuclide, state.reincarnationPool, state.evolutionHistory, isDaredevilActive);
+    const reinc = reason === REASON.ANNIHILATION ? null : calculateReincarnationTargets(state.currentNuclide, state.reincarnationPool, state.evolutionHistory, isDaredevilActive);
     
     if (reinc) {
         const { nuclide, usage } = reinc;
