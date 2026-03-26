@@ -10,16 +10,6 @@ export interface ChallengeMetadata {
 
 export const CHALLENGES: ChallengeMetadata[] = [
     { 
-        id: 'reincarnated', 
-        title: 'Reincarnation', 
-        hint: 'A soul reborn in the cosmic fire.' 
-    },
-    { 
-        id: 'combo_master', 
-        title: 'Combo Master', 
-        hint: 'Rhythm found in the heart of chaos.' 
-    },
-    { 
         id: 'i_am_the_alpha', 
         title: 'I am the Alpha', 
         hint: "The Alpha's dance, in every sacred form." 
@@ -30,14 +20,24 @@ export const CHALLENGES: ChallengeMetadata[] = [
         hint: 'A ghost seen in every mirror.' 
     },
     { 
+        id: 'this_is_it', 
+        title: 'This is IT', 
+        hint: "A quiet shift in the heart of the atom." 
+    },
+    { 
+        id: 'nuclear_domino', 
+        title: 'Nuclear Domino', 
+        hint: 'One spark falls, and the silent giants awaken.' 
+    },
+    { 
         id: 'seasoned_nuclide', 
         title: 'Seasoned Nuclide', 
         hint: 'Every whisper of the core has been heard.' 
     },
     { 
-        id: 'oganesson', 
-        title: 'FAR BEYOND BOUNDARY', 
-        hint: 'The horizon fades into the infinite.' 
+        id: 'combo_master', 
+        title: 'Combo Master', 
+        hint: 'Rhythm found in the heart of chaos.' 
     },
     { 
         id: 'forbidden_capture', 
@@ -45,14 +45,19 @@ export const CHALLENGES: ChallengeMetadata[] = [
         hint: "A phantom's touch, light and shadow merge." 
     },
     { 
+        id: 'reincarnated', 
+        title: 'Reincarnated as e-', 
+        hint: 'A spark of light, freed from the heavy core.' 
+    },
+    { 
         id: 'all_elements', 
         title: 'Periodic Table Complete', 
         hint: 'A complete song of all that is.' 
     },
     { 
-        id: 'this_is_it', 
-        title: 'This is IT', 
-        hint: "A quiet shift in the heart of the atom." 
+        id: 'far_beyond_og', 
+        title: 'Far Beyond Boundary', 
+        hint: 'The horizon fades into the infinite.' 
     },
     { 
         id: 'research_misconduct', 

@@ -49,6 +49,8 @@ export const useKeyboardControls = (
           case 'u': skillToToggle = TITLES.UNKNOWN; break;
           case 'f': skillToToggle = TITLES.FISSION; break;
           case 'd': skillToToggle = TITLES.DEMON_CORE; break;
+          case 'm': toggleMute(); return;
+          case 'v': ui.toggleVoiceMute(); return;
         }
 
         if (skillToToggle) {
@@ -133,12 +135,6 @@ export const useKeyboardControls = (
           break;
 
         // --- Audio & System ---
-        case 'm': 
-          toggleMute(); 
-          break;
-        case 'v': 
-          ui.toggleVoiceMute(); 
-          break;
         case 'Escape': 
           if (ui.isSoundTestActive) ui.closeSoundTest(); 
           break;

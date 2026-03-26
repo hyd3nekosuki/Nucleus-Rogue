@@ -47,7 +47,7 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({
             className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${
               isVoiceMuted ? 'border-gray-700 text-gray-600' : 'border-neon-purple text-neon-purple shadow-[0_0_5px_#bc13fe]'
             }`} 
-            title="Toggle Voice (V)"
+            title="Toggle Voice (Shift+V)"
           >
             <span className="text-[8px] font-bold">V</span>
           </button>
@@ -56,7 +56,7 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({
             className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${
               isMuted ? 'border-gray-700 text-gray-600' : 'border-neon-blue text-neon-blue shadow-[0_0_5px_#00f3ff]'
             }`} 
-            title="Toggle BGM (M)"
+            title="Toggle BGM (Shift+M)"
           >
             <span className="text-[8px] font-bold">M</span>
           </button>

@@ -37,15 +37,16 @@ const METHOD_MAP = Object.values(HISTORY_METHODS);
 const DECAY_MODE_MAP = Object.values(DecayMode);
 
 const ACHIEVEMENT_MAP: string[] = [
-    'reincarnated',
-    'combo_master',
     'i_am_the_alpha',
     'beta_master',
-    'seasoned_nuclide',
-    'oganesson',
-    'all_elements',
-    'forbidden_capture',
     'this_is_it',
+    'nuclear_domino',
+    'seasoned_nuclide',
+    'combo_master',
+    'forbidden_capture',
+    'reincarnated',
+    'all_elements',
+    'far_beyond_og',
     'research_misconduct'
 ];
 

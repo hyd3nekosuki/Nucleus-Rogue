@@ -139,9 +139,13 @@ export const useNucleusCoordinator = () => {
 
         checkAchievement('all_elements', gameState.unlockedElements.filter(z => z > 0).length >= 118);
         checkAchievement('combo_master', gameState.maxCombo >= 20);
-        checkAchievement('reincarnated', gameState.hasPerformedActiveReincarnation);
+        checkAchievement('reincarnated', gameState.hasPerformedActiveReincarnation && gameState.currentNuclide.z === -1);
         checkAchievement('this_is_it', (gameState.decayStats[DecayMode.IT] || 0) > 0);
         
+        // Nuclear Domino: Triggered by a fission chain reaction
+        const hasChainReaction = (gameState.lastEvent?.chainReactionPath?.length || 0) > 0;
+        checkAchievement('nuclear_domino', hasChainReaction);
+
         // Master of Alpha: Experience all alpha-related events at least once
         const hasPureAlpha = (gameState.decayStats['PURE_ALPHA'] || 0) > 0;
         const hasBMinusAlpha = (gameState.decayStats[DecayMode.B_MINUS_ALPHA] || 0) > 0;
@@ -202,6 +206,8 @@ export const useNucleusCoordinator = () => {
         gameState.reactionStats, 
         gameState.elapsedTime,
         gameState.achievementTimes,
+        gameState.currentNuclide,
+        gameState.lastEvent,
         dispatch
     ]);
 

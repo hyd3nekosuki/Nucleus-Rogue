@@ -62,9 +62,9 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     energyPoints: Math.max(0, state.energyPoints - cost),
                     tutorialMessage: isOg294 ? TUTORIAL_MESSAGES.OGANESSON_CONGRATS : state.tutorialMessage,
                     recordTime: state.elapsedTime,
-                    achievementTimes: state.achievementTimes['oganesson'] 
+                    achievementTimes: state.achievementTimes['far_beyond_og'] 
                         ? state.achievementTimes 
-                        : { ...state.achievementTimes, oganesson: state.elapsedTime },
+                        : { ...state.achievementTimes, far_beyond_og: state.elapsedTime },
                     messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Boundary reached. ${isOg294 ? 'Message unlocked.' : ''}`].slice(-10),
                     lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: ['Nucleosynthesis'] }
                 };
