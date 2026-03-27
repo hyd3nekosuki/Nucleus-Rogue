@@ -47,6 +47,7 @@ export const calculateInteraction = (
                     return res;
                 } else {
                     // Normal energy p: No reaction, pass through
+                    res.messages.push("Electron passes through proton");
                     return res;
                 }
             case EntityType.NEUTRON:

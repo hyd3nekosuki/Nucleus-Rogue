@@ -84,11 +84,16 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         });
     }
 
+    const isWaiting = dx === 0 && dy === 0;
+    const isVNuclide = state.currentNuclide.halfLifeSeconds === 1e-9;
+    const nextTranquiloCount = (isWaiting && isVNuclide) ? state.tranquiloTurnCount + 1 : 0;
+
     let nextState: GameState = { 
         ...state, 
         playerPos: result.newPos, 
         gridEntities: nextEntities, 
         evolutionHistory: currentHistory,
+        tranquiloTurnCount: nextTranquiloCount,
         consecutiveProtons: result.consecutiveProtons, 
         consecutiveNeutrons: result.consecutiveNeutrons, 
         consecutiveElectrons: result.consecutiveElectrons, 

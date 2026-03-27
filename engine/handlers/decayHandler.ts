@@ -331,6 +331,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
             hp: Math.min(state.maxHp, state.hp + (newData.isStable ? 10 : 0)), 
             messages: [...state.messages, ...(forcedMsg ? [forcedMsg] : []), ...(decayDescMsg ? [decayDescMsg] : []), ...decayResult.extraMessages, ...reactionMessages].slice(-10), 
             decayStats: nextDecayStats, 
+            tranquiloTurnCount: (state.currentNuclide.halfLifeSeconds === 1e-9 && newData.halfLifeSeconds === 1e-9) ? state.tranquiloTurnCount + 1 : 0,
             consecutiveProtons: 0, 
             consecutiveNeutrons: 0, 
             consecutiveElectrons: 0, 

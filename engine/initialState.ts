@@ -13,6 +13,7 @@ export const getInitialState = (): GameState => ({
     playerPos: { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) },
     gridEntities: [],
     currentNuclide: INITIAL_NUCLIDE,
+    tranquiloTurnCount: 0,
     // Add missing evolutionHistory property to fix GameState type compatibility error
     evolutionHistory: {},
     hp: INITIAL_HP,

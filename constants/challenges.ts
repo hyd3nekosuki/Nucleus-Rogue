@@ -40,6 +40,11 @@ export const CHALLENGES: ChallengeMetadata[] = [
         hint: 'Rhythm found in the heart of chaos.' 
     },
     { 
+        id: 'tranquilo', 
+        title: 'Tranquilo', 
+        hint: 'Defy the vanishing moment.' 
+    },
+    { 
         id: 'forbidden_capture', 
         title: 'Forbidden Capture', 
         hint: "A phantom's touch, light and shadow merge." 

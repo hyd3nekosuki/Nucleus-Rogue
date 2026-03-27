@@ -67,6 +67,7 @@ export interface GameState {
     hasAbsorbedNeutron: boolean;
   };
   isAnimatingFission?: boolean;
+  tranquiloTurnCount: number;
 }
 
 export type GameAction =

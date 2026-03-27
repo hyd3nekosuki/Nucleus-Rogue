@@ -37,11 +37,15 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const cost = STABILIZE_COST;
             if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
             
+            const isVNuclide = state.currentNuclide.halfLifeSeconds === 1e-9;
+            const nextTranquiloCount = isVNuclide ? state.tranquiloTurnCount + 1 : 0;
+
             const nextState: GameState = { 
                 ...state, 
                 turn: state.turn + 1, 
                 hp: state.maxHp, 
                 energyPoints: Math.max(0, state.energyPoints - cost), 
+                tranquiloTurnCount: nextTranquiloCount,
                 messages: [...state.messages, `🔬 Stabilization: HP Recovered.`].slice(-10), 
                 lastEvent: { id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green' } 
             };
@@ -79,7 +83,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}!`].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] } },
+                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}!`].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] } },
                 newData,
                 { method: HISTORY_METHODS.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -100,7 +104,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...state, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, lastEvent: { id: now, type: 'DEATH' } };
             
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles!`, "⚠️ MASTERY CONSUMED: Level reset to 0."].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles!`, "⚠️ MASTERY CONSUMED: Level reset to 0."].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] } },
                 newData,
                 { method: HISTORY_METHODS.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -132,7 +136,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, messages: [...state.messages, `🔮 EXP. REPLICATE: ${newData.name}!`].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: ['Experimental Replication'] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, `🔮 EXP. REPLICATE: ${newData.name}!`].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: ['Experimental Replication'] } },
                 newData,
                 { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -241,6 +245,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     ...state, 
                     gridEntities: state.gridEntities.filter(e => !requirements.idsToConsume.includes(e.id)),
                     energyPoints: 0, // High-dimensional interference resets local energy
+                    tranquiloTurnCount: 0,
                     messages: [...state.messages, `🌌 SYSTEM OVERRIDE: Reachable configuration established for ${targetData.name}!`].slice(-10),
                     lastEvent: {
                         id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-yellow-400', shake: true,

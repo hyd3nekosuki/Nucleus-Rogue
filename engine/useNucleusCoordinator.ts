@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
+import { CHALLENGES } from '../constants/challenges';
 import { DecayMode } from '../types';
 import { generateEntities } from './moveSimulator';
 import { getInitialState } from './initialState';
@@ -15,6 +16,7 @@ import { useVisualEffects } from '../hooks/useVisualEffects';
 import { useNucleusActions } from '../hooks/useNucleusActions';
 import { useDecayController } from '../hooks/useDecayController';
 import { useMovementExecutor } from '../hooks/useMovementExecutor';
+import { emitTTS } from './events/gameEvents';
 
 /**
  * Nucleus Rogue Switchboard: Orchestrates all atomic interactions.
@@ -139,6 +141,7 @@ export const useNucleusCoordinator = () => {
 
         checkAchievement('all_elements', gameState.unlockedElements.filter(z => z > 0).length >= 118);
         checkAchievement('combo_master', gameState.maxCombo >= 20);
+        checkAchievement('tranquilo', gameState.tranquiloTurnCount >= 50);
         checkAchievement('reincarnated', gameState.hasPerformedActiveReincarnation && gameState.currentNuclide.z === -1);
         checkAchievement('this_is_it', (gameState.decayStats[DecayMode.IT] || 0) > 0);
         
@@ -168,7 +171,8 @@ export const useNucleusCoordinator = () => {
 
         // Seasoned Nuclide: All major decay modes and neutron reactions experienced at least once
         const checkSeasonedNuclide = () => {
-            if (gameState.achievementTimes['seasoned_nuclide']) return;
+            const id = 'seasoned_nuclide';
+            if (gameState.achievementTimes[id]) return;
 
             const requiredDecays = [
                 DecayMode.ALPHA,
@@ -193,7 +197,7 @@ export const useNucleusCoordinator = () => {
             const allReactionsDone = requiredReactions.every(method => (gameState.reactionStats[method] || 0) > 0);
 
             if (allDecaysDone && allReactionsDone) {
-                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id: 'seasoned_nuclide', time: gameState.elapsedTime } });
+                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: gameState.elapsedTime } });
             }
         };
 
@@ -210,6 +214,30 @@ export const useNucleusCoordinator = () => {
         gameState.lastEvent,
         dispatch
     ]);
+
+    // 9. Global Achievement TTS Watcher
+    // Tracks which achievements have been vocalized in the current session to avoid duplicates
+    const spokenAchievementsRef = useRef<Set<string>>(new Set(Object.keys(gameState.achievementTimes)));
+
+    useEffect(() => {
+        const currentIds = Object.keys(gameState.achievementTimes);
+        const newIds = currentIds.filter(id => !spokenAchievementsRef.current.has(id));
+        
+        if (newIds.length > 0) {
+            // If more than 3 achievements appear at once, it's likely a save load or bulk sync
+            // In that case, we just mark them as spoken without vocalizing to avoid audio spam
+            if (newIds.length <= 3) {
+                newIds.forEach(id => {
+                    const challenge = CHALLENGES.find(c => c.id === id);
+                    if (challenge) {
+                        emitTTS(challenge.title);
+                    }
+                });
+            }
+            
+            newIds.forEach(id => spokenAchievementsRef.current.add(id));
+        }
+    }, [gameState.achievementTimes]);
 
     return {
         // Raw Data
