@@ -20,6 +20,7 @@ export interface MoveResult {
   additionalEffects?: VisualEffect[];
   isPpFusion?: boolean;
   isPositronAbsorption?: boolean;
+  isECCapture?: boolean;
   isCoulombScattered?: boolean;
   isBremsAchieved?: boolean;
   isZeroBarnAchieved?: boolean;

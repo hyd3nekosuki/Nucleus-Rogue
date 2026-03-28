@@ -11,4 +11,4 @@ export * from './periodicTableData';
 export * from './gameOverReason';
 // Fix: Export titles to resolve 'Module has no exported member TITLES' error in periodicTableUtils.ts
 export * from './titles';
-export * from './tutorial';
+export * from './logMessageTextData';

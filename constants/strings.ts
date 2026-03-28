@@ -1,45 +1,4 @@
+import { LOG_MESSAGES } from "./logMessageTextData";
+
 // History Method Labels - Streamlined for scientific accuracy
-export const HISTORY_METHODS = {
-  ORIGIN: "Origin",
-  TRANSMUTATION: "Transmutation",
-  FUSION: "Fusion",
-  POSITRON_CAPTURE: "Enforced positron capture",
-  PROTON_CAPTURE: "Enforced proton capture",
-  NEUTRON_CAPTURE: "Neutron capture",
-  ELECTRON_CAPTURE_PLAYER: "Enforced electron capture",
-  NUCLEOSYNTHESIS: "Nucleosynthesis",
-  R_PROCESS: "r-process nucleosynthesis",
-  EXP_REPLICATE: "Experimental replicate",
-  QUANTUM_OVERRIDE: "Quantum Override Transmutation",
-  GAMMA_DECAY: "γ decay",
-  ALPHA_DECAY: "α decay",
-  BETA_MINUS: "β- decay",
-  BETA_PLUS: "β+ decay",
-  ELECTRON_CAPTURE: "Electron capture",
-  FISSION_SPONTANEOUS: "Spontaneous fission",
-  PROTON_EMISSION: "Proton emission",
-  TWO_PROTON_EMISSION: "2p Decay",
-  NEUTRON_EMISSION: "Neutron emission",
-  DEUTERON_EMISSION: "Deuteron emission",
-  TRITON_EMISSION: "Triton emission",
-  HELIUM3_EMISSION: "Helium-3 emission",
-  // Reaction labels used directly in History and Stats
-  REACTION_NG: "(n,γ)",
-  REACTION_NP: "(n,p)",
-  REACTION_N2N: "(n,2n)",
-  REACTION_NA: "(n,α)",
-  REACTION_ND: "(n,d)",
-  REACTION_NT: "(n,t)",
-  REACTION_NF: "(n,fission)",
-  REACTION_PN: "(p,n)",
-  REACTION_P2N: "(p,2n)",
-  REACTION_PG: "(p,γ)",
-  REACTION_PNP: "(p,n+p)",
-  REACTION_PA: "(p,α)",
-  REACTION_P2P: "(p,2p)",
-  REACTION_PF: "(p,fission)",
-  REACTION_PPA: "(p,p+α)",
-  REACTION_PD: "(p,d)",
-  REACTION_PT: "(p,t)",
-  REACTION_PHE3: "(p,He3)"
-};
+export const HISTORY_METHODS = LOG_MESSAGES.HISTORY;

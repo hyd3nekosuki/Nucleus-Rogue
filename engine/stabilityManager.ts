@@ -3,6 +3,7 @@ import { calculateReincarnationTargets } from './particleEngine';
 import { REASON } from '../constants/gameOverReason';
 import { processUnlocks } from './unlockSystem';
 import { TITLES } from '../constants/titles';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 /**
  * Utility to resolve a stability crisis (HP=0).
@@ -39,7 +40,7 @@ export const resolveStabilityCrisis = (
             messages: [...state.messages, ...res.messages].slice(-10),
             combo: 0, comboScore: 0, comboOrigin: undefined,
             consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-            lastEvent: { id: now, type: 'DEATH', message: 'Total Annihilation', flash: 'bg-neon-purple', shake: true }
+            lastEvent: { id: now, type: 'DEATH', message: LOG_MESSAGES.HISTORY.NOTHINGNESS, flash: 'bg-neon-purple', shake: true }
         };
     }
 
@@ -56,7 +57,7 @@ export const resolveStabilityCrisis = (
                 ...state.effects, 
                 { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...state.playerPos }, timestamp: now }
             ],
-            lastEvent: { id: now, type: 'SURVIVAL', subType: 'TEMPORAL_INVERSION', message: 'Temporal Inversion' }
+            lastEvent: { id: now, type: 'SURVIVAL', subType: 'TEMPORAL_INVERSION', message: LOG_MESSAGES.HISTORY.TEMPORAL_INVERSION }
         };
 
         const res = finalizeUnlocks(survivalUpdate);
@@ -64,7 +65,7 @@ export const resolveStabilityCrisis = (
             ...survivalUpdate,
             unlockedGroups: res.updatedGroups,
             score: state.score + res.scoreBonus,
-            messages: [...state.messages, "⏱ AUTO-STABILIZATION: Temporal Inversion triggered!", ...res.messages].slice(-10)
+            messages: [...state.messages, LOG_MESSAGES.STABILITY.AUTO_STABILIZATION_TEMPORAL, ...res.messages].slice(-10)
         };
     }
 
@@ -91,7 +92,7 @@ export const resolveStabilityCrisis = (
             hasPerformedActiveReincarnation: true,
             combo: 0, comboScore: 0, comboOrigin: undefined,
             consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-            lastEvent: { id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', message: 'Reincarnation' }
+            lastEvent: { id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', message: LOG_MESSAGES.HISTORY.REINCARNATION }
         };
 
         const res = finalizeUnlocks(survivalUpdate);
@@ -99,7 +100,7 @@ export const resolveStabilityCrisis = (
             ...survivalUpdate,
             unlockedGroups: res.updatedGroups,
             score: state.score + res.scoreBonus,
-            messages: [...state.messages, `♻️ REINCARNATION: Reborn as ${nuclide.name}!`, ...res.messages].slice(-10)
+            messages: [...state.messages, LOG_MESSAGES.STABILITY.REINCARNATION_REBORN(nuclide.name), ...res.messages].slice(-10)
         };
     }
 

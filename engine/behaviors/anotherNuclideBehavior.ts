@@ -1,6 +1,7 @@
 import { GridEntity, Position, EntityType } from '../../types';
 import { isWithinBounds } from '../../utils/gridUtils';
 import { getNuclideDataSync } from '../../services/nuclideService';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 
 /**
  * Handles the AI movement of another nuclide.
@@ -150,19 +151,19 @@ export const resolveMatterStruggle = (entities: GridEntity[]): { nextEntities: G
         }
 
         const winnerName = winnerIsFriend ? nameF : nameE;
-        struggleMessages.push(`💥 Matter Struggle: ${nameF} vs ${nameE} -> ${winnerName} remained`);
+        struggleMessages.push(LOG_MESSAGES.EVENTS.MATTER_STRUGGLE(nameF, nameE, winnerName));
 
         if (winnerIsFriend) {
             // All friends in this cell survive, all enemies are removed
             resultEntities.push(...friends);
             if (enemies.length > 1) {
-                struggleMessages.push(`   (Other enemies in the cell were also annihilated)`);
+                struggleMessages.push(LOG_MESSAGES.EVENTS.ANNIHILATED_ENEMIES);
             }
         } else {
             // All enemies in this cell survive, all friends are removed
             resultEntities.push(...enemies);
             if (friends.length > 1) {
-                struggleMessages.push(`   (Other friends in the cell were also annihilated)`);
+                struggleMessages.push(LOG_MESSAGES.EVENTS.ANNIHILATED_FRIENDS);
             }
         }
     }

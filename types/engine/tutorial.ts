@@ -10,7 +10,8 @@ export type TutorialEvent =
   | 'PARTICLE_CAPTURED' 
   | 'DECAY_PERFORMED' 
   | 'TURN_ADVANCED' 
-  | 'ENGRAVE_PERFORMED';
+  | 'ENGRAVE_PERFORMED'
+  | 'MASTERY_OPENED';
 
 export interface TutorialContext {
   randomStart?: boolean;

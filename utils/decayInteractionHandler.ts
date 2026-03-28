@@ -1,5 +1,6 @@
 
 import { Position, GridEntity, EntityType, DecayMode, VisualEffect } from '../types';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 /**
  * Calculates the entities and effects resulting from a particle-antiparticle annihilation.
@@ -53,7 +54,7 @@ export const calculateAnnihilationSymmetry = (
         remainingEntities,
         effectMode,
         removedId: target.id,
-        extraMessages: ["💥 ANNIHILATION! Gamma rays may excite other particle (+20000 PTS)"]
+        extraMessages: [LOG_MESSAGES.PHYSICS.ANNIHILATION_GAMMA(20000)]
     };
 };
 

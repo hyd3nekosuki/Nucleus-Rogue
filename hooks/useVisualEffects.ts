@@ -1,19 +1,20 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { DecayMode, GameState, GameAction } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 // Define the priority order for vocalization (Lower index = Higher priority)
 const SPEECH_PRIORITY = [
-    "Nuclear Fusion",
-    "Nuclear Fission",
-    "Pair Annihilation",
-    "Rapid Process Nucleosynthesis",
-    "Nucleosynthesis",
-    "Experimental Replication",
-    "Mastery Level",
-    "Reincarnation",
-    "Temporal Inversion",
-    "Total Annihilation"
+    LOG_MESSAGES.HISTORY.NUCLEAR_FUSION,
+    LOG_MESSAGES.HISTORY.NUCLEAR_FISSION,
+    LOG_MESSAGES.HISTORY.ANNIHILATION,
+    LOG_MESSAGES.HISTORY.R_PROCESS,
+    LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS,
+    LOG_MESSAGES.HISTORY.EXP_REPLICATE,
+    LOG_MESSAGES.HISTORY.MASTERY_LEVEL,
+    LOG_MESSAGES.HISTORY.REINCARNATION,
+    LOG_MESSAGES.HISTORY.TEMPORAL_INVERSION,
+    LOG_MESSAGES.HISTORY.NOTHINGNESS
 ];
 
 /**
@@ -142,8 +143,8 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
         }
 
         // 6. Reincarnation specific (Ensuring it's caught if not in priorityMessages)
-        if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION' && !event.priorityMessages?.includes("Reincarnation")) {
-            emitTTS("Reincarnation");
+        if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION' && !event.priorityMessages?.includes(LOG_MESSAGES.HISTORY.REINCARNATION)) {
+            emitTTS(LOG_MESSAGES.HISTORY.REINCARNATION);
         }
 
         // 7. Mark event as played in the global state

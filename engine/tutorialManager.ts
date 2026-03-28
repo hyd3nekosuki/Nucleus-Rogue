@@ -1,5 +1,6 @@
 import { GameState, NuclideData } from '../types';
-import { TUTORIAL_MESSAGES, TutorialEvent } from '../constants/tutorial';
+import { TutorialEvent } from '../types/engine/tutorial';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 import { TITLES } from '../constants/titles';
 
@@ -53,25 +54,25 @@ export const getNextTutorialMessage = (
     const nextNuclide = context.nextNuclide;
 
     // --- SPECIAL: Og-294 Congrats Persistence ---
-    if (currentMsg === TUTORIAL_MESSAGES.OGANESSON_CONGRATS) {
+    if (currentMsg === LOG_MESSAGES.TUTORIAL.OGANESSON_CONGRATS) {
         const isSameNuclide = nextNuclide && 
                              nextNuclide.z === state.currentNuclide.z && 
                              nextNuclide.a === state.currentNuclide.a;
         if (isSameNuclide || !nextNuclide) {
-            return TUTORIAL_MESSAGES.OGANESSON_CONGRATS;
+            return LOG_MESSAGES.TUTORIAL.OGANESSON_CONGRATS;
         }
     }
 
     // --- PRIORITY 1: Drip Line Danger ---
     const isAtDripLine = nextNuclide && !nextNuclide.isStable && (nextNuclide.isProtonDripLine || nextNuclide.isNeutronDripLine);
     if (isAtDripLine && !hasSeenDripLineTutorial) {
-        return TUTORIAL_MESSAGES.DRIP_LINE;
+        return LOG_MESSAGES.TUTORIAL.DRIP_LINE;
     }
 
     // --- PRIORITY 2: Decay Requirement ---
     const shouldShowDecayNow = nextNuclide && !nextNuclide.isStable && !hasSeenDecayTutorial;
     if (shouldShowDecayNow) {
-        return TUTORIAL_MESSAGES.DECAY;
+        return LOG_MESSAGES.TUTORIAL.DECAY;
     }
 
     // --- PRIORITY 3: Physics Scattering Message Persistence ---
@@ -88,7 +89,7 @@ export const getNextTutorialMessage = (
     const canShowEngrave = (energyPoints >= 1) && !hasSeenEngraveTutorial;
     
     // Check timeout for Engrave message: Hide after 10 turns
-    const isEngraveTimedOut = currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY && 
+    const isEngraveTimedOut = currentMsg === LOG_MESSAGES.TUTORIAL.RECORD_HISTORY && 
                              (currentTurn - tutorialStartTurn >= 10);
     
     const showEngraveNow = canShowEngrave && !isEngraveTimedOut;
@@ -96,53 +97,53 @@ export const getNextTutorialMessage = (
     // --- PRIORITY 5: Skill Toggle (Feature Discovery) ---
     const hasAnySpecializedSkill = state.unlockedGroups.some(group => SPECIALIZED_SKILLS.includes(group));
     const canShowSkillToggle = hasAnySpecializedSkill && !hasSeenSkillToggleTutorial;
-    const isSkillToggleTimedOut = currentMsg === TUTORIAL_MESSAGES.SKILL_TOGGLE && 
+    const isSkillToggleTimedOut = currentMsg === LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE && 
                                  (currentTurn - tutorialStartTurn >= 20);
     const showSkillToggleNow = canShowSkillToggle && !isSkillToggleTimedOut;
 
     // Special Trigger: If energy increased, re-show the recording hint if not already done
     if (context.energyIncreased && showEngraveNow && !shouldShowDecayNow && !isAtDripLine) {
-        return TUTORIAL_MESSAGES.RECORD_HISTORY;
+        return LOG_MESSAGES.TUTORIAL.RECORD_HISTORY;
     }
 
     switch (event) {
         case 'GAME_START':
             if (context.randomStart && hasSeenCaptureTutorial) {
-                if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
-                return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+                if (showSkillToggleNow) return LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE;
+                return showEngraveNow ? LOG_MESSAGES.TUTORIAL.RECORD_HISTORY : null;
             }
-            return TUTORIAL_MESSAGES.CAPTURE;
+            return LOG_MESSAGES.TUTORIAL.CAPTURE;
 
         case 'PARTICLE_CAPTURED':
             if (nextNuclide?.isStable) {
-                if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
-                return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+                if (showSkillToggleNow) return LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE;
+                return showEngraveNow ? LOG_MESSAGES.TUTORIAL.RECORD_HISTORY : null;
             }
             return currentMsg;
 
         case 'DECAY_PERFORMED':
-            if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
-            return showEngraveNow ? TUTORIAL_MESSAGES.RECORD_HISTORY : null;
+            if (showSkillToggleNow) return LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE;
+            return showEngraveNow ? LOG_MESSAGES.TUTORIAL.RECORD_HISTORY : null;
 
         case 'ENGRAVE_PERFORMED':
-            return showSkillToggleNow ? TUTORIAL_MESSAGES.SKILL_TOGGLE : null;
+            return showSkillToggleNow ? LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE : null;
 
         case 'MASTERY_OPENED':
             return null;
 
         case 'TURN_ADVANCED':
             // Decay nudge logic
-            if (currentMsg === TUTORIAL_MESSAGES.DECAY) {
+            if (currentMsg === LOG_MESSAGES.TUTORIAL.DECAY) {
                 const elapsed = currentTurn - tutorialStartTurn;
                 if (elapsed >= 50) {
-                    return TUTORIAL_MESSAGES.DECAY_MANUAL;
+                    return LOG_MESSAGES.TUTORIAL.DECAY_MANUAL;
                 }
             }
             
             // If we were showing a scattering message and it just timed out (handled by priority check above)
             // or if we are just moving around, check for discovery tutorials
-            if (showSkillToggleNow) return TUTORIAL_MESSAGES.SKILL_TOGGLE;
-            if (showEngraveNow) return TUTORIAL_MESSAGES.RECORD_HISTORY;
+            if (showSkillToggleNow) return LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE;
+            if (showEngraveNow) return LOG_MESSAGES.TUTORIAL.RECORD_HISTORY;
 
             // Engrave message display timeout logic:
             // If shown for 10 turns without action, hide permanently (判定をtrueにする)
@@ -154,7 +155,7 @@ export const getNextTutorialMessage = (
 
         default:
             // Final check to ensure we respect timeout in all events
-            if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY && isEngraveTimedOut) {
+            if (currentMsg === LOG_MESSAGES.TUTORIAL.RECORD_HISTORY && isEngraveTimedOut) {
                 return null;
             }
             return currentMsg;
@@ -178,13 +179,13 @@ export const calculateTutorialFlagUpdates = (
     }
     
     // Capture tutorial is mastered if it was showing and is now gone or changed to decay
-    if (currentMsg === TUTORIAL_MESSAGES.CAPTURE && nextMsg !== TUTORIAL_MESSAGES.CAPTURE) {
+    if (currentMsg === LOG_MESSAGES.TUTORIAL.CAPTURE && nextMsg !== LOG_MESSAGES.TUTORIAL.CAPTURE) {
         updates.hasSeenCaptureTutorial = true;
     }
     
     // Decay tutorial is ONLY considered "seen/mastered" if the user actually performed a decay.
     if (event === 'DECAY_PERFORMED') {
-        if (currentMsg === TUTORIAL_MESSAGES.DECAY || currentMsg === TUTORIAL_MESSAGES.DECAY_MANUAL) {
+        if (currentMsg === LOG_MESSAGES.TUTORIAL.DECAY || currentMsg === LOG_MESSAGES.TUTORIAL.DECAY_MANUAL) {
             updates.hasSeenDecayTutorial = true;
         }
     }
@@ -194,14 +195,14 @@ export const calculateTutorialFlagUpdates = (
     }
 
     // Drip Line Tutorial is mastered once the player successfully transforms into another nuclide
-    if (currentMsg === TUTORIAL_MESSAGES.DRIP_LINE && nextMsg !== TUTORIAL_MESSAGES.DRIP_LINE) {
+    if (currentMsg === LOG_MESSAGES.TUTORIAL.DRIP_LINE && nextMsg !== LOG_MESSAGES.TUTORIAL.DRIP_LINE) {
         updates.hasSeenDripLineTutorial = true;
     }
 
     // Engrave Tutorial is mastered if user performs the action OR if it was shown and then timed out (10 turns)
     if (event === 'ENGRAVE_PERFORMED') {
         updates.hasSeenEngraveTutorial = true;
-    } else if (currentMsg === TUTORIAL_MESSAGES.RECORD_HISTORY) {
+    } else if (currentMsg === LOG_MESSAGES.TUTORIAL.RECORD_HISTORY) {
         const elapsed = currentTurn - state.tutorialStartTurn;
         if (elapsed >= 10) {
             updates.hasSeenEngraveTutorial = true;
@@ -209,7 +210,7 @@ export const calculateTutorialFlagUpdates = (
     }
 
     // Skill Toggle Tutorial is mastered if user opens mastery OR if it was shown and then timed out (20 turns)
-    if (currentMsg === TUTORIAL_MESSAGES.SKILL_TOGGLE) {
+    if (currentMsg === LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE) {
         const elapsed = currentTurn - state.tutorialStartTurn;
         if (elapsed >= 20) {
             updates.hasSeenSkillToggleTutorial = true;

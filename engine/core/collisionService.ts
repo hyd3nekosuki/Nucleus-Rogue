@@ -8,6 +8,7 @@ import { applyDiscoveryLogic, findNearbyFreeCell } from './discoveryEngine';
 import { findSpecialReaction } from '../../data/specialReactions';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { registerHistoryEntry } from './historyService';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 
 /**
  * Core Service: Resolves a collision between the player nucleus and an "Another Nuclide" entity.
@@ -48,7 +49,7 @@ export const handleAnotherNuclideCollision = (
                     const bossData = getNuclideDataSync(bossZ, bossA);
                     if (bossData.exists) {
                         // Register byproduct as "Unknown" pedigree to show as isolated dot on the map
-                        nextHistory = registerHistoryEntry(nextHistory, bossData, "Unknown", null, null, targetTurn, true);
+                        nextHistory = registerHistoryEntry(nextHistory, bossData, LOG_MESSAGES.HISTORY.UNKNOWN, null, null, targetTurn, true);
                         nextEntities.push({ 
                             id: 'product-' + Math.random().toString(36).substr(2, 9), 
                             type: EntityType.ANOTHER_NUCLIDE, 
@@ -75,7 +76,7 @@ export const handleAnotherNuclideCollision = (
                     lastEvent: { 
                         id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, 
                         flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', 
-                        priorityMessages: ['Nuclear Fusion', 'Experimental Replication'] 
+                        priorityMessages: [LOG_MESSAGES.HISTORY.NUCLEAR_FUSION, LOG_MESSAGES.HISTORY.EXP_REPLICATE] 
                     } 
                 },
                 nextNuclide,
@@ -101,19 +102,19 @@ export const handleAnotherNuclideCollision = (
 
     if (isDefeated) { 
         nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + 1); 
-        rewardMsg = [`💥 ANOTHER NUCLIDE DEFEATED! (+1E)`]; 
+        rewardMsg = [LOG_MESSAGES.SYSTEM.ANOTHER_NUCLIDE_DEFEATED]; 
         
         // Register defeated enemy in history as isolated dot
         const enemyData = getNuclideDataSync(ez, ea);
         if (enemyData.exists) {
-            nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
+            nextHistory = registerHistoryEntry(nextHistory, enemyData, LOG_MESSAGES.HISTORY.UNKNOWN, null, null, targetTurn, true);
         }
     }
     else {
         nextEntities.push({ ...enemy, position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), z: nextZ, a: nextA });
     }
 
-    const campLabel = enemy.isFriendly ? "FRIENDLY" : "ANOTHER";
+    const campLabel = enemy.isFriendly ? LOG_MESSAGES.SYSTEM.CAMP_FRIENDLY : LOG_MESSAGES.SYSTEM.CAMP_ANOTHER;
     const nextState: GameState = { 
         ...state, 
         playerPos: collisionPos, 
@@ -122,7 +123,7 @@ export const handleAnotherNuclideCollision = (
         gridEntities: nextEntities, 
         evolutionHistory: nextHistory,
         turn: targetTurn, 
-        messages: [...state.messages, `⚠️ COLLISION WITH ${campLabel} NUCLIDE! HP -${penalty}`, ...rewardMsg].slice(-10), 
+        messages: [...state.messages, LOG_MESSAGES.SYSTEM.COLLISION_WITH_NUCLIDE(campLabel, penalty), ...rewardMsg].slice(-10), 
         lastEvent: { id: now, type: 'COLLISION', hasDefeat: isDefeated, shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
     };
 
@@ -154,8 +155,8 @@ export const handleDefeatByReaction = (
         
         // Apply rewards
         energyBonus += 1;
-        const label = enemy.type === EntityType.ANTI_NUCLIDE ? 'ANTI-NUCLIDE' : 'ANOTHER NUCLIDE';
-        messages.push(`💥 ${label} DEFEATED BY REACTION! (+1E)`);
+        const label = enemy.type === EntityType.ANTI_NUCLIDE ? LOG_MESSAGES.SYSTEM.LABEL_ANTI_NUCLIDE : LOG_MESSAGES.SYSTEM.LABEL_ANOTHER_NUCLIDE;
+        messages.push(LOG_MESSAGES.SYSTEM.DEFEATED_BY_REACTION(label));
         defeatedCount++;
         
         // Register in history as scientific discovery (only for nuclides with Z/A)
@@ -164,7 +165,7 @@ export const handleDefeatByReaction = (
             const ea = enemy.a || 0;
             const enemyData = getNuclideDataSync(ez, ea);
             if (enemyData.exists) {
-                nextHistory = registerHistoryEntry(nextHistory, enemyData, "Unknown", null, null, targetTurn, true);
+                nextHistory = registerHistoryEntry(nextHistory, enemyData, LOG_MESSAGES.HISTORY.UNKNOWN, null, null, targetTurn, true);
             }
         }
     });

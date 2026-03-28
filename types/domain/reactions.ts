@@ -18,6 +18,7 @@ export interface AtomicReactionResult {
   inducedReactionLabel?: string;
   isPpFusion?: boolean;
   isPositronAbsorption?: boolean;
+  isECCapture?: boolean;
   isCoulombScattered?: boolean;
   isBremsAchieved?: boolean;
   magicProtectionBonus?: number;

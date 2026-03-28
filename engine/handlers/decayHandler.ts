@@ -16,6 +16,7 @@ import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine
 import { processUnlocks } from '../unlockSystem';
 import { finalizeAction } from '../core/turnService';
 import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/collisionService';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 
 /**
  * Handler for manual radioactive decay actions.
@@ -137,7 +138,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         }
 
         const newHp = Math.max(0, state.hp - 20);
-        const failMsg = `⚠️ Decay failed: Target nuclide is outside the drip lines.`;
+        const failMsg = LOG_MESSAGES.DECAY.DECAY_FAILED_DRIP_LINE;
         
         let finalEntities = state.gridEntities;
         if (unlockResult.updatedGroups.includes(TITLES.DEMON_CORE) && !state.unlockedGroups.includes(TITLES.DEMON_CORE)) {
@@ -173,23 +174,23 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const totalBaseActionPoints = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS) + decayResult.actionBonusScore;
     const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
     
-    const forcedMsg = isForced ? `☢️ FORCED DECAY: ${getDecayModeLabel(actualMode)} selected! (-5 MeV)` : "";
+    const forcedMsg = isForced ? LOG_MESSAGES.DECAY.FORCED_DECAY(getDecayModeLabel(actualMode)) : "";
     const decayDescMsg = 
-          actualMode === DecayMode.ALPHA ? `α decay into ${newData.name}` 
-        : actualMode === DecayMode.BETA_MINUS ? `β- decay into ${newData.name}` 
-        : actualMode === DecayMode.DOUBLE_BETA_MINUS ? `2β- decay into ${newData.name}`
-        : actualMode === DecayMode.BETA_PLUS ? `β+ decay into ${newData.name}` 
-        : actualMode === DecayMode.DOUBLE_BETA_PLUS ? `2β+ decay into ${newData.name}`
-        : actualMode === DecayMode.ELECTRON_CAPTURE ? `Electron capture into ${newData.name}` 
-        : actualMode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? `Double electron capture into ${newData.name}`
-        : actualMode === DecayMode.NEUTRON_EMISSION ? `n emission into ${newData.name}` 
-        : actualMode === DecayMode.TWO_NEUTRON_EMISSION ? `2n emission into ${newData.name}`
-        : actualMode === DecayMode.PROTON_EMISSION ? `p emission into ${newData.name}` 
-        : actualMode === DecayMode.TWO_PROTON_EMISSION ? `2p emission into ${newData.name}` 
-        : actualMode === DecayMode.SPONTANEOUS_FISSION ? `Spontaneous fission into ${newData.name}` 
-        : actualMode === DecayMode.IT ? `Isomeric transition`
-        : actualMode === DecayMode.GAMMA ? `γ decay`
-        : actualMode.startsWith('B-') || actualMode.startsWith('B+') || actualMode.startsWith('EC') ? `${decayResult.trigger} into ${newData.name}`
+          actualMode === DecayMode.ALPHA ? LOG_MESSAGES.DECAY.ALPHA_INTO(newData.name) 
+        : actualMode === DecayMode.BETA_MINUS ? LOG_MESSAGES.DECAY.BETA_MINUS_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_BETA_MINUS ? LOG_MESSAGES.DECAY.DOUBLE_BETA_MINUS_INTO(newData.name)
+        : actualMode === DecayMode.BETA_PLUS ? LOG_MESSAGES.DECAY.BETA_PLUS_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_BETA_PLUS ? LOG_MESSAGES.DECAY.DOUBLE_BETA_PLUS_INTO(newData.name)
+        : actualMode === DecayMode.ELECTRON_CAPTURE ? LOG_MESSAGES.DECAY.ELECTRON_CAPTURE_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? LOG_MESSAGES.DECAY.DOUBLE_ELECTRON_CAPTURE_INTO(newData.name)
+        : actualMode === DecayMode.NEUTRON_EMISSION ? LOG_MESSAGES.DECAY.NEUTRON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.TWO_NEUTRON_EMISSION ? LOG_MESSAGES.DECAY.TWO_NEUTRON_EMISSION_INTO(newData.name)
+        : actualMode === DecayMode.PROTON_EMISSION ? LOG_MESSAGES.DECAY.PROTON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.TWO_PROTON_EMISSION ? LOG_MESSAGES.DECAY.TWO_PROTON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.SPONTANEOUS_FISSION ? LOG_MESSAGES.DECAY.SF_INTO(newData.name) 
+        : actualMode === DecayMode.IT ? LOG_MESSAGES.DECAY.IT_INTO(newData.name)
+        : actualMode === DecayMode.GAMMA ? LOG_MESSAGES.DECAY.GAMMA_DECAY
+        : actualMode.startsWith('B-') || actualMode.startsWith('B+') || actualMode.startsWith('EC') ? LOG_MESSAGES.DECAY.TRIGGER_INTO(decayResult.trigger, newData.name)
         : "";
     
     let nextEntities = decayResult.newGridEntities;

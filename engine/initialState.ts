@@ -1,5 +1,5 @@
 import { GameState, DecayMode } from '../types';
-import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS, TUTORIAL_MESSAGES } from '../constants';
+import { GRID_WIDTH, GRID_HEIGHT, INITIAL_HP, INITIAL_NUCLIDE, HISTORY_METHODS, LOG_MESSAGES } from '../constants';
 import { TITLES } from '../constants/titles';
 
 /**
@@ -18,7 +18,7 @@ export const getInitialState = (): GameState => ({
     evolutionHistory: {},
     hp: INITIAL_HP,
     maxHp: INITIAL_HP,
-    messages: ["Welcome to the Nucleus!", "Master radioactive decays to increase your Mastery Level."],
+    messages: [LOG_MESSAGES.SYSTEM.WELCOME_1, LOG_MESSAGES.SYSTEM.WELCOME_2],
     gameOver: false,
     gameOverReason: undefined,
     loadingData: false,
@@ -42,7 +42,7 @@ export const getInitialState = (): GameState => ({
     elapsedTime: 0,
     recordTime: undefined,
     achievementTimes: {},
-    tutorialMessage: TUTORIAL_MESSAGES.CAPTURE,
+    tutorialMessage: LOG_MESSAGES.TUTORIAL.CAPTURE,
     tutorialStartTurn: 0,
     hasSeenDecayTutorial: false,
     hasSeenCaptureTutorial: false,

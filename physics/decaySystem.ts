@@ -4,6 +4,7 @@ import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { DECAY_PHYSICS } from '../constants/physics';
 import { BONUS_SCORES } from '../constants/economy';
 import { HISTORY_METHODS } from '../constants/strings';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 import { getFissionFragmentOutcome, getPromptNeutronCount } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
@@ -55,7 +56,7 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
         // Apply special rewards
         energyBonus += 1000;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(`✨ ANTI-NUCLIDE NEUTRALIZED: Alpha pulse purged anomaly! (+1000 MeV)`);
+        messages.push(LOG_MESSAGES.PHYSICS.ANTI_NUCLIDE_NEUTRALIZED_ALPHA);
     }
 
     // Find non-friendly Another Nuclides in Moore neighborhood
@@ -106,7 +107,7 @@ const handleBetaMinus = (
                 currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
                 effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
                 score += BONUS_SCORES.BETA_CONVERSION;
-                messages.push(`⚡ p + e- → n (+${BONUS_SCORES.BETA_CONVERSION} PTS)`);
+                messages.push(LOG_MESSAGES.PHYSICS.PROTON_ELECTRON_CONVERSION(BONUS_SCORES.BETA_CONVERSION));
             }
         }
     }
@@ -122,7 +123,7 @@ const handleBetaMinus = (
         effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
         score += BONUS_SCORES.PAIR_ANNIHILATION;
         messages.push(...annihilationResult.extraMessages);
-        speech = "Pair Annihilation";
+        speech = LOG_MESSAGES.HISTORY.ANNIHILATION;
         isAnnihilation = true;
     }
 
@@ -154,7 +155,7 @@ const handleBetaPlus = (
             effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.SPONTANEOUS_FISSION, position: { ...playerPos }, timestamp: currentTime }); 
             score += BONUS_SCORES.PAIR_ANNIHILATION;
             messages.push(...annihilationResult.extraMessages);
-            speech = "Pair Annihilation";
+            speech = LOG_MESSAGES.HISTORY.ANNIHILATION;
             isAnnihilation = true;
         }
     }
@@ -205,13 +206,13 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const messages: string[] = [];
 
     if (chainResult.chainReactionCount > 0) {
-        messages.push(`⚛️ FISSION CHAIN REACTION: ${chainResult.chainReactionCount} nuclides triggered!`);
+        messages.push(LOG_MESSAGES.PHYSICS.FISSION_CHAIN_REACTION_TRIGGERED(chainResult.chainReactionCount));
     }
 
     if (antisInBlast.length > 0) {
         energyBonus += 1000;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(`💥 ANTI-NUCLIDE PURGED: Fission shockwave dissolved anomaly! (+1000 MeV)`);
+        messages.push(LOG_MESSAGES.PHYSICS.ANTI_NUCLIDE_PURGED_FISSION);
     }
 
     // Prepare byproduct data if it is a physically plausible nucleus
@@ -222,7 +223,7 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     return {
         dZ, dA, trigger: HISTORY_METHODS.FISSION_SPONTANEOUS, shouldShake: true, shouldFlash: true,
         flashColor: 'bg-yellow-400',
-        speechOverride: "Nuclear Fission", actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
+        speechOverride: LOG_MESSAGES.HISTORY.NUCLEAR_FISSION, actionBonusScore: score, energyBonus, newGridEntities: currentEntities,
         extraMessages: messages,
         emissions, // Return list of particles to be spawned by engine
         byproduct,  // Procedure 2: Secondary fragment for conservation
@@ -271,7 +272,7 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.DOUBLE_BETA_MINUS:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "Double Beta Minus Decay";
+            result.trigger = LOG_MESSAGES.HISTORY.DOUBLE_BETA_MINUS;
             break;
         case DecayMode.BETA_PLUS: 
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
@@ -279,10 +280,10 @@ export const calculateDecayEffects = (
         case DecayMode.EC_B_PLUS:
             // EC/B+ combined mode - should have been resolved by controller, but handle here as fallback
             if (Math.random() < 0.5) {
-                result.trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
+                result.trigger = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE;
                 result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
                 result.shouldShake = true;
-                result.extraMessages.push("✨ Uncertainty principle for position!");
+                result.extraMessages.push(LOG_MESSAGES.PHYSICS.UNCERTAINTY_POSITION);
                 result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
             } else {
                 Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
@@ -290,54 +291,54 @@ export const calculateDecayEffects = (
             break;
         case DecayMode.DOUBLE_BETA_PLUS:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "Double Beta Plus Decay";
+            result.trigger = LOG_MESSAGES.HISTORY.DOUBLE_BETA_PLUS;
             break;
         case DecayMode.ELECTRON_CAPTURE: 
-             result.trigger = HISTORY_METHODS.ELECTRON_CAPTURE;
+             result.trigger = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE;
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
              result.shakeIntensity = 'light';
-             result.extraMessages.push("✨ Uncertainty principle for position!");
+             result.extraMessages.push(LOG_MESSAGES.PHYSICS.UNCERTAINTY_POSITION);
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.DOUBLE_ELECTRON_CAPTURE:
-             result.trigger = "Double Electron Capture";
+             result.trigger = LOG_MESSAGES.HISTORY.DOUBLE_ELECTRON_CAPTURE;
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
              result.shakeIntensity = 'light';
-             result.extraMessages.push("✨ Double uncertainty principle!");
+             result.extraMessages.push(LOG_MESSAGES.PHYSICS.DOUBLE_UNCERTAINTY);
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 
-            result.trigger = HISTORY_METHODS.PROTON_EMISSION; 
+            result.trigger = LOG_MESSAGES.HISTORY.PROTON_EMISSION; 
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.TWO_PROTON_EMISSION:
-            result.trigger = HISTORY_METHODS.TWO_PROTON_EMISSION;
+            result.trigger = LOG_MESSAGES.HISTORY.TWO_PROTON_EMISSION;
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.NEUTRON_EMISSION: 
-            result.trigger = HISTORY_METHODS.NEUTRON_EMISSION; 
+            result.trigger = LOG_MESSAGES.HISTORY.NEUTRON_EMISSION; 
             result.emissions = [EntityType.NEUTRON];
             break;
         case DecayMode.TWO_NEUTRON_EMISSION:
-            result.trigger = "Two Neutron Emission";
+            result.trigger = LOG_MESSAGES.HISTORY.TWO_NEUTRON_EMISSION;
             result.emissions = [EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.DEUTERON_EMISSION:
-            result.trigger = HISTORY_METHODS.DEUTERON_EMISSION;
+            result.trigger = LOG_MESSAGES.HISTORY.DEUTERON_EMISSION;
             result.emissions = [EntityType.PROTON, EntityType.NEUTRON];
             break;
         case DecayMode.TRITON_EMISSION:
-            result.trigger = HISTORY_METHODS.TRITON_EMISSION;
+            result.trigger = LOG_MESSAGES.HISTORY.TRITON_EMISSION;
             result.emissions = [EntityType.PROTON, EntityType.NEUTRON, EntityType.NEUTRON];
             break;
         case DecayMode.HELIUM3_EMISSION:
-            result.trigger = HISTORY_METHODS.HELIUM3_EMISSION;
+            result.trigger = LOG_MESSAGES.HISTORY.HELIUM3_EMISSION;
             result.emissions = [EntityType.PROTON, EntityType.PROTON, EntityType.NEUTRON];
             break;
         case DecayMode.IT:
-            result.trigger = "Isomeric Transition";
+            result.trigger = LOG_MESSAGES.HISTORY.ISOMERIC_TRANSITION;
             result.actionBonusScore = BONUS_SCORES.GAMMA_ACTION;
             result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.GAMMA_RAY_UP, position: { ...playerPos }, timestamp: currentTime });
             break;
@@ -351,56 +352,56 @@ export const calculateDecayEffects = (
             const nMatch = mode.match(/(\d)N/);
             const nCount = nMatch ? parseInt(nMatch[1]) : 1;
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = `β- delayed ${nCount}n emission`;
+            result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_N(nCount);
             result.emissions = new Array(nCount).fill(EntityType.NEUTRON);
             break;
         case DecayMode.B_MINUS_ALPHA:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "β- delayed alpha emission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_ALPHA;
             result.energyBonus = 5;
             break;
         case DecayMode.B_MINUS_PROTON:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            result.trigger = "β- delayed proton emission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_PROTON;
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_MINUS_SF:
             Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
             const bMinusFission = handleSpontaneousFission(currentNuclide, playerPos, result.newGridEntities, currentTime);
             Object.assign(result, bMinusFission);
-            result.trigger = "β- delayed fission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_FISSION;
             break;
         case DecayMode.B_PLUS_ALPHA:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "β+ delayed alpha emission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_ALPHA;
             result.energyBonus = 5;
             break;
         case DecayMode.B_PLUS_PROTON:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "β+ delayed proton emission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_PROTON;
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_PLUS_2PROTON:
             Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
-            result.trigger = "β+ delayed 2p emission";
+            result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_2PROTON;
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_ALPHA:
-            result.trigger = "EC delayed alpha emission";
+            result.trigger = LOG_MESSAGES.HISTORY.EC_DELAYED_ALPHA;
             result.energyBonus = 5;
             break;
         case DecayMode.EC_PROTON:
-            result.trigger = "EC delayed proton emission";
+            result.trigger = LOG_MESSAGES.HISTORY.EC_DELAYED_PROTON;
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.EC_2PROTON:
-            result.trigger = "EC delayed 2p emission";
+            result.trigger = LOG_MESSAGES.HISTORY.EC_DELAYED_2PROTON;
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_SF:
             const ecFission = handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime);
             Object.assign(result, ecFission);
-            result.trigger = "EC delayed fission";
+            result.trigger = LOG_MESSAGES.HISTORY.EC_DELAYED_FISSION;
             break;
         case DecayMode.GAMMA:
              result.trigger = HISTORY_METHODS.GAMMA_DECAY;

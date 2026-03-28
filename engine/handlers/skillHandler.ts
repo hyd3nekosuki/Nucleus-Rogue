@@ -16,7 +16,7 @@ import {
 import { MAGIC_NUMBERS } from '../../constants/physics';
 import { TITLES } from '../../constants/titles';
 import { HISTORY_METHODS } from '../../constants/strings';
-import { TUTORIAL_MESSAGES } from '../../constants/tutorial';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync, getValidAsForZ } from '../../services/nuclideService';
 import { generateEntities } from '../moveSimulator';
@@ -35,7 +35,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
     switch (skillType) {
         case 'STABILIZE': {
             const cost = STABILIZE_COST;
-            if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
+            if (state.energyPoints < cost) return { ...state, messages: [...state.messages, LOG_MESSAGES.SKILLS.NOT_ENOUGH_ENERGY(cost)].slice(-10) };
             
             const isVNuclide = state.currentNuclide.halfLifeSeconds === 1e-9;
             const nextTranquiloCount = isVNuclide ? state.tranquiloTurnCount + 1 : 0;
@@ -46,7 +46,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 hp: state.maxHp, 
                 energyPoints: Math.max(0, state.energyPoints - cost), 
                 tranquiloTurnCount: nextTranquiloCount,
-                messages: [...state.messages, `🔬 Stabilization: HP Recovered.`].slice(-10), 
+                messages: [...state.messages, LOG_MESSAGES.SKILLS.STABILIZATION_SUCCESS].slice(-10), 
                 lastEvent: { id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green' } 
             };
             
@@ -55,7 +55,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
 
         case 'NUCLEOSYNTHESIS': {
             const cost = NUCLEOSYNTHESIS_COST;
-            if (state.energyPoints < cost) return { ...state, messages: [...state.messages, `⚠️ Not enough energy! Need ${cost}E.`].slice(-10) };
+            if (state.energyPoints < cost) return { ...state, messages: [...state.messages, LOG_MESSAGES.SKILLS.NOT_ENOUGH_ENERGY(cost)].slice(-10) };
             
             // Special Case: Z=118 Boundary
             if (state.currentNuclide.z === 118) {
@@ -64,26 +64,26 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     ...state, 
                     turn: state.turn + 1,
                     energyPoints: Math.max(0, state.energyPoints - cost),
-                    tutorialMessage: isOg294 ? TUTORIAL_MESSAGES.OGANESSON_CONGRATS : state.tutorialMessage,
+                    tutorialMessage: isOg294 ? LOG_MESSAGES.TUTORIAL.OGANESSON_CONGRATS : state.tutorialMessage,
                     recordTime: state.elapsedTime,
                     achievementTimes: state.achievementTimes['far_beyond_og'] 
                         ? state.achievementTimes 
                         : { ...state.achievementTimes, far_beyond_og: state.elapsedTime },
-                    messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Boundary reached. ${isOg294 ? 'Message unlocked.' : ''}`].slice(-10),
-                    lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: ['Nucleosynthesis'] }
+                    messages: [...state.messages, LOG_MESSAGES.SKILLS.NUCLEOSYNTHESIS_BOUNDARY(isOg294)].slice(-10),
+                    lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: [LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS] }
                 };
                 return finalizeAction(nextState);
             }
 
             const nextZ = state.currentNuclide.z + 1;
-            if (nextZ > 118) return { ...state, messages: [...state.messages, "⚠️ Oganesson limit reached!"].slice(-10) };
+            if (nextZ > 118) return { ...state, messages: [...state.messages, LOG_MESSAGES.SKILLS.OGANESSON_LIMIT].slice(-10) };
             const validAs = getValidAsForZ(nextZ);
             const randomA = validAs[Math.floor(Math.random() * validAs.length)];
             const newData = getNuclideDataSync(nextZ, randomA);
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, `🌟 NUCLEOSYNTHESIS: Synthesized ${newData.name}!`].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: ['Nucleosynthesis'] } },
+                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, LOG_MESSAGES.SKILLS.NUCLEOSYNTHESIS_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: [LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS] } },
                 newData,
                 { method: HISTORY_METHODS.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -104,7 +104,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...state, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, lastEvent: { id: now, type: 'DEATH' } };
             
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, `🌌 r-process nucleosynthesis: Absorbed ${totalAbsorbed} particles!`, "⚠️ MASTERY CONSUMED: Level reset to 0."].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: ['Rapid Process Nucleosynthesis'] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, LOG_MESSAGES.SKILLS.R_PROCESS_SUCCESS(totalAbsorbed), LOG_MESSAGES.SKILLS.MASTERY_CONSUMED].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: [LOG_MESSAGES.HISTORY.R_PROCESS] } },
                 newData,
                 { method: HISTORY_METHODS.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -125,7 +125,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
 
         case 'TIME_STOP': {
             const nextFrozen = !state.isTimeStopped;
-            return { ...state, isTimeStopped: nextFrozen, messages: [...state.messages, nextFrozen ? "✨ FROZEN TIME" : "✨ TIME RESTORED"].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP' } };
+            return { ...state, isTimeStopped: nextFrozen, messages: [...state.messages, nextFrozen ? LOG_MESSAGES.SKILLS.TIME_FROZEN : LOG_MESSAGES.SKILLS.TIME_RESTORED].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'TIME_STOP' } };
         }
 
         case 'TRANSMUTE': {
@@ -136,7 +136,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, `🔮 EXP. REPLICATE: ${newData.name}!`].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: ['Experimental Replication'] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, LOG_MESSAGES.SKILLS.EXP_REPLICATE_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: [LOG_MESSAGES.HISTORY.EXP_REPLICATE] } },
                 newData,
                 { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
@@ -182,7 +182,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     if (targetData.exists) {
                         if (debugType === 'player') {
                             return finalizeAction(applyDiscoveryLogic(
-                                { ...state, unlockedGroups: updatedGroups, achievementTimes, messages: [...state.messages, `🛠️ DEBUG: Transformed into ${targetData.name}`].slice(-10) },
+                                { ...state, unlockedGroups: updatedGroups, achievementTimes, messages: [...state.messages, LOG_MESSAGES.SKILLS.DEBUG_TRANSFORMED(targetData.name)].slice(-10) },
                                 targetData,
                                 { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
                                 state.turn + 1,
@@ -206,7 +206,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                                 unlockedGroups: updatedGroups,
                                 achievementTimes,
                                 gridEntities: [...state.gridEntities, newEntity],
-                                messages: [...state.messages, `🛠️ DEBUG: Spawned ${isFriendly ? 'friend' : 'enemy'} ${targetData.name}`].slice(-10)
+                                messages: [...state.messages, LOG_MESSAGES.SKILLS.DEBUG_SPAWNED(isFriendly ? 'friend' : 'enemy', targetData.name)].slice(-10)
                             };
                         }
                     }
@@ -217,7 +217,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     ...state,
                     unlockedGroups: updatedGroups,
                     achievementTimes,
-                    messages: [...state.messages, "🛠️ DEBUG: Cheat Activated (Research Misconduct)"].slice(-10)
+                    messages: [...state.messages, LOG_MESSAGES.SKILLS.DEBUG_CHEAT_ACTIVATED].slice(-10)
                 };
             }
             // --- END DEBUG BACKDOOR ---
@@ -246,10 +246,10 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     gridEntities: state.gridEntities.filter(e => !requirements.idsToConsume.includes(e.id)),
                     energyPoints: 0, // High-dimensional interference resets local energy
                     tranquiloTurnCount: 0,
-                    messages: [...state.messages, `🌌 SYSTEM OVERRIDE: Reachable configuration established for ${targetData.name}!`].slice(-10),
+                    messages: [...state.messages, LOG_MESSAGES.SKILLS.SYSTEM_OVERRIDE_SUCCESS(targetData.name)].slice(-10),
                     lastEvent: {
                         id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-yellow-400', shake: true,
-                        priorityMessages: ['Quantum Override Transmutation']
+                        priorityMessages: [LOG_MESSAGES.HISTORY.QUANTUM_OVERRIDE]
                     }
                 },
                 targetData,
@@ -280,13 +280,13 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             }
             
             // Dismiss tutorial if active
-            const isSkillToggleTutorialActive = state.tutorialMessage === TUTORIAL_MESSAGES.SKILL_TOGGLE;
+            const isSkillToggleTutorialActive = state.tutorialMessage === LOG_MESSAGES.TUTORIAL.SKILL_TOGGLE;
             
             return { 
                 ...state, 
                 gridEntities: nextEntities, 
                 disabledSkills: nextDisabled, 
-                messages: [...state.messages, `⚙️ Skill ${skillName} ${isDisabled ? 'ENABLED' : 'DISABLED'}`].slice(-10),
+                messages: [...state.messages, LOG_MESSAGES.SKILLS.SKILL_TOGGLE(skillName, isDisabled)].slice(-10),
                 hasSeenSkillToggleTutorial: true,
                 tutorialMessage: isSkillToggleTutorialActive ? null : state.tutorialMessage
             };

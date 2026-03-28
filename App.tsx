@@ -1,8 +1,6 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 // Triggering Vite reload to resolve potential HMR hang
-import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION } from './constants/gameConfig';
-
-import { TUTORIAL_MESSAGES } from './constants/tutorial';
+import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION, LOG_MESSAGES } from './constants';
 import Grid from './components/game/Grid';
 import HealthBar from './components/game/HealthBar';
 import NucleusVisualizer from './components/game/NucleusVisualizer';
@@ -193,12 +191,12 @@ function App() {
                 </div>
               </div>
             )}
-            {(gameState.tutorialMessage === TUTORIAL_MESSAGES.OGANESSON_CONGRATS || gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE) && gameState.recordTime !== undefined && (
+            {(gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.OGANESSON_CONGRATS || gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE) && gameState.recordTime !== undefined && (
               <div className="absolute inset-0 z-[60] bg-yellow-400/10 backdrop-blur-[4px] flex items-center justify-center pointer-events-none">
                 <div key={gameState.tutorialMessage} className="flex flex-col items-center animate-fade-in">
                   <div className="text-xs md:text-sm font-bold text-yellow-400 uppercase tracking-[0.3em] mb-2 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">Achievement Unlocked</div>
                   <div className="text-3xl md:text-5xl font-black italic text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] uppercase tracking-tighter text-center px-4">
-                    {gameState.tutorialMessage === TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'FAR BEYOND BOUNDARY'}
+                    {gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'FAR BEYOND BOUNDARY'}
                   </div>
                   <div className="mt-6 flex flex-col items-center">
                     <div className="text-[10px] text-yellow-400/70 uppercase tracking-widest font-bold">Completion Time</div>

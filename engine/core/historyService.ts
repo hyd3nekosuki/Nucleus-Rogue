@@ -1,4 +1,5 @@
 import { HistoryEntry, NuclideData } from '../../types';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 
 /**
  * Pure function to register or update a nuclide discovery in the evolution history.
@@ -35,8 +36,8 @@ export const registerHistoryEntry = (
          *    pedigrees from being downgraded to "Unknown".
          * 3. lastTurn and isEngraved are always updated to the latest session state.
          */
-        const isNewScientificAction = method !== "Unknown";
-        const isExistingRecordUnknown = existing.method === "Unknown" || !existing.method;
+        const isNewScientificAction = method !== LOG_MESSAGES.HISTORY.UNKNOWN;
+        const isExistingRecordUnknown = existing.method === LOG_MESSAGES.HISTORY.UNKNOWN || !existing.method;
         const shouldUpdateLineage = isNewScientificAction || isExistingRecordUnknown;
 
         return {

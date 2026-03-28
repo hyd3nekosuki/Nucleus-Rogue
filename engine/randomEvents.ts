@@ -3,6 +3,7 @@ import { generateEntities } from './moveSimulator';
 import { moveAntiNuclides, consumeMatterWithAntiNuclides } from './behaviors/antiNuclideBehavior';
 import { moveAnotherNuclides, consumeParticlesWithAnotherNuclides, resolveMatterStruggle } from './behaviors/anotherNuclideBehavior';
 import { TITLES } from '../constants/titles';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 import { getValidAsForZ, getNuclideDataSync } from '../services/nuclideService';
 import { findReactionPartners } from '../data/specialReactions';
 
@@ -38,7 +39,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         nextEmptyTurnCount++;
         if (nextEmptyTurnCount >= 20 && !nextEntities.some(e => e.type === EntityType.ANTI_NUCLIDE)) {
             nextEntities = generateEntities(1, nextEntities, state.playerPos, state.turn, EntityType.ANTI_NUCLIDE);
-            nextMessages = [...nextMessages, "⚠️ WARNING: ANOMALY DETECTED. ANTI-NUCLIDE MATERIALIZED."].slice(-10);
+            nextMessages = [...nextMessages, LOG_MESSAGES.EVENTS.ANOMALY_DETECTED].slice(-10);
         }
     } else {
         nextEmptyTurnCount = 0;
@@ -73,7 +74,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
 
     // --- NEW: Fission Chain Chance (Monster House Event) ---
     if (state.currentNuclide.z >= 92 && Math.random() < 0.01) {
-        const fissionMessages = ["⚠️ CRITICALITY ALERT: Fission Chain Chance!"];
+        const fissionMessages = [LOG_MESSAGES.EVENTS.CRITICALITY_CHANCE];
         const fissionEntities: GridEntity[] = [];
         
         // Spawn 6-10 fissionable nuclides randomly across the grid
@@ -207,7 +208,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 a: enemyA,
                 isFriendly: false // Natural spawns are predators
             });
-            nextMessages = [...nextMessages, `⚠️ ANOTHER NUCLIDE DETECTED: Z=${enemyZ}, A=${enemyA} approaching.`].slice(-10);
+            nextMessages = [...nextMessages, LOG_MESSAGES.EVENTS.BOSS_SPAWN(enemyZ, enemyA)].slice(-10);
             activeEvent = { type: "BOSS_SPAWN", color: "#b45309", timestamp: Date.now() };
         }
     }
@@ -219,7 +220,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
         let eventMsg = "", signalType = "", signalColor = "";
         
         if (randEvent < 0.48) {
-            eventMsg = "⚠️ QUANTUM COHERENCE: Particle Identity Inversion!"; 
+            eventMsg = LOG_MESSAGES.EVENTS.QUANTUM_COHERENCE; 
             signalType = "INVERSION"; 
             signalColor = "#bc13fe";
             nextEntities = nextEntities.map(e => (
@@ -228,22 +229,22 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
                 e.type === EntityType.ENEMY_ELECTRON ? { ...e, isHighEnergy: !e.isHighEnergy } : e
             ));
         } else if (randEvent < 0.78) {
-            eventMsg = "⚠️ STELLAR WIND: Massive Neutron Flux!"; 
+            eventMsg = LOG_MESSAGES.EVENTS.STELLAR_WIND; 
             signalType = "NEUTRON_STORM"; 
             signalColor = "#00f3ff";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.NEUTRON } : e);
         } else if (randEvent < 0.93) {
-            eventMsg = "⚠️ COSMIC RAY BURST: Massive Proton Flood!"; 
+            eventMsg = LOG_MESSAGES.EVENTS.COSMIC_RAY_BURST; 
             signalType = "PROTON_BURST"; 
             signalColor = "#ff0055";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.PROTON } : e);
         } else if (randEvent < 0.98) {
-            eventMsg = "⚠️ VACUUM FLUCTUATION: Massive Electron Storm!"; 
+            eventMsg = LOG_MESSAGES.EVENTS.VACUUM_FLUCTUATION; 
             signalType = "ELECTRON_FLUCTUATION"; 
             signalColor = "#facc15";
             nextEntities = nextEntities.map(e => (e.type !== EntityType.ENEMY_POSITRON && e.type !== EntityType.ANTI_NUCLIDE && e.type !== EntityType.ANOTHER_NUCLIDE) ? { ...e, type: EntityType.ENEMY_ELECTRON } : e);
         } else {
-            eventMsg = "⚠️ POSITRON MAZE: Quantum Confinement!"; 
+            eventMsg = LOG_MESSAGES.EVENTS.POSITRON_MAZE; 
             signalType = "POSITRON_MAZE"; 
             signalColor = "#e879f9";
             

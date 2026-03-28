@@ -4,6 +4,7 @@ import { BONUS_SCORES } from '../constants/economy';
 import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
@@ -40,24 +41,24 @@ export const calculateInteraction = (
                 if (target.isHighEnergy) {
                     // Forced Capture: e- + p -> n (High energy only)
                     res.dZ = 1; res.dA = 1;
-                    res.messages.push("⚡ e- + p → n");
-                    res.inducedReactionLabel = "Forced Capture";
+                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PROTON_REACTION);
+                    res.inducedReactionLabel = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE_PLAYER;
                     res.shouldFlash = true;
                     res.flashColor = "bg-white";
                     return res;
                 } else {
                     // Normal energy p: No reaction, pass through
-                    res.messages.push("Electron passes through proton");
+                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PASSES_PROTON);
                     return res;
                 }
             case EntityType.NEUTRON:
                 // No reaction, pass through
-                res.messages.push("Electron passes through neutron");
+                res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PASSES_NEUTRON);
                 return res;
             case EntityType.ENEMY_ELECTRON:
                 // Coulomb repulsion: e- vs e-
                 res.isCoulombScattered = true;
-                res.scatteredMessage = "Coulomb repulsion: e- vs e-";
+                res.scatteredMessage = LOG_MESSAGES.PHYSICS.COULOMB_REPULSION_EE;
                 return res;
             case EntityType.ENEMY_POSITRON:
                 // Annihilation
@@ -71,11 +72,11 @@ export const calculateInteraction = (
     switch (target.type) {
         case EntityType.PROTON:
             if (isFusionDisabled) {
-                res.messages.push("⚠️ Proton was blocked by Coulomb barrier. (+1 Core)");
+                res.messages.push(LOG_MESSAGES.PHYSICS.PROTON_BLOCKED_BARRIER);
                 // No dZ, dA, no isCoulombScattered -> pool in moveSimulator
             } else if (isRealPhysicsActive) {
                 res.isCoulombScattered = true;
-                res.scatteredMessage = "Proton was scattered by Coulomb barrier";
+                res.scatteredMessage = LOG_MESSAGES.PHYSICS.PROTON_SCATTERED_BARRIER;
             } else if (currentNuclide.z === 1 && currentNuclide.a === 1 && target.isHighEnergy) {
                 res.isPpFusion = true;
                 res.dA = 1; 
@@ -93,60 +94,72 @@ export const calculateInteraction = (
                     //res.hpPenalty = 999; // Fatal
                     res.hpPenalty = 20;
                     res.dZ = 1; res.dA = 1; // Daredevil: Allow transformation even if fatal
-                    res.scatteredMessage = "Unstable proton capture";
+                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.UNSTABLE_PROTON_CAPTURE;
                 } else {
                     res.isCoulombScattered = true;
-                    res.scatteredMessage = "Proton was scattered by Coulomb barrier";
+                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.PROTON_SCATTERED_BARRIER;
                 }
             }
             break;
 
         case EntityType.NEUTRON:
             if (isZeroBarnActive) {
-                res.messages.push("⚠️ Neutron was not absorbed due to 0 barn. (+1 Core)");
+                res.messages.push(LOG_MESSAGES.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN);
             } else {
                 res.dA = 1;
             }
             break;
 
-        case EntityType.ENEMY_ELECTRON:
-            if (isRealPhysicsActive) {
-                // Real Physics ON: Only capture if primary decay mode is EC-related
-                const primaryDecay = currentNuclide.decayModes[0];
-                const isECCapable = primaryDecay && (
-                    primaryDecay === DecayMode.ELECTRON_CAPTURE ||
-                    primaryDecay === DecayMode.DOUBLE_ELECTRON_CAPTURE ||
-                    primaryDecay === DecayMode.EC_ALPHA ||
-                    primaryDecay === DecayMode.EC_PROTON ||
-                    primaryDecay === DecayMode.EC_2PROTON ||
-                    primaryDecay === DecayMode.EC_SF ||
-                    primaryDecay === DecayMode.EC_B_PLUS
-                );
+        case EntityType.ENEMY_ELECTRON: {
+            const isECCapable = currentNuclide.decayModes.some(m => 
+                m === DecayMode.ELECTRON_CAPTURE ||
+                m === DecayMode.DOUBLE_ELECTRON_CAPTURE ||
+                m === DecayMode.EC_ALPHA ||
+                m === DecayMode.EC_PROTON ||
+                m === DecayMode.EC_2PROTON ||
+                m === DecayMode.EC_SF ||
+                m === DecayMode.EC_B_PLUS
+            );
 
+            if (isRealPhysicsActive) {
+                // Real Physics ON: Only capture if any decay mode is EC-related
                 if (isECCapable) {
                     res.dZ = -1;
-                    res.messages = [`Electron captured via ${primaryDecay} channel`].filter(Boolean);
+                    res.isECCapture = true;
+                    const ecMode = currentNuclide.decayModes.find(m => 
+                        m === DecayMode.ELECTRON_CAPTURE ||
+                        m === DecayMode.DOUBLE_ELECTRON_CAPTURE ||
+                        m === DecayMode.EC_ALPHA ||
+                        m === DecayMode.EC_PROTON ||
+                        m === DecayMode.EC_2PROTON ||
+                        m === DecayMode.EC_SF ||
+                        m === DecayMode.EC_B_PLUS
+                    );
+                    res.messages = [LOG_MESSAGES.PHYSICS.ELECTRON_CAPTURED_VIA_CHANNEL(ecMode || "")].filter(Boolean);
                 } else if (scatteringActive) {
-                    res.messages.push("⚠️ Electron scattering prevents capture. (+1 Core)");
+                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
                 } else {
                     res.isCoulombScattered = true;
-                    res.scatteredMessage = "Electron scattered due to mass-energy stability";
+                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERED_STABILITY;
                 }
             } else if (scatteringActive) {
-                res.messages.push("⚠️ Electron scattering prevents capture. (+1 Core)");
+                res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
             } else {
                 if (hp <= 10 && consecutiveElectrons >= 5) res.isBremsAchieved = true;
                 if (charges > 0 || target.isHighEnergy) {
                     res.dZ = -1;
+                    if (isECCapable) res.isECCapture = true;
                     if (charges > 0 && !target.isHighEnergy) {
                         res.chargesUsed = 1;
                         res.magicProtectionBonus = currentNuclide.z * BONUS_SCORES.MAGIC_PROTECTION_PER_Z;
                     }
                 } else {
                     res.hpPenalty = hp * 0.5; res.dZ = -1;
+                    if (isECCapable) res.isECCapture = true;
                 }
             }
             break;
+        }
 
         case EntityType.ENEMY_POSITRON:
             res.isPositronAbsorption = true;
@@ -187,7 +200,7 @@ export const calculateNeutronReaction = (
             hpPenalty: 0,
             energyBonus: 0,
             actionBonusScore: 0,
-            messages: [`⚠️ ${target.isHighEnergy ? "High energy neutron" : "Neutron"} was not absorbed due to 0 barn. (+1 Core)`],
+            messages: [target.isHighEnergy ? LOG_MESSAGES.PHYSICS.HIGH_ENERGY_NEUTRON_NOT_ABSORBED_ZERO_BARN : LOG_MESSAGES.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN],
             chargesUsed: 0,
             newGridEntities: currentEntities,
             shouldFlash: false
@@ -400,7 +413,7 @@ export const calculateProtonReaction = (
     if (isFusionDisabled) {
         return {
             dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0,
-            messages: ["⚠️ Proton was blocked by Coulomb barrier. (+1 Core)"],
+            messages: [LOG_MESSAGES.PHYSICS.PROTON_BLOCKED_BARRIER],
             chargesUsed: 0
         };
     }

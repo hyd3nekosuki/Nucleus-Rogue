@@ -1,4 +1,5 @@
 import { GameState } from '../../types';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { registerHistoryEntry } from '../core/historyService';
 
@@ -26,7 +27,7 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
     const nextHistory = registerHistoryEntry(
         state.evolutionHistory,
         state.currentNuclide,
-        entry?.method || (state.currentNuclide.z === -1 ? "Reincarnation" : "Resonance"),
+        entry?.method || (state.currentNuclide.z === -1 ? LOG_MESSAGES.HISTORY.REINCARNATION : LOG_MESSAGES.HISTORY.RESONANCE),
         entry ? entry.pz : null,
         entry ? entry.pa : null,
         state.turn,
@@ -35,7 +36,7 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
 
     const nextMsg = getNextTutorialMessage(state, 'ENGRAVE_PERFORMED');
     const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'ENGRAVE_PERFORMED');
-    const resonanceMsg = isResonating ? ["✨ RHYTHMIC RESONANCE: Cost 0E"] : [];
+    const resonanceMsg = isResonating ? [LOG_MESSAGES.HISTORY.RHYTHMIC_RESONANCE] : [];
 
     return {
         ...state,
@@ -43,7 +44,7 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
         tutorialMessage: nextMsg,
         energyPoints: state.energyPoints - cost,
         evolutionHistory: nextHistory,
-        messages: [...state.messages, `📍 ${state.currentNuclide.name} engraved in history!`, ...resonanceMsg].slice(-10),
+        messages: [...state.messages, LOG_MESSAGES.HISTORY.ENGRAVED(state.currentNuclide.name), ...resonanceMsg].slice(-10),
         lastEvent: { id: now, type: 'ENGRAVE', flash: 'bg-yellow-400' }
     };
 };

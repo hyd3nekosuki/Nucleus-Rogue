@@ -2,6 +2,7 @@ import { ELEMENT_GROUPS } from '../constants/atomicData';
 import { MAGIC_NUMBERS } from '../constants/physics';
 import { BONUS_SCORES } from '../constants/economy';
 import { TITLES } from '../constants/titles';
+import { LOG_MESSAGES } from '../constants/logMessageTextData';
 
 import { DecayMode } from '../types';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -45,10 +46,10 @@ export const processUnlocks = (
             let trophyBonus = 0;
             if (newZ === 0) {
                 trophyBonus = BONUS_SCORES.NEUTRON_0;
-                messages.push(` 👑 HIDDEN TITLE: Neutron (n)! (+${trophyBonus.toLocaleString()} PTS)`);
+                messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_NEUTRON(trophyBonus));
             } else {
                 trophyBonus = newZ * 1000;
-                messages.push(` 🏆 NEW TITLE: Z=${newZ}! (+${trophyBonus.toLocaleString()} PTS)`);
+                messages.push(LOG_MESSAGES.UNLOCKS.NEW_TITLE_Z(newZ, trophyBonus));
             }
             scoreBonus += trophyBonus;
         }
@@ -57,7 +58,7 @@ export const processUnlocks = (
         if (nuclideData.decayModes.includes(DecayMode.UNKNOWN) && !updatedGroups.includes(TITLES.UNKNOWN)) {
             updatedGroups = [...updatedGroups, TITLES.UNKNOWN];
             scoreBonus += BONUS_SCORES.UNKNOWN;
-            messages.push(` ❔ HIDDEN TITLE: Unknown! Encountered an unmeasured decay path. (+${BONUS_SCORES.UNKNOWN.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_UNKNOWN(BONUS_SCORES.UNKNOWN));
         }
 
         // 12. Group Unlock Check
@@ -67,7 +68,7 @@ export const processUnlocks = (
                 if (allFound) {
                     updatedGroups = [...updatedGroups, groupName];
                     scoreBonus += BONUS_SCORES.GRANDMASTER_SERIES;
-                    messages.push(` 👑 GRANDMASTER: ${groupName} Series Completed! (+${BONUS_SCORES.GRANDMASTER_SERIES.toLocaleString()} PTS)`);
+                    messages.push(LOG_MESSAGES.UNLOCKS.GRANDMASTER_SERIES(groupName, BONUS_SCORES.GRANDMASTER_SERIES));
                 }
             }
         });
@@ -79,15 +80,15 @@ export const processUnlocks = (
 
         if (isMagicZ && isMagicN) {
             scoreBonus += BONUS_SCORES.DOUBLE_MAGIC;
-            messages.push(` 🧙‍♂️✨ DOUBLY MAGIC NUCLEUS! (Z=${newZ}, N=${newN}) (+${BONUS_SCORES.DOUBLE_MAGIC.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.DOUBLY_MAGIC(newZ, newN, BONUS_SCORES.DOUBLE_MAGIC));
         } else {
             if (isMagicZ) {
                 scoreBonus += BONUS_SCORES.MAGIC_SHELL;
-                messages.push(` ✨ MAGIC PROTON SHELL CLOSED (Z=${newZ})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
+                messages.push(LOG_MESSAGES.UNLOCKS.MAGIC_PROTON_SHELL(newZ, BONUS_SCORES.MAGIC_SHELL));
             }
             if (isMagicN) {
                 scoreBonus += BONUS_SCORES.MAGIC_SHELL;
-                messages.push(` ✨ MAGIC NEUTRON SHELL CLOSED (N=${newN})! (+${BONUS_SCORES.MAGIC_SHELL.toLocaleString()} PTS)`);
+                messages.push(LOG_MESSAGES.UNLOCKS.MAGIC_NEUTRON_SHELL(newN, BONUS_SCORES.MAGIC_SHELL));
             }
         }
 
@@ -96,7 +97,7 @@ export const processUnlocks = (
         if (isTransmutation && !isQuantumOverride && isAlreadyUnlocked && !updatedGroups.includes(TITLES.EXP_REPLICATE)) {
             updatedGroups = [...updatedGroups, TITLES.EXP_REPLICATE];
             scoreBonus += BONUS_SCORES.EXP_REPLICATE_TITLE;
-            messages.push(` ⚛️ HIDDEN TITLE: Exp. Replicate! (+${BONUS_SCORES.EXP_REPLICATE_TITLE.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_EXP_REPLICATE(BONUS_SCORES.EXP_REPLICATE_TITLE));
         }
     }
 
@@ -106,11 +107,11 @@ export const processUnlocks = (
         if (isAnnihilation) {
             updatedGroups = [...updatedGroups, TITLES.PAIR_ANNIHILATION];
             scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
-            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_PAIR_ANNIHILATION(BONUS_SCORES.PAIR_ANNIHILATION));
         } else if (betaPlusCount >= 10) {
             updatedGroups = [...updatedGroups, TITLES.PAIR_ANNIHILATION];
             scoreBonus += BONUS_SCORES.PAIR_ANNIHILATION;
-            messages.push(` ☯️ HIDDEN TITLE: Pair annihilation! (Mastered β+ Emission) (+${BONUS_SCORES.PAIR_ANNIHILATION.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_PAIR_ANNIHILATION_MASTERED(BONUS_SCORES.PAIR_ANNIHILATION));
         }
     }
 
@@ -118,14 +119,14 @@ export const processUnlocks = (
     if (!updatedGroups.includes(TITLES.NEUTRONIZATION) && betaMinusCount >= 20) {
         updatedGroups = [...updatedGroups, TITLES.NEUTRONIZATION];
         scoreBonus += BONUS_SCORES.NEUTRONIZATION;
-        messages.push(` ⚪ HIDDEN TITLE: Neutronization! (Mastered p + e- → n reaction) (+${BONUS_SCORES.NEUTRONIZATION.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_NEUTRONIZATION(BONUS_SCORES.NEUTRONIZATION));
     }
 
     // 4. Special Hidden Title: Nucleosynthesis
     if (isNucleosynthesis && !updatedGroups.includes(TITLES.NUCLEOSYNTHESIS)) {
         updatedGroups = [...updatedGroups, TITLES.NUCLEOSYNTHESIS];
         scoreBonus += BONUS_SCORES.NUCLEOSYNTHESIS_TITLE;
-        messages.push(` 🌟 HIDDEN TITLE: Nucleosynthesis! The Creation of Elements. (+${BONUS_SCORES.NUCLEOSYNTHESIS_TITLE.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_NUCLEOSYNTHESIS(BONUS_SCORES.NUCLEOSYNTHESIS_TITLE));
     }
 
     // 6. Special Hidden Title: Temporal Inversion
@@ -133,9 +134,9 @@ export const processUnlocks = (
         const inversionBonus = comboScore * 10;
         if (!updatedGroups.includes(TITLES.TEMPORAL_INVERSION)) {
             updatedGroups = [...updatedGroups, TITLES.TEMPORAL_INVERSION];
-            messages.push(` ⏱ HIDDEN TITLE: Temporal Inversion. (+${inversionBonus.toLocaleString()} PTS 10x Bonus!)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_TEMPORAL_INVERSION(inversionBonus));
         } else {
-            messages.push(` ⏱ TEMPORAL INVERSION: 10x Combo Score! (+${inversionBonus.toLocaleString()} PTS)`);
+            messages.push(LOG_MESSAGES.UNLOCKS.TEMPORAL_INVERSION_BONUS(inversionBonus));
         }
         scoreBonus += inversionBonus;
     }
@@ -144,49 +145,49 @@ export const processUnlocks = (
     if (isFusionAchieved && !updatedGroups.includes(TITLES.FUSION)) {
         updatedGroups = [...updatedGroups, TITLES.FUSION];
         scoreBonus += BONUS_SCORES.FUSION_TITLE;
-        messages.push(` 💥 HIDDEN TITLE: Fusion! (+${BONUS_SCORES.FUSION_TITLE.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_FUSION(BONUS_SCORES.FUSION_TITLE));
     }
 
     // 9. Special Hidden Title: Fission
     if (isFissionAchieved && !updatedGroups.includes(TITLES.FISSION)) {
         updatedGroups = [...updatedGroups, TITLES.FISSION];
         scoreBonus += BONUS_SCORES.FISSION_TITLE;
-        messages.push(` ☢️ HIDDEN TITLE: Fission! Breaking the Nucleus. (+${BONUS_SCORES.FISSION_TITLE.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_FISSION(BONUS_SCORES.FISSION_TITLE));
     }
 
     // 10. Special Hidden Title: zero barn
     if (isZeroBarnAchieved && !updatedGroups.includes(TITLES.ZERO_BARN)) {
         updatedGroups = [...updatedGroups, TITLES.ZERO_BARN];
         scoreBonus += BONUS_SCORES.ZERO_BARN;
-        messages.push(` 🌑 HIDDEN TITLE: zero barn! Neutrons flow through you. (+${BONUS_SCORES.ZERO_BARN.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_ZERO_BARN(BONUS_SCORES.ZERO_BARN));
     }
 
     // 11. Special Hidden Title: Electron scattering
     if (isBremsAchieved && !updatedGroups.includes(TITLES.ELECTRON_SCATTERING)) {
         updatedGroups = [...updatedGroups, TITLES.ELECTRON_SCATTERING];
         scoreBonus += BONUS_SCORES.ELECTRON_SCATTERING;
-        messages.push(` ↪️ HIDDEN TITLE: Electron scattering! Repelling electrons at low stability! (+${BONUS_SCORES.ELECTRON_SCATTERING.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_ELECTRON_SCATTERING(BONUS_SCORES.ELECTRON_SCATTERING));
     }
 
     // NEW: Special Hidden Title: Gluttony
     if (isGluttonyAchieved && !updatedGroups.includes(TITLES.GLUTTONY)) {
         updatedGroups = [...updatedGroups, TITLES.GLUTTONY];
         scoreBonus += BONUS_SCORES.GLUTTONY;
-        messages.push(` 🕳️ HIDDEN TITLE: Gluttony! The grid has been consumed. (+${BONUS_SCORES.GLUTTONY.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_GLUTTONY(BONUS_SCORES.GLUTTONY));
     }
 
     // NEW: Special Hidden Title: Demon core
     if (isDaredevilAchieved && !updatedGroups.includes(TITLES.DEMON_CORE)) {
         updatedGroups = [...updatedGroups, TITLES.DEMON_CORE];
         scoreBonus += BONUS_SCORES.DEMON_CORE;
-        messages.push(` 🫀 HIDDEN TITLE: Demon core! Attempting the impossible from the brink. (+${BONUS_SCORES.DEMON_CORE.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_DEMON_CORE(BONUS_SCORES.DEMON_CORE));
     }
 
     // NEW: Special Hidden Title: Forbidden Capture
     if (isPositronAbsorbed && !updatedGroups.includes(TITLES.FORBIDDEN_CAPTURE)) {
         updatedGroups = [...updatedGroups, TITLES.FORBIDDEN_CAPTURE];
         scoreBonus += BONUS_SCORES.FORBIDDEN_CAPTURE;
-        messages.push(` 🌌 HIDDEN TITLE: Forbidden Capture! Consumed the elusive anti-matter. (+${BONUS_SCORES.FORBIDDEN_CAPTURE.toLocaleString()} PTS)`);
+        messages.push(LOG_MESSAGES.UNLOCKS.HIDDEN_TITLE_FORBIDDEN_CAPTURE(BONUS_SCORES.FORBIDDEN_CAPTURE));
     }
 
     return { updatedElements, updatedGroups, scoreBonus, messages };

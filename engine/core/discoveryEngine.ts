@@ -13,10 +13,10 @@ import { calculateNextLevel, checkBarrierReplenish } from '../atomicTransitions'
 import { processUnlocks } from '../unlockSystem';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { TITLES } from '../../constants/titles';
-import { TUTORIAL_MESSAGES } from '../../constants/tutorial';
 import { generateEntities } from '../moveSimulator';
 import { registerHistoryEntry } from './historyService';
 import { decomposeDecayMode } from '../../utils/masteryUtils';
+import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 
 /**
  * Internal helper to find a nearby empty cell for byproduct placement.
@@ -124,8 +124,8 @@ export const applyDiscoveryLogic = (
     let levelUpEvent: GameStateEvent | undefined;
 
     if (nextLevel > state.playerLevel) {
-        nextMessages = [...nextMessages, `✨ Mastery LV. ${nextLevel}`];
-        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [`Mastery Level ${nextLevel}`] };
+        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.MASTERY_LEVEL_UP(nextLevel)];
+        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [LOG_MESSAGES.HISTORY.MASTERY_LEVEL] };
     }
 
     // 6. Tutorial Management
@@ -146,9 +146,9 @@ export const applyDiscoveryLogic = (
     const wasAlreadyComplete = Array.from({ length: 118 }, (_, i) => i + 1).every(z => state.unlockedElements.includes(z));
     
     if (hasAllElements && !wasAlreadyComplete) {
-        finalTutorialMsg = TUTORIAL_MESSAGES.ALL_ELEMENTS_COMPLETE;
+        finalTutorialMsg = LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE;
         finalRecordTime = state.elapsedTime;
-        nextMessages = [...nextMessages, `🏆 ACHIEVEMENT: Periodic Table Completed!`];
+        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.PERIODIC_TABLE_COMPLETE];
     }
 
     // Achievement Time Recording
@@ -205,7 +205,7 @@ export const applyDiscoveryLogic = (
 
     // 9. Drip Line Warning
     if (!nextNuclide.isStable && (nextNuclide.isProtonDripLine || nextNuclide.isNeutronDripLine)) {
-        nextMessages = [...nextMessages, "⚠️ Danger: Drip line limit"];
+        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.DRIP_LINE_WARNING];
     }
 
     // 10. Daredevil Anti-Matter spawn handling
