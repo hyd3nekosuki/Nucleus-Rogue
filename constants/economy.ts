@@ -35,6 +35,9 @@ export const BONUS_SCORES = {
   FORBIDDEN_CAPTURE: 500000
 };
 
+export const ANNIHILATION_ENERGY_REWARD = 1000;
+export const DEFEAT_ENERGY_REWARD = 1;
+
 export const STABILIZE_COST = 5;
 export const NUCLEOSYNTHESIS_COST = 200;
 export const FORCE_DECAY_COST = 5;

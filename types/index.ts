@@ -22,3 +22,5 @@ export * from './engine/tutorial';
 // System Layer (UI, Audio, and Infrastructure)
 export * from './system/ui';    // Added in Step 1-7
 export * from './system/audio'; // Added in Step 1-7
+
+export type Language = 'en' | 'jp';

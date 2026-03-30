@@ -1,5 +1,6 @@
 
 import { EntityType, NuclideData, GridEntity, Position } from '../types';
+import { ANNIHILATION_ENERGY_REWARD } from '../constants/economy';
 
 /**
  * Calculates the outcome of a collision between the nucleus and an anti-nuclide.
@@ -13,7 +14,7 @@ export const calculateAnnihilation = (
     // Massive energy release proportional to mass
     //const energyBonus = Math.floor(940 * currentNuclide.a);
     //const actionBonusScore= 1000000;
-    const energyBonus = 1000; // <- need to reconsider
+    const energyBonus = ANNIHILATION_ENERGY_REWARD; // <- need to reconsider
     const actionBonusScore = Math.floor(940 * currentNuclide.a);
     
     // Core collapses to absolute zero

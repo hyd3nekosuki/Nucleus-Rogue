@@ -1,11 +1,11 @@
-import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect } from '../types';
+import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect, Language } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt, getFreeCells } from '../utils/gridUtils';
 import { calculateInteraction, calculateNeutronReaction, calculateProtonReaction } from '../physics/atomicCalculator';
 import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
-import { LOG_MESSAGES } from '../constants/logMessageTextData';
+import { getLogMessages } from '../constants';
 
 /**
  * Result structure for the physics simulation of a move.
@@ -103,8 +103,10 @@ export const calculateMoveResult = (
     prev: GameState,
     dx: number,
     dy: number,
-    ENERGY_EVOLUTION_TURNS: number
+    ENERGY_EVOLUTION_TURNS: number,
+    language: Language = 'en'
 ): MoveResult => {
+    const logMessages = getLogMessages(language);
     const newPos: Position = { x: prev.playerPos.x + dx, y: prev.playerPos.y + dy };
 
     // 1. Validation
@@ -219,7 +221,8 @@ export const calculateMoveResult = (
             !prev.disabledSkills.includes(TITLES.FISSION),
             prev.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !prev.disabledSkills.includes(TITLES.NEUTRONIZATION),
             prev.unlockedGroups,
-            prev.disabledSkills
+            prev.disabledSkills,
+            language
         );
 
         // High energy neutron special reactions
@@ -235,7 +238,8 @@ export const calculateMoveResult = (
             isZeroBarnActive,
             isDaredevilActive,
             prev.unlockedGroups,
-            prev.disabledSkills
+            prev.disabledSkills,
+            language
         );
 
         if (protonReaction) {
@@ -247,7 +251,7 @@ export const calculateMoveResult = (
         } else {
             interactionResult = calculateInteraction(
                 prev.currentNuclide, targetEntity, cE, prev.hp, prev.magicBarrierCharges, 
-                prev.unlockedGroups, prev.disabledSkills
+                prev.unlockedGroups, prev.disabledSkills, language
             );
         }
 
@@ -259,7 +263,7 @@ export const calculateMoveResult = (
                 isAnnihilation: true,
                 energyBonus: 0, actionBonusScore: 0,
                 evolvedEntities: nextEntities,
-                messages: [LOG_MESSAGES.PHYSICS.ANNIHILATION],
+                messages: [logMessages.PHYSICS.ANNIHILATION],
                 chargesUsed: 0,
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0,
                 lastConsumedType: null,
@@ -287,19 +291,19 @@ export const calculateMoveResult = (
             // 1. Proton scattering
             if (targetEntity.type === EntityType.PROTON && interactionResult.isCoulombScattered && !unlockProgress.hasScatteredProton) {
                 unlockProgress.hasScatteredProton = true;
-                newTutorialMessage = LOG_MESSAGES.SYSTEM.TUTORIAL_COULOMB_BARRIER;
+                newTutorialMessage = logMessages.SYSTEM.TUTORIAL_COULOMB_BARRIER;
                 newTutorialStartTurn = prev.turn + 1;
             }
             // 2. Electron scattering
             if (targetEntity.type === EntityType.ENEMY_ELECTRON && interactionResult.isCoulombScattered && !unlockProgress.hasScatteredElectron) {
                 unlockProgress.hasScatteredElectron = true;
-                newTutorialMessage = LOG_MESSAGES.SYSTEM.TUTORIAL_MASS_STABILITY;
+                newTutorialMessage = logMessages.SYSTEM.TUTORIAL_MASS_STABILITY;
                 newTutorialStartTurn = prev.turn + 1;
             }
             // 3. Neutron absorption resulting in transformation
             if (targetEntity.type === EntityType.NEUTRON && (dZ !== 0 || dA !== 0) && !unlockProgress.hasAbsorbedNeutron) {
                 unlockProgress.hasAbsorbedNeutron = true;
-                newTutorialMessage = LOG_MESSAGES.SYSTEM.TUTORIAL_NEUTRON_CAPTURE;
+                newTutorialMessage = logMessages.SYSTEM.TUTORIAL_NEUTRON_CAPTURE;
                 newTutorialStartTurn = prev.turn + 1;
             }
 

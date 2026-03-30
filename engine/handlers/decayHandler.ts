@@ -16,7 +16,8 @@ import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine
 import { processUnlocks } from '../unlockSystem';
 import { finalizeAction } from '../core/turnService';
 import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/collisionService';
-import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages } from '../../constants';
+import { getLocalizedReactionLabel } from '../../utils/historyLogic';
 
 /**
  * Handler for manual radioactive decay actions.
@@ -25,6 +26,7 @@ import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }): GameState => {
     const { mode } = payload;
     const now = Date.now();
+    const logMessages = getLogMessages(state.language);
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
     
     let actualMode = mode;
@@ -97,7 +99,8 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         now, 
         state.unlockedGroups.includes(TITLES.PAIR_ANNIHILATION) && !state.disabledSkills.includes(TITLES.PAIR_ANNIHILATION), 
         fissionEnabled, 
-        state.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !state.disabledSkills.includes(TITLES.NEUTRONIZATION)
+        state.unlockedGroups.includes(TITLES.NEUTRONIZATION) && !state.disabledSkills.includes(TITLES.NEUTRONIZATION),
+        state.language
     );
     const newData = getNuclideDataSync(state.currentNuclide.z + decayResult.dZ, state.currentNuclide.a + decayResult.dA);
     
@@ -138,7 +141,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
         }
 
         const newHp = Math.max(0, state.hp - 20);
-        const failMsg = LOG_MESSAGES.DECAY.DECAY_FAILED_DRIP_LINE;
+        const failMsg = logMessages.DECAY.DECAY_FAILED_DRIP_LINE;
         
         let finalEntities = state.gridEntities;
         if (unlockResult.updatedGroups.includes(TITLES.DEMON_CORE) && !state.unlockedGroups.includes(TITLES.DEMON_CORE)) {
@@ -174,23 +177,23 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     const totalBaseActionPoints = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS) + decayResult.actionBonusScore;
     const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
     
-    const forcedMsg = isForced ? LOG_MESSAGES.DECAY.FORCED_DECAY(getDecayModeLabel(actualMode)) : "";
+    const forcedMsg = isForced ? logMessages.DECAY.FORCED_DECAY(getDecayModeLabel(actualMode, state.language)) : "";
     const decayDescMsg = 
-          actualMode === DecayMode.ALPHA ? LOG_MESSAGES.DECAY.ALPHA_INTO(newData.name) 
-        : actualMode === DecayMode.BETA_MINUS ? LOG_MESSAGES.DECAY.BETA_MINUS_INTO(newData.name) 
-        : actualMode === DecayMode.DOUBLE_BETA_MINUS ? LOG_MESSAGES.DECAY.DOUBLE_BETA_MINUS_INTO(newData.name)
-        : actualMode === DecayMode.BETA_PLUS ? LOG_MESSAGES.DECAY.BETA_PLUS_INTO(newData.name) 
-        : actualMode === DecayMode.DOUBLE_BETA_PLUS ? LOG_MESSAGES.DECAY.DOUBLE_BETA_PLUS_INTO(newData.name)
-        : actualMode === DecayMode.ELECTRON_CAPTURE ? LOG_MESSAGES.DECAY.ELECTRON_CAPTURE_INTO(newData.name) 
-        : actualMode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? LOG_MESSAGES.DECAY.DOUBLE_ELECTRON_CAPTURE_INTO(newData.name)
-        : actualMode === DecayMode.NEUTRON_EMISSION ? LOG_MESSAGES.DECAY.NEUTRON_EMISSION_INTO(newData.name) 
-        : actualMode === DecayMode.TWO_NEUTRON_EMISSION ? LOG_MESSAGES.DECAY.TWO_NEUTRON_EMISSION_INTO(newData.name)
-        : actualMode === DecayMode.PROTON_EMISSION ? LOG_MESSAGES.DECAY.PROTON_EMISSION_INTO(newData.name) 
-        : actualMode === DecayMode.TWO_PROTON_EMISSION ? LOG_MESSAGES.DECAY.TWO_PROTON_EMISSION_INTO(newData.name) 
-        : actualMode === DecayMode.SPONTANEOUS_FISSION ? LOG_MESSAGES.DECAY.SF_INTO(newData.name) 
-        : actualMode === DecayMode.IT ? LOG_MESSAGES.DECAY.IT_INTO(newData.name)
-        : actualMode === DecayMode.GAMMA ? LOG_MESSAGES.DECAY.GAMMA_DECAY
-        : actualMode.startsWith('B-') || actualMode.startsWith('B+') || actualMode.startsWith('EC') ? LOG_MESSAGES.DECAY.TRIGGER_INTO(decayResult.trigger, newData.name)
+          actualMode === DecayMode.ALPHA ? logMessages.DECAY.ALPHA_INTO(newData.name) 
+        : actualMode === DecayMode.BETA_MINUS ? logMessages.DECAY.BETA_MINUS_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_BETA_MINUS ? logMessages.DECAY.DOUBLE_BETA_MINUS_INTO(newData.name)
+        : actualMode === DecayMode.BETA_PLUS ? logMessages.DECAY.BETA_PLUS_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_BETA_PLUS ? logMessages.DECAY.DOUBLE_BETA_PLUS_INTO(newData.name)
+        : actualMode === DecayMode.ELECTRON_CAPTURE ? logMessages.DECAY.ELECTRON_CAPTURE_INTO(newData.name) 
+        : actualMode === DecayMode.DOUBLE_ELECTRON_CAPTURE ? logMessages.DECAY.DOUBLE_ELECTRON_CAPTURE_INTO(newData.name)
+        : actualMode === DecayMode.NEUTRON_EMISSION ? logMessages.DECAY.NEUTRON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.TWO_NEUTRON_EMISSION ? logMessages.DECAY.TWO_NEUTRON_EMISSION_INTO(newData.name)
+        : actualMode === DecayMode.PROTON_EMISSION ? logMessages.DECAY.PROTON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.TWO_PROTON_EMISSION ? logMessages.DECAY.TWO_PROTON_EMISSION_INTO(newData.name) 
+        : actualMode === DecayMode.SPONTANEOUS_FISSION ? logMessages.DECAY.SF_INTO(newData.name) 
+        : actualMode === DecayMode.IT ? logMessages.DECAY.IT_INTO(newData.name)
+        : actualMode === DecayMode.GAMMA ? logMessages.DECAY.GAMMA_DECAY
+        : actualMode.startsWith('B-') || actualMode.startsWith('B+') || actualMode.startsWith('EC') ? logMessages.DECAY.TRIGGER_INTO(getLocalizedReactionLabel(decayResult.trigger, logMessages), newData.name)
         : "";
     
     let nextEntities = decayResult.newGridEntities;

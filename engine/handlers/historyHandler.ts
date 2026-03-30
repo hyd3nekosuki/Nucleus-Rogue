@@ -1,5 +1,5 @@
 import { GameState } from '../../types';
-import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages, LOG_MESSAGES } from '../../constants';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { registerHistoryEntry } from '../core/historyService';
 
@@ -22,6 +22,8 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
     // If not in history, only allow if rhythmic resonance is active (Secret Mechanic)
     if (!entry && !isResonating) return state;
 
+    const logMessages = getLogMessages(state.language);
+    
     // Use common history service for consistency
     // If entry is missing, we synthesize a lineage (Method: Reincarnation for electron, Resonance for others)
     const nextHistory = registerHistoryEntry(
@@ -34,9 +36,9 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
         true // forceEngraved
     );
 
-    const nextMsg = getNextTutorialMessage(state, 'ENGRAVE_PERFORMED');
+    const nextMsg = getNextTutorialMessage(state, 'ENGRAVE_PERFORMED', {}, state.language);
     const tutorialUpdates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, 'ENGRAVE_PERFORMED');
-    const resonanceMsg = isResonating ? [LOG_MESSAGES.HISTORY.RHYTHMIC_RESONANCE] : [];
+    const resonanceMsg = isResonating ? [logMessages.HISTORY.RHYTHMIC_RESONANCE] : [];
 
     return {
         ...state,
@@ -44,7 +46,7 @@ export const handleEngraveCurrent = (state: GameState, payload: { isResonating: 
         tutorialMessage: nextMsg,
         energyPoints: state.energyPoints - cost,
         evolutionHistory: nextHistory,
-        messages: [...state.messages, LOG_MESSAGES.HISTORY.ENGRAVED(state.currentNuclide.name), ...resonanceMsg].slice(-10),
+        messages: [...state.messages, logMessages.HISTORY.ENGRAVED(state.currentNuclide.name), ...resonanceMsg].slice(-10),
         lastEvent: { id: now, type: 'ENGRAVE', flash: 'bg-yellow-400' }
     };
 };

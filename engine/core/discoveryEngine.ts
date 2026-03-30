@@ -17,6 +17,8 @@ import { generateEntities } from '../moveSimulator';
 import { registerHistoryEntry } from './historyService';
 import { decomposeDecayMode } from '../../utils/masteryUtils';
 import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages } from '../../constants';
+import { getLocalizedReactionLabel } from '../../utils/historyLogic';
 
 /**
  * Internal helper to find a nearby empty cell for byproduct placement.
@@ -67,6 +69,7 @@ export const applyDiscoveryLogic = (
 ): GameState => {
     const { method, pz, pa, addedScore, chargesUsed, inducedDecayMode, isManualDecay } = context;
     const now = Date.now();
+    const logMessages = getLogMessages(state.language);
 
     // 1. Level & Mastery
     const masteryModes = isManualDecay && inducedDecayMode 
@@ -90,7 +93,8 @@ export const applyDiscoveryLogic = (
         method,
         pz,
         pa,
-        targetTurn
+        targetTurn,
+        false
     );
 
     // 4. Process Global Unlocks (Skills & Titles)
@@ -116,7 +120,8 @@ export const applyDiscoveryLogic = (
         state.isTimeStopped,
         !!flags.isQuantumOverride,
         state.playerLevel,
-        !!flags.isPositronAbsorbed
+        !!flags.isPositronAbsorbed,
+        state.language
     );
 
     // 5. Level Up Messaging
@@ -124,8 +129,8 @@ export const applyDiscoveryLogic = (
     let levelUpEvent: GameStateEvent | undefined;
 
     if (nextLevel > state.playerLevel) {
-        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.MASTERY_LEVEL_UP(nextLevel)];
-        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [LOG_MESSAGES.HISTORY.MASTERY_LEVEL] };
+        nextMessages = [...nextMessages, logMessages.SYSTEM.MASTERY_LEVEL_UP(nextLevel)];
+        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [logMessages.HISTORY.MASTERY_LEVEL] };
     }
 
     // 6. Tutorial Management
@@ -135,7 +140,7 @@ export const applyDiscoveryLogic = (
         nextNuclide, 
         currentTurn: targetTurn, 
         energyIncreased 
-    });
+    }, state.language);
     const tutorialUpdates = calculateTutorialFlagUpdates(state, nextTutorialMsg, targetTurn, tutorialEvent);
     
     // 6.5 Check for All Elements Discovery (Z=1 to 118)
@@ -146,9 +151,9 @@ export const applyDiscoveryLogic = (
     const wasAlreadyComplete = Array.from({ length: 118 }, (_, i) => i + 1).every(z => state.unlockedElements.includes(z));
     
     if (hasAllElements && !wasAlreadyComplete) {
-        finalTutorialMsg = LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE;
+        finalTutorialMsg = logMessages.TUTORIAL.ALL_ELEMENTS_COMPLETE;
         finalRecordTime = state.elapsedTime;
-        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.PERIODIC_TABLE_COMPLETE];
+        nextMessages = [...nextMessages, logMessages.SYSTEM.PERIODIC_TABLE_COMPLETE];
     }
 
     // Achievement Time Recording
@@ -205,7 +210,7 @@ export const applyDiscoveryLogic = (
 
     // 9. Drip Line Warning
     if (!nextNuclide.isStable && (nextNuclide.isProtonDripLine || nextNuclide.isNeutronDripLine)) {
-        nextMessages = [...nextMessages, LOG_MESSAGES.SYSTEM.DRIP_LINE_WARNING];
+        nextMessages = [...nextMessages, logMessages.SYSTEM.DRIP_LINE_WARNING];
     }
 
     // 10. Daredevil Anti-Matter spawn handling

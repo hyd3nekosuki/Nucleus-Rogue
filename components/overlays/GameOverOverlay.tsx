@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NuclideData } from '../../types';
+import { NuclideData, Language } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import { REASON } from '../../constants/gameOverReason';
 import { formatPreciseHalfLife } from '../../utils/scientificFormatters';
@@ -13,12 +13,13 @@ interface GameOverOverlayProps {
     onRestart: (random: boolean) => void;
     isSoundTestActive: boolean;
     onToggleSoundTest: () => void;
+    language: Language;
 }
 
 /**
  * Internal sub-component to display nuclide statistics.
  */
-const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isSoundTestActive: boolean; isNothingness: boolean }> = ({ nuclide, halfLife, isSoundTestActive, isNothingness }) => (
+const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isSoundTestActive: boolean; isNothingness: boolean; language: Language }> = ({ nuclide, halfLife, isSoundTestActive, isNothingness, language }) => (
     <div className={`mb-6 bg-black/60 p-4 rounded-lg border border-neon-blue/30 w-full max-sm shadow-[inset_0_0_20px_rgba(0,243,255,0.1)] relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
         <h3 className="text-[10px] text-neon-blue uppercase tracking-[0.3em] mb-3 border-b border-neon-blue/20 pb-1 font-black">diagnostics result</h3>
         <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm font-mono text-left">
@@ -27,7 +28,7 @@ const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isS
             
             <div className="text-gray-500">Mode:</div>
             <div className="text-neon-green font-bold text-right break-words text-xs leading-tight flex items-center justify-end h-full drop-shadow-[0_0_5px_#00ff9d]">
-                {isNothingness ? "ANNIHILATED" : formatDecayModes(nuclide)}
+                {isNothingness ? "ANNIHILATED" : formatDecayModes(nuclide, true, language)}
             </div>
 
             <div className="text-gray-500">Protons (Z):</div>
@@ -40,7 +41,7 @@ const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isS
 );
 
 const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ 
-    isVisible, reason = REASON.UNKNOWN, nuclide, onRestart, isSoundTestActive, onToggleSoundTest 
+    isVisible, reason = REASON.UNKNOWN, nuclide, onRestart, isSoundTestActive, onToggleSoundTest, language 
 }) => {
     if (!isVisible) return null;
 
@@ -69,7 +70,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             
             {/* Diagnostics Stats */}
             {!isCriticalFail && (
-                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} isNothingness={isNothingness} />
+                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} isNothingness={isNothingness} language={language} />
             )}
             
             {/* External Reference for Failures */}

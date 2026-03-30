@@ -8,6 +8,8 @@ interface SidebarFooterProps {
   primaryMode: string;
   isVoiceMuted: boolean;
   onToggleVoice: () => void;
+  language: 'en' | 'jp';
+  onToggleLanguage: () => void;
 }
 
 const SidebarFooter: React.FC<SidebarFooterProps> = ({
@@ -17,7 +19,9 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({
   bpm,
   primaryMode,
   isVoiceMuted,
-  onToggleVoice
+  onToggleVoice,
+  language,
+  onToggleLanguage
 }) => {
   return (
     <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
@@ -42,6 +46,13 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({
       <div className="flex items-center gap-2">
         <div className="italic">Nucleus Rogue</div>
         <div className="flex gap-1.5 ml-1">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleLanguage(); }} 
+            className="w-5 h-5 rounded border border-neon-green text-neon-green flex items-center justify-center transition-all active:scale-90 hover:bg-neon-green/10 shadow-[0_0_5px_#00ff9d]" 
+            title="Toggle Language (EN/JP)"
+          >
+            <span className="text-[7px] font-bold uppercase">{language}</span>
+          </button>
           <button 
             onClick={(e) => { e.stopPropagation(); onToggleVoice(); }} 
             className={`w-5 h-5 rounded border flex items-center justify-center transition-all active:scale-90 ${

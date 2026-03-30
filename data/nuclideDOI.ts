@@ -10,9 +10,9 @@ import { DOI_SEGMENT_5 } from './nuclideDOI/nuclideDOI_101_118';
  * This record is composed of segmented data files for better maintainability and scientific categorization.
  * 
  * All DOIs verified against https://doi.org for resolution as of 2024.
- * Format: "Z-A": "DOI_STRING"
+ * Format: "Z-A": { doi: "DOI_STRING", isAccessible: boolean }
  */
-export const NUCLIDE_DOI: Record<string, string> = {
+export const NUCLIDE_DOI: Record<string, { doi: string, isAccessible: boolean }> = {
   ...DOI_SEGMENT_1,
   ...DOI_SEGMENT_2,
   ...DOI_SEGMENT_3,

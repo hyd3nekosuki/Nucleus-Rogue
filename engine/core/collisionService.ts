@@ -1,5 +1,5 @@
 import { GameState, GridEntity, Position, EntityType, DiscoveryContext, DecayMode, HistoryEntry } from '../../types';
-import { MAX_ENERGY } from '../../constants/economy';
+import { MAX_ENERGY, SCORE_FACTORS, BONUS_SCORES, DEFEAT_ENERGY_REWARD } from '../../constants/economy';
 import { HISTORY_METHODS } from '../../constants/strings';
 import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync } from '../../services/nuclideService';
@@ -8,7 +8,7 @@ import { applyDiscoveryLogic, findNearbyFreeCell } from './discoveryEngine';
 import { findSpecialReaction } from '../../data/specialReactions';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { registerHistoryEntry } from './historyService';
-import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages, LOG_MESSAGES } from '../../constants';
 
 /**
  * Core Service: Resolves a collision between the player nucleus and an "Another Nuclide" entity.
@@ -21,6 +21,7 @@ export const handleAnotherNuclideCollision = (
     targetTurn: number
 ): GameState => {
     const now = Date.now();
+    const logMessages = getLogMessages(state.language);
     const pz = state.currentNuclide.z;
     const pa = state.currentNuclide.a;
     const ez = enemy.z || 0;
@@ -76,7 +77,7 @@ export const handleAnotherNuclideCollision = (
                     lastEvent: { 
                         id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, 
                         flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', 
-                        priorityMessages: [LOG_MESSAGES.HISTORY.NUCLEAR_FUSION, LOG_MESSAGES.HISTORY.EXP_REPLICATE] 
+                        priorityMessages: [logMessages.HISTORY.NUCLEAR_FUSION, logMessages.HISTORY.EXP_REPLICATE] 
                     } 
                 },
                 nextNuclide,
@@ -101,8 +102,8 @@ export const handleAnotherNuclideCollision = (
     let nextHistory = state.evolutionHistory;
 
     if (isDefeated) { 
-        nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + 1); 
-        rewardMsg = [LOG_MESSAGES.SYSTEM.ANOTHER_NUCLIDE_DEFEATED]; 
+        nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + DEFEAT_ENERGY_REWARD); 
+        rewardMsg = [logMessages.SYSTEM.ANOTHER_NUCLIDE_DEFEATED]; 
         
         // Register defeated enemy in history as isolated dot
         const enemyData = getNuclideDataSync(ez, ea);
@@ -114,7 +115,7 @@ export const handleAnotherNuclideCollision = (
         nextEntities.push({ ...enemy, position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), z: nextZ, a: nextA });
     }
 
-    const campLabel = enemy.isFriendly ? LOG_MESSAGES.SYSTEM.CAMP_FRIENDLY : LOG_MESSAGES.SYSTEM.CAMP_ANOTHER;
+    const campLabel = enemy.isFriendly ? logMessages.SYSTEM.CAMP_FRIENDLY : logMessages.SYSTEM.CAMP_ANOTHER;
     const nextState: GameState = { 
         ...state, 
         playerPos: collisionPos, 
@@ -123,7 +124,7 @@ export const handleAnotherNuclideCollision = (
         gridEntities: nextEntities, 
         evolutionHistory: nextHistory,
         turn: targetTurn, 
-        messages: [...state.messages, LOG_MESSAGES.SYSTEM.COLLISION_WITH_NUCLIDE(campLabel, penalty), ...rewardMsg].slice(-10), 
+        messages: [...state.messages, logMessages.SYSTEM.COLLISION_WITH_NUCLIDE(campLabel, penalty), ...rewardMsg].slice(-10), 
         lastEvent: { id: now, type: 'COLLISION', hasDefeat: isDefeated, shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
     };
 
@@ -143,6 +144,7 @@ export const handleDefeatByReaction = (
     defeatedEntities: GridEntity[],
     targetTurn: number
 ): { nextEntities: GridEntity[], nextHistory: Record<string, HistoryEntry>, energyBonus: number, messages: string[], defeatedCount: number } => {
+    const logMessages = getLogMessages(state.language);
     let nextEntities = [...state.gridEntities];
     let nextHistory = { ...state.evolutionHistory };
     let energyBonus = 0;
@@ -154,9 +156,9 @@ export const handleDefeatByReaction = (
         nextEntities = nextEntities.filter(e => e.id !== enemy.id);
         
         // Apply rewards
-        energyBonus += 1;
-        const label = enemy.type === EntityType.ANTI_NUCLIDE ? LOG_MESSAGES.SYSTEM.LABEL_ANTI_NUCLIDE : LOG_MESSAGES.SYSTEM.LABEL_ANOTHER_NUCLIDE;
-        messages.push(LOG_MESSAGES.SYSTEM.DEFEATED_BY_REACTION(label));
+        energyBonus += DEFEAT_ENERGY_REWARD;
+        const label = enemy.type === EntityType.ANTI_NUCLIDE ? logMessages.SYSTEM.LABEL_ANTI_NUCLIDE : logMessages.SYSTEM.LABEL_ANOTHER_NUCLIDE;
+        messages.push(logMessages.SYSTEM.DEFEATED_BY_REACTION(label));
         defeatedCount++;
         
         // Register in history as scientific discovery (only for nuclides with Z/A)

@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { INITIAL_NUCLIDE, HISTORY_METHODS } from '../constants';
 import { CHALLENGES } from '../constants/challenges';
-import { DecayMode } from '../types';
+import { DecayMode, Language } from '../types';
 import { generateEntities } from './moveSimulator';
 import { getInitialState } from './initialState';
 import { useNucleusState } from './useNucleusState';
@@ -126,6 +126,8 @@ export const useNucleusCoordinator = () => {
 
     // Helper for manual HP adjustments (Sound Test)
     const setHP = useCallback((val: number) => dispatch({ type: 'SET_HP', payload: val }), [dispatch]);
+
+    const setLanguage = useCallback((lang: Language) => dispatch({ type: 'SET_LANGUAGE', payload: lang }), [dispatch]);
 
     const handleOpenMastery = useCallback(() => {
         dispatch({ type: 'NOTIFY_TUTORIAL_EVENT', payload: { event: 'MASTERY_OPENED' } });
@@ -270,6 +272,7 @@ export const useNucleusCoordinator = () => {
         // System & Persistence
         restartGame, 
         setHP, 
+        setLanguage,
         generateSaveCode, 
         handleLoad
     };

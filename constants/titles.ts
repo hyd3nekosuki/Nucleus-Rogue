@@ -30,7 +30,15 @@ export const TITLES = {
     DEMON_CORE: "Demon core",
     FORBIDDEN_CAPTURE: "Forbidden Capture",
     RESEARCH_MISCONDUCT: "Research Misconduct",
-    REAL_PHYSICS: "Real Physics"
+    REAL_PHYSICS: "Real Physics",
+
+    // Skills
+    STABILIZE: "Stabilize",
+    AUTO_STABILIZATION: "Auto-stabilization",
+    TRANSMUTATION: "Transmutation",
+    R_PROCESS: "r-process nucleosynthesis",
+    QUANTUM_OVERRIDE: "Quantum Override",
+    RHYTHMIC_RESONANCE: "Rhythmic Resonance"
 } as const;
 
 export type TitleName = typeof TITLES[keyof typeof TITLES];

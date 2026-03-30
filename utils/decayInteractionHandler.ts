@@ -1,6 +1,6 @@
 
-import { Position, GridEntity, EntityType, DecayMode, VisualEffect } from '../types';
-import { LOG_MESSAGES } from '../constants/logMessageTextData';
+import { Position, GridEntity, EntityType, DecayMode, VisualEffect, Language } from '../types';
+import { getLogMessages } from '../constants';
 
 /**
  * Calculates the entities and effects resulting from a particle-antiparticle annihilation.
@@ -9,13 +9,15 @@ export const calculateAnnihilationSymmetry = (
     playerPos: Position,
     entities: GridEntity[],
     targetType: EntityType,
-    currentTime: number
+    currentTime: number,
+    language: Language
 ): {
     remainingEntities: GridEntity[];
     effectMode: DecayMode;
     removedId: string;
     extraMessages: string[];
 } | null => {
+    const logMessages = getLogMessages(language);
     const nearbyAntiparticles = entities.filter(e => {
         if (e.type !== targetType) return false;
         const dx = Math.abs(e.position.x - playerPos.x);
@@ -54,7 +56,7 @@ export const calculateAnnihilationSymmetry = (
         remainingEntities,
         effectMode,
         removedId: target.id,
-        extraMessages: [LOG_MESSAGES.PHYSICS.ANNIHILATION_GAMMA(20000)]
+        extraMessages: [logMessages.PHYSICS.ANNIHILATION_GAMMA(20000)]
     };
 };
 
@@ -64,13 +66,24 @@ export const calculateAnnihilationSymmetry = (
 export const calculateFissionShockwave = (
     playerPos: Position,
     entities: GridEntity[],
-    radius: number = 2
-): GridEntity[] => {
-    return entities.filter(e => {
+    radius: number = 2,
+    language: Language = 'en'
+): { remainingEntities: GridEntity[], defeatedNuclides: GridEntity[], extraMessages: string[] } => {
+    const logMessages = getLogMessages(language);
+    const defeatedNuclides: GridEntity[] = [];
+    const remainingEntities = entities.filter(e => {
         // Protect friendly entities (Another Nuclides synthesized by player) from the shockwave
         if (e.isFriendly) return true;
         
         const dist = Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2));
-        return dist > radius; 
+        const isDefeated = dist <= radius;
+        if (isDefeated) defeatedNuclides.push(e);
+        return !isDefeated; 
     });
+
+    return {
+        remainingEntities,
+        defeatedNuclides,
+        extraMessages: defeatedNuclides.length > 0 ? [logMessages.PHYSICS.SHOCKWAVE_NEUTRALIZED(defeatedNuclides.length)] : []
+    };
 };

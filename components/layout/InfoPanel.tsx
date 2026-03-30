@@ -1,5 +1,5 @@
 import React from 'react';
-import { NuclideData, DecayMode } from '../../types';
+import { NuclideData, DecayMode, Language } from '../../types';
 import { formatDecayModes } from '../../services/nuclideService';
 import { formatScore } from '../../utils/scientificFormatters';
 import TrefoilIndicator from '../game/TrefoilIndicator';
@@ -22,6 +22,7 @@ interface InfoPanelProps {
   onShowTable: () => void;
   onUltimateSynthesis: () => void;
   onForceDecay?: () => void;
+  language: Language;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ 
@@ -38,7 +39,8 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   onStabilize,
   onShowTable,
   onUltimateSynthesis,
-  onForceDecay
+  onForceDecay,
+  language
 }) => {
 
   const handleDecayClick = () => {
@@ -114,17 +116,17 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
           <button 
             onClick={handleDecayClick}
             disabled={nuclide.isStable || disabled}
-            className={`select-none bg-black/40 p-2 rounded border text-left flex flex-col transition-all duration-200 
+            className={`select-none bg-black/40 p-2 rounded border-2 text-left flex flex-col transition-all duration-300 
                 ${nuclide.isStable || disabled 
                     ? 'border-gray-800 cursor-default opacity-80' 
-                    : 'border-neon-green/40 hover:bg-neon-green/10 active:scale-95 cursor-pointer shadow-[0_0_10px_rgba(0,255,157,0.15)]'}`}
+                    : 'border-neon-green/80 hover:bg-neon-green/20 hover:border-neon-green active:scale-95 cursor-pointer shadow-[0_0_15px_rgba(0,255,157,0.3)] hover:shadow-[0_0_25px_rgba(0,255,157,0.5)]'}`}
           >
               <div className="text-gray-500 text-[10px] uppercase flex justify-between">
                 <span>Decay Modes</span>
                 {!nuclide.isStable && !disabled && <span className="text-neon-green animate-pulse">●</span>}
               </div>
               <div className={`text-xs truncate font-bold ${nuclide.isStable ? 'text-neon-green/50' : 'text-neon-green'}`}>
-                  {formatDecayModes(nuclide, false)}
+                  {formatDecayModes(nuclide, false, language)}
               </div>
           </button>
 

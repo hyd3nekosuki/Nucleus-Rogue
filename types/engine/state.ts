@@ -3,6 +3,7 @@ import { Position } from '../domain/physics';
 import { EntityType, GridEntity } from '../domain/entities';
 import { HistoryEntry, ComboOrigin, DiscoveryContext } from './history';
 import { VisualEffect, GameStateEvent } from './events';
+import { Language } from '../index';
 
 /**
  * Central Game Engine State Management
@@ -68,6 +69,7 @@ export interface GameState {
   };
   isAnimatingFission?: boolean;
   tranquiloTurnCount: number;
+  language: Language;
 }
 
 export type GameAction =
@@ -86,4 +88,5 @@ export type GameAction =
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
   | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } }
-  | { type: 'RECORD_ACHIEVEMENT'; payload: { id: string; time: number } };
+  | { type: 'RECORD_ACHIEVEMENT'; payload: { id: string; time: number } }
+  | { type: 'SET_LANGUAGE'; payload: Language };

@@ -1,5 +1,5 @@
 import React, { useRef, memo } from 'react';
-import { NuclideData, DecayMode } from '../../types';
+import { NuclideData, DecayMode, Language } from '../../types';
 import { MAGIC_NUMBERS } from '../../constants';
 import { formatDecayModes } from '../../services/nuclideService';
 
@@ -13,11 +13,12 @@ interface HealthBarProps {
     barrierCharges?: number; // Remaining charges
     isSoundTestActive?: boolean;
     onHPChange?: (val: number) => void;
+    language: Language;
 }
 
 const HealthBar: React.FC<HealthBarProps> = ({ 
     hp, maxHp, nuclide, onToggleTimeStop, isTimeStopped, level, barrierCharges = 0,
-    isSoundTestActive = false, onHPChange 
+    isSoundTestActive = false, onHPChange, language
 }) => {
     const hpPercent = (hp / maxHp) * 100;
     const roundedHp = Math.round(hp);
@@ -61,7 +62,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
     const dynamicStatusColor = getDynamicColor(hpPercent);
 
     const getDecayDisplay = () => {
-        const modes = formatDecayModes(nuclide, false);
+        const modes = formatDecayModes(nuclide, false, language);
         if (nuclide.isStable) return `[${nuclide.halfLifeText}]`;
         return `[${nuclide.halfLifeText}, ${modes}]`;
     };

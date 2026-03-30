@@ -208,7 +208,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
                     className="ml-1.5 p-1 -m-1 opacity-70 hover:opacity-100 hover:scale-125 hover:text-white transition-all cursor-pointer inline-block pointer-events-auto align-middle outline-none focus:ring-1 focus:ring-neon-blue rounded"
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.open(`https://doi.org/${doi}`, '_blank', 'noopener,noreferrer');
+                      if (doi.isAccessible) {
+                        window.open(`https://doi.org/${doi.doi}`, '_blank', 'noopener,noreferrer');
+                      } else {
+                        const nuclideName = getNuclideDataSync(z, a).name;
+                        const searchQuery = encodeURIComponent(nuclideName);
+                        window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank', 'noopener,noreferrer');
+                      }
                     }}
                     title="Open scientific paper (DOI)"
                     aria-label="Scientific paper link"

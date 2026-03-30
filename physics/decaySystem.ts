@@ -1,10 +1,10 @@
-import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta } from '../types';
+import { DecayMode, EntityType, GridEntity, VisualEffect, Position, NuclideData, DecayDelta, Language } from '../types';
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { DECAY_PHYSICS } from '../constants/physics';
-import { BONUS_SCORES } from '../constants/economy';
+import { BONUS_SCORES, ANNIHILATION_ENERGY_REWARD } from '../constants/economy';
 import { HISTORY_METHODS } from '../constants/strings';
-import { LOG_MESSAGES } from '../constants/logMessageTextData';
+import { LOG_MESSAGES, getLogMessages } from '../constants';
 
 import { getFissionFragmentOutcome, getPromptNeutronCount } from './fissionModel';
 import { calculateAnnihilationSymmetry, calculateFissionShockwave } from '../utils/decayInteractionHandler';
@@ -39,11 +39,12 @@ export const getDecayDeltas = (mode: DecayMode): DecayDelta => {
 /**
  * Handles Alpha Decay logic, including anti-nuclide neutralization in 8 directions.
  */
-const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number): Partial<DecayResult> => {
+const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number, language: Language): Partial<DecayResult> => {
     let currentEntities = [...gridEntities];
     let energyBonus = 5;
     let score = 0;
     const messages: string[] = [];
+    const logMessages = getLogMessages(language);
 
     // Find anti-nuclides in 8 directions (Moore neighborhood)
     const nearbyAntis = currentEntities.filter(e => 
@@ -54,9 +55,9 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
 
     if (nearbyAntis.length > 0) {
         // Apply special rewards
-        energyBonus += 1000;
+        energyBonus += ANNIHILATION_ENERGY_REWARD;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(LOG_MESSAGES.PHYSICS.ANTI_NUCLIDE_NEUTRALIZED_ALPHA);
+        messages.push(logMessages.PHYSICS.ANTI_NUCLIDE_NEUTRALIZED_ALPHA);
     }
 
     // Find non-friendly Another Nuclides in Moore neighborhood
@@ -82,7 +83,8 @@ const handleBetaMinus = (
     playerPos: Position,
     gridEntities: GridEntity[],
     currentTime: number, 
-    neutronStarEnabled: boolean
+    neutronStarEnabled: boolean,
+    language: Language
 ): Partial<DecayResult> => {
     let currentEntities = [...gridEntities];
     let score = 0;
@@ -90,6 +92,7 @@ const handleBetaMinus = (
     const effects: VisualEffect[] = [];
     let speech = null;
     let isAnnihilation = false;
+    const logMessages = getLogMessages(language);
 
     // 1. Check for Proton -> Neutron conversion (requires skill)
     if (neutronStarEnabled) {
@@ -107,13 +110,13 @@ const handleBetaMinus = (
                 currentEntities[targetIndex] = { ...targetProton, type: EntityType.NEUTRON };
                 effects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...targetProton.position }, timestamp: currentTime });
                 score += BONUS_SCORES.BETA_CONVERSION;
-                messages.push(LOG_MESSAGES.PHYSICS.PROTON_ELECTRON_CONVERSION(BONUS_SCORES.BETA_CONVERSION));
+                messages.push(logMessages.PHYSICS.PROTON_ELECTRON_CONVERSION(BONUS_SCORES.BETA_CONVERSION));
             }
         }
     }
 
     // 2. Annihilation check
-    const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_POSITRON, currentTime);
+    const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_POSITRON, currentTime, language);
     let defeatedNuclides: GridEntity[] = [];
     if (annihilationResult) {
         const removedEntity = gridEntities.find(e => e.id === annihilationResult.removedId);
@@ -134,7 +137,8 @@ const handleBetaPlus = (
     playerPos: Position,
     gridEntities: GridEntity[],
     currentTime: number, 
-    annihilationEnabled: boolean
+    annihilationEnabled: boolean,
+    language: Language
 ): Partial<DecayResult> => {
     let currentEntities = [...gridEntities];
     let score = 0;
@@ -142,11 +146,12 @@ const handleBetaPlus = (
     const effects: VisualEffect[] = [];
     let speech = null;
     let isAnnihilation = false;
+    const logMessages = getLogMessages(language);
 
     // Perform annihilation logic only if skill is unlocked and active
     let defeatedNuclides: GridEntity[] = [];
     if (annihilationEnabled) {
-        const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_ELECTRON, currentTime);
+        const annihilationResult = calculateAnnihilationSymmetry(playerPos, currentEntities, EntityType.ENEMY_ELECTRON, currentTime, language);
         if (annihilationResult) {
             const removedEntity = gridEntities.find(e => e.id === annihilationResult.removedId);
             if (removedEntity) defeatedNuclides.push(removedEntity);
@@ -163,7 +168,8 @@ const handleBetaPlus = (
     return { trigger: HISTORY_METHODS.BETA_PLUS, newGridEntities: currentEntities, actionBonusScore: score, extraMessages: messages, additionalEffects: effects, speechOverride: speech, isAnnihilation, defeatedNuclides };
 };
 
-const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number): Partial<DecayResult> => {
+const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Position, gridEntities: GridEntity[], currentTime: number, language: Language = 'en'): Partial<DecayResult> => {
+    const logMessages = getLogMessages(language);
     // Determine dynamic neutron emission count first to ensure mass conservation
     const neutronCount = getPromptNeutronCount(currentNuclide.z, currentNuclide.a);
     
@@ -177,7 +183,7 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const byproductA = currentNuclide.a - fragment.a - neutronCount;
     
     // --- FISSION CHAIN REACTION (Special Event) ---
-    const chainResult = processFissionChainReaction(neutronCount, playerPos, gridEntities);
+    const chainResult = processFissionChainReaction(neutronCount, playerPos, gridEntities, language);
     let currentEntities = chainResult.finalEntities;
     const finalNeutronCount = chainResult.remainingNeutrons;
     const chainReactionPath = chainResult.path;
@@ -195,7 +201,8 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
         Math.sqrt(Math.pow(e.position.x - playerPos.x, 2) + Math.pow(e.position.y - playerPos.y, 2)) <= 2
     );
 
-    currentEntities = calculateFissionShockwave(playerPos, currentEntities, 2);
+    const shockwaveResult = calculateFissionShockwave(playerPos, currentEntities, 2, language);
+    currentEntities = shockwaveResult.remainingEntities;
 
     // --- EMISSION LOGIC ---
     // Use the remaining neutrons from the chain reaction
@@ -206,13 +213,13 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const messages: string[] = [];
 
     if (chainResult.chainReactionCount > 0) {
-        messages.push(LOG_MESSAGES.PHYSICS.FISSION_CHAIN_REACTION_TRIGGERED(chainResult.chainReactionCount));
+        messages.push(logMessages.PHYSICS.FISSION_CHAIN_REACTION_TRIGGERED(chainResult.chainReactionCount));
     }
 
     if (antisInBlast.length > 0) {
-        energyBonus += 1000;
+        energyBonus += ANNIHILATION_ENERGY_REWARD;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(LOG_MESSAGES.PHYSICS.ANTI_NUCLIDE_PURGED_FISSION);
+        messages.push(logMessages.PHYSICS.ANTI_NUCLIDE_PURGED_FISSION);
     }
 
     // Prepare byproduct data if it is a physically plausible nucleus
@@ -240,8 +247,10 @@ export const calculateDecayEffects = (
     currentTime: number,
     annihilationEnabled: boolean = true,
     fissionEnabled: boolean = true,
-    neutronStarEnabled: boolean = false
+    neutronStarEnabled: boolean = false,
+    language: Language = 'en'
 ): DecayResult => {
+    const logMessages = getLogMessages(language);
     let effectiveMode = mode;
     if (!fissionEnabled) {
         if (mode === DecayMode.SPONTANEOUS_FISSION) {
@@ -265,17 +274,17 @@ export const calculateDecayEffects = (
 
     switch (effectiveMode) {
         case DecayMode.ALPHA: 
-            Object.assign(result, handleAlphaDecay(currentNuclide, playerPos, gridEntities, currentTime));
+            Object.assign(result, handleAlphaDecay(currentNuclide, playerPos, gridEntities, currentTime, language));
             break;
         case DecayMode.BETA_MINUS: 
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
             break;
         case DecayMode.DOUBLE_BETA_MINUS:
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.DOUBLE_BETA_MINUS;
             break;
         case DecayMode.BETA_PLUS: 
-            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             break;
         case DecayMode.EC_B_PLUS:
             // EC/B+ combined mode - should have been resolved by controller, but handle here as fallback
@@ -283,14 +292,14 @@ export const calculateDecayEffects = (
                 result.trigger = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE;
                 result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
                 result.shouldShake = true;
-                result.extraMessages.push(LOG_MESSAGES.PHYSICS.UNCERTAINTY_POSITION);
+                result.extraMessages.push(logMessages.PHYSICS.UNCERTAINTY_POSITION);
                 result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
             } else {
-                Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+                Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             }
             break;
         case DecayMode.DOUBLE_BETA_PLUS:
-            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.DOUBLE_BETA_PLUS;
             break;
         case DecayMode.ELECTRON_CAPTURE: 
@@ -298,7 +307,7 @@ export const calculateDecayEffects = (
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
              result.shakeIntensity = 'light';
-             result.extraMessages.push(LOG_MESSAGES.PHYSICS.UNCERTAINTY_POSITION);
+             result.extraMessages.push(logMessages.PHYSICS.UNCERTAINTY_POSITION);
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.DOUBLE_ELECTRON_CAPTURE:
@@ -306,7 +315,7 @@ export const calculateDecayEffects = (
              result.newPosition = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
              result.shouldShake = true;
              result.shakeIntensity = 'light';
-             result.extraMessages.push(LOG_MESSAGES.PHYSICS.DOUBLE_UNCERTAINTY);
+             result.extraMessages.push(logMessages.PHYSICS.UNCERTAINTY_POSITION);
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: DecayMode.ELECTRON_CAPTURE, position: { ...result.newPosition }, timestamp: currentTime });
              break;
         case DecayMode.PROTON_EMISSION: 
@@ -351,38 +360,38 @@ export const calculateDecayEffects = (
         case DecayMode.B_MINUS_7N:
             const nMatch = mode.match(/(\d)N/);
             const nCount = nMatch ? parseInt(nMatch[1]) : 1;
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_N(nCount);
             result.emissions = new Array(nCount).fill(EntityType.NEUTRON);
             break;
         case DecayMode.B_MINUS_ALPHA:
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_ALPHA;
             result.energyBonus = 5;
             break;
         case DecayMode.B_MINUS_PROTON:
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_PROTON;
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_MINUS_SF:
-            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled));
-            const bMinusFission = handleSpontaneousFission(currentNuclide, playerPos, result.newGridEntities, currentTime);
+            Object.assign(result, handleBetaMinus(playerPos, gridEntities, currentTime, neutronStarEnabled, language));
+            const bMinusFission = handleSpontaneousFission(currentNuclide, playerPos, result.newGridEntities, currentTime, language);
             Object.assign(result, bMinusFission);
             result.trigger = LOG_MESSAGES.HISTORY.B_MINUS_DELAYED_FISSION;
             break;
         case DecayMode.B_PLUS_ALPHA:
-            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_ALPHA;
             result.energyBonus = 5;
             break;
         case DecayMode.B_PLUS_PROTON:
-            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_PROTON;
             result.emissions = [EntityType.PROTON];
             break;
         case DecayMode.B_PLUS_2PROTON:
-            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled));
+            Object.assign(result, handleBetaPlus(playerPos, gridEntities, currentTime, annihilationEnabled, language));
             result.trigger = LOG_MESSAGES.HISTORY.B_PLUS_DELAYED_2PROTON;
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
@@ -399,7 +408,7 @@ export const calculateDecayEffects = (
             result.emissions = [EntityType.PROTON, EntityType.PROTON];
             break;
         case DecayMode.EC_SF:
-            const ecFission = handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime);
+            const ecFission = handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime, language);
             Object.assign(result, ecFission);
             result.trigger = LOG_MESSAGES.HISTORY.EC_DELAYED_FISSION;
             break;
@@ -411,7 +420,7 @@ export const calculateDecayEffects = (
              result.additionalEffects.push({ id: Math.random().toString(36).substr(2, 9), type: selected, position: { ...playerPos }, timestamp: currentTime });
              break;
         case DecayMode.SPONTANEOUS_FISSION:
-            Object.assign(result, handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime));
+            Object.assign(result, handleSpontaneousFission(currentNuclide, playerPos, gridEntities, currentTime, language));
             break;
     }
 

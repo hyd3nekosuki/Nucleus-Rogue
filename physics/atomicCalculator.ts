@@ -1,10 +1,10 @@
-import { EntityType, NuclideData, GridEntity, AtomicReactionResult, DecayMode, Position } from '../types';
+import { EntityType, NuclideData, GridEntity, AtomicReactionResult, DecayMode, Position, Language } from '../types';
 
 import { BONUS_SCORES } from '../constants/economy';
 import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
-import { LOG_MESSAGES } from '../constants/logMessageTextData';
+import { LOG_MESSAGES, getLogMessages } from '../constants';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
@@ -21,8 +21,10 @@ export const calculateInteraction = (
     hp: number,
     charges: number,
     unlockedGroups: string[],
-    disabledSkills: string[]
+    disabledSkills: string[],
+    language: Language = 'en'
 ): AtomicReactionResult => {
+    const logMessages = getLogMessages(language);
     const res: AtomicReactionResult = {
         dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0,
         messages: [], chargesUsed: 0
@@ -41,24 +43,24 @@ export const calculateInteraction = (
                 if (target.isHighEnergy) {
                     // Forced Capture: e- + p -> n (High energy only)
                     res.dZ = 1; res.dA = 1;
-                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PROTON_REACTION);
+                    res.messages.push(logMessages.PHYSICS.ELECTRON_PROTON_REACTION);
                     res.inducedReactionLabel = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE_PLAYER;
                     res.shouldFlash = true;
                     res.flashColor = "bg-white";
                     return res;
                 } else {
                     // Normal energy p: No reaction, pass through
-                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PASSES_PROTON);
+                    res.messages.push(logMessages.PHYSICS.ELECTRON_PASSES_PROTON);
                     return res;
                 }
             case EntityType.NEUTRON:
                 // No reaction, pass through
-                res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_PASSES_NEUTRON);
+                res.messages.push(logMessages.PHYSICS.ELECTRON_PASSES_NEUTRON);
                 return res;
             case EntityType.ENEMY_ELECTRON:
                 // Coulomb repulsion: e- vs e-
                 res.isCoulombScattered = true;
-                res.scatteredMessage = LOG_MESSAGES.PHYSICS.COULOMB_REPULSION_EE;
+                res.scatteredMessage = logMessages.PHYSICS.COULOMB_REPULSION_EE;
                 return res;
             case EntityType.ENEMY_POSITRON:
                 // Annihilation
@@ -72,11 +74,11 @@ export const calculateInteraction = (
     switch (target.type) {
         case EntityType.PROTON:
             if (isFusionDisabled) {
-                res.messages.push(LOG_MESSAGES.PHYSICS.PROTON_BLOCKED_BARRIER);
+                res.messages.push(logMessages.PHYSICS.PROTON_BLOCKED_BARRIER);
                 // No dZ, dA, no isCoulombScattered -> pool in moveSimulator
             } else if (isRealPhysicsActive) {
                 res.isCoulombScattered = true;
-                res.scatteredMessage = LOG_MESSAGES.PHYSICS.PROTON_SCATTERED_BARRIER;
+                res.scatteredMessage = logMessages.PHYSICS.PROTON_SCATTERED_BARRIER;
             } else if (currentNuclide.z === 1 && currentNuclide.a === 1 && target.isHighEnergy) {
                 res.isPpFusion = true;
                 res.dA = 1; 
@@ -94,17 +96,17 @@ export const calculateInteraction = (
                     //res.hpPenalty = 999; // Fatal
                     res.hpPenalty = 20;
                     res.dZ = 1; res.dA = 1; // Daredevil: Allow transformation even if fatal
-                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.UNSTABLE_PROTON_CAPTURE;
+                    res.scatteredMessage = logMessages.PHYSICS.UNSTABLE_PROTON_CAPTURE;
                 } else {
                     res.isCoulombScattered = true;
-                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.PROTON_SCATTERED_BARRIER;
+                    res.scatteredMessage = logMessages.PHYSICS.PROTON_SCATTERED_BARRIER;
                 }
             }
             break;
 
         case EntityType.NEUTRON:
             if (isZeroBarnActive) {
-                res.messages.push(LOG_MESSAGES.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN);
+                res.messages.push(logMessages.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN);
             } else {
                 res.dA = 1;
             }
@@ -135,15 +137,15 @@ export const calculateInteraction = (
                         m === DecayMode.EC_SF ||
                         m === DecayMode.EC_B_PLUS
                     );
-                    res.messages = [LOG_MESSAGES.PHYSICS.ELECTRON_CAPTURED_VIA_CHANNEL(ecMode || "")].filter(Boolean);
+                    res.messages = [logMessages.PHYSICS.ELECTRON_CAPTURED_VIA_CHANNEL(ecMode || "")].filter(Boolean);
                 } else if (scatteringActive) {
-                    res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
+                    res.messages.push(logMessages.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
                 } else {
                     res.isCoulombScattered = true;
-                    res.scatteredMessage = LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERED_STABILITY;
+                    res.scatteredMessage = logMessages.PHYSICS.ELECTRON_SCATTERED_STABILITY;
                 }
             } else if (scatteringActive) {
-                res.messages.push(LOG_MESSAGES.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
+                res.messages.push(logMessages.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
             } else {
                 if (hp <= 10 && consecutiveElectrons >= 5) res.isBremsAchieved = true;
                 if (charges > 0 || target.isHighEnergy) {
@@ -186,8 +188,10 @@ export const calculateNeutronReaction = (
     zeroBarnActive: boolean,
     isDaredevilActive: boolean = false,
     unlockedGroups: string[] = [],
-    disabledSkills: string[] = []
+    disabledSkills: string[] = [],
+    language: Language = 'en'
 ): AtomicReactionResult | null => {
+    const logMessages = getLogMessages(language);
     if (target.type !== EntityType.NEUTRON || currentNuclide.z === -1) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
@@ -200,7 +204,7 @@ export const calculateNeutronReaction = (
             hpPenalty: 0,
             energyBonus: 0,
             actionBonusScore: 0,
-            messages: [target.isHighEnergy ? LOG_MESSAGES.PHYSICS.HIGH_ENERGY_NEUTRON_NOT_ABSORBED_ZERO_BARN : LOG_MESSAGES.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN],
+            messages: [target.isHighEnergy ? logMessages.PHYSICS.HIGH_ENERGY_NEUTRON_NOT_ABSORBED_ZERO_BARN : logMessages.PHYSICS.NEUTRON_NOT_ABSORBED_ZERO_BARN],
             chargesUsed: 0,
             newGridEntities: currentEntities,
             shouldFlash: false
@@ -403,8 +407,10 @@ export const calculateProtonReaction = (
     fissionEnabled: boolean,
     neutronStarEnabled: boolean,
     unlockedGroups: string[] = [],
-    disabledSkills: string[] = []
+    disabledSkills: string[] = [],
+    language: Language = 'en'
 ): AtomicReactionResult | null => {
+    const logMessages = getLogMessages(language);
     if (target.type !== EntityType.PROTON || !target.isHighEnergy || currentNuclide.z === -1) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
@@ -413,7 +419,7 @@ export const calculateProtonReaction = (
     if (isFusionDisabled) {
         return {
             dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0,
-            messages: [LOG_MESSAGES.PHYSICS.PROTON_BLOCKED_BARRIER],
+            messages: [logMessages.PHYSICS.PROTON_BLOCKED_BARRIER],
             chargesUsed: 0
         };
     }

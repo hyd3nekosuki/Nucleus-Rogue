@@ -60,6 +60,7 @@ export const useNucleusActions = (
     const restartGame = useCallback((randomStart: boolean = false) => {
         const currentTitles = gameState.unlockedElements;
         const currentGroups = gameState.unlockedGroups;
+        const currentLanguage = gameState.language;
         const isDaredevilActive = currentGroups.includes(TITLES.DEMON_CORE) && !gameState.disabledSkills.includes(TITLES.DEMON_CORE);
         
         let startNuclide = INITIAL_NUCLIDE;
@@ -72,7 +73,7 @@ export const useNucleusActions = (
         }
         
         resetVisuals();
-        const newState = getInitialState();
+        const newState = getInitialState(currentLanguage);
         
         // Random Generation時はチュートリアルの既読状態を引き継ぐ
         if (randomStart) {
@@ -117,7 +118,7 @@ export const useNucleusActions = (
             nextHistory = { [`${startNuclide.z}-${startNuclide.a}`]: originEntry };
         }
 
-        const nextMsg = getNextTutorialMessage(newState, 'GAME_START', { randomStart, nextNuclide: startNuclide });
+        const nextMsg = getNextTutorialMessage(newState, 'GAME_START', { randomStart, nextNuclide: startNuclide }, newState.language);
 
         dispatch({
             type: 'RESET_STATE',

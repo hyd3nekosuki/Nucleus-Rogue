@@ -1,4 +1,4 @@
-import { NuclideData, DecayMode, NuclideCategory, NuclideRecord, NuclideId, BranchingRatio } from "../types";
+import { NuclideData, DecayMode, NuclideCategory, NuclideRecord, NuclideId, BranchingRatio, Language } from "../types";
 import { getSymbol, getName } from "../constants/atomicData";
 import { NUCLIDE_FACTS } from "../data/nuclideFacts";
 import { NUCLIDE_REPOSITORY, getRepositoryValidAsForZ } from "../data/nuclideRepository";
@@ -40,9 +40,9 @@ const getDecayDescription = (mode: DecayMode, isStable: boolean): string => {
 /**
  * Returns a human-readable scientific symbol for a DecayMode.
  */
-export const getDecayModeLabel = (mode: DecayMode): string => {
+export const getDecayModeLabel = (mode: DecayMode, language: Language = 'en'): string => {
     switch (mode) {
-        case DecayMode.STABLE: return "Stable";
+        case DecayMode.STABLE: return language === 'jp' ? "安定" : "Stable";
         case DecayMode.ALPHA: return "α";
         case DecayMode.BETA_MINUS: return "β-";
         case DecayMode.BETA_PLUS: return "β+";
@@ -75,26 +75,26 @@ export const getDecayModeLabel = (mode: DecayMode): string => {
         case DecayMode.EC_PROTON: return "ECp";
         case DecayMode.EC_2PROTON: return "EC2p";
         case DecayMode.EC_SF: return "ECSF";
-        default: return "Unknown";
+        default: return language === 'jp' ? "不明" : "Unknown";
     }
 };
 
 /**
  * Formats the decay modes of a nuclide into a single string.
  */
-export const formatDecayModes = (nuclide: NuclideData, showAll: boolean = true): string => {
-    if (nuclide.isStable) return "Stable";
+export const formatDecayModes = (nuclide: NuclideData, showAll: boolean = true, language: Language = 'en'): string => {
+    if (nuclide.isStable) return language === 'jp' ? "安定" : "Stable";
 
     let modes = nuclide.decayModes.filter(m => m !== DecayMode.STABLE && m !== DecayMode.UNKNOWN);
     if (modes.length === 0) {
-        return nuclide.decayModes.includes(DecayMode.UNKNOWN) ? "Unknown" : "Stable";
+        return nuclide.decayModes.includes(DecayMode.UNKNOWN) ? (language === 'jp' ? "不明" : "Unknown") : (language === 'jp' ? "安定" : "Stable");
     }
 
     if (!showAll && modes.length > 1) {
         modes = [modes[0]];
     }
     
-    return modes.map(getDecayModeLabel).join(", ");
+    return modes.map(m => getDecayModeLabel(m, language)).join(", ");
 };
 
 /**

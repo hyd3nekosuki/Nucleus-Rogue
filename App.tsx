@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 // Triggering Vite reload to resolve potential HMR hang
-import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION, LOG_MESSAGES } from './constants';
+import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION, LOG_MESSAGES, getLogMessages } from './constants';
 import Grid from './components/game/Grid';
 import HealthBar from './components/game/HealthBar';
 import NucleusVisualizer from './components/game/NucleusVisualizer';
@@ -49,6 +49,8 @@ function App() {
   }, [ui.isLoadError, activeOverrideResult]);
 
   // --- Audio & Speech Layer ---
+  const logMessages = useMemo(() => getLogMessages(gameState.language), [gameState.language]);
+
   const { isMuted, toggleMute, bpm, primaryMode } = useAudioEngine(
       gameState.hp, 
       gameState.gameOver, 
@@ -118,6 +120,7 @@ function App() {
             onDecay={engine.handleDecayAction} disabled={gameState.gameOver || gameState.loadingData || gameState.isTimeStopped} playerLevel={gameState.playerLevel}
             isNucleosynthesisReady={ui.isNucleosynthesisReady} isNucleosynthesisEnabled={ui.isNucleosynthesisEnabled} transmutationReady={ui.transmutationReady} energyPointsAvailable={ui.energyPointsAvailable}
             onStabilize={engine.handleStabilize} onShowTable={() => { ui.setShowTable(true); engine.handleOpenMastery(); }} onUltimateSynthesis={engine.handleUltimateSynthesis} onForceDecay={engine.handleForceUnknownDecay}
+            language={gameState.language}
           />
           
           <ControlPanel 
@@ -174,6 +177,7 @@ function App() {
 
           <SidebarFooter 
             version={APP_VERSION} isMuted={isMuted} toggleMute={toggleMute} bpm={bpm} primaryMode={primaryMode} isVoiceMuted={ui.isVoiceMuted} onToggleVoice={ui.toggleVoiceMute}
+            language={gameState.language} onToggleLanguage={() => engine.setLanguage(gameState.language === 'en' ? 'jp' : 'en')}
           />
       </div>
 
@@ -181,6 +185,7 @@ function App() {
       <div className={`order-1 md:order-2 flex-1 flex flex-col items-center justify-start p-2 md:p-4 relative z-10 overflow-y-auto ${ui.showTable ? 'touch-none' : ''}`}>
          <HealthBar 
             hp={gameState.hp} maxHp={gameState.maxHp} nuclide={gameState.currentNuclide} onToggleTimeStop={engine.handleToggleTimeStop} isTimeStopped={gameState.isTimeStopped} level={gameState.playerLevel} barrierCharges={gameState.magicBarrierCharges} isSoundTestActive={ui.isSoundTestActive} onHPChange={engine.setHP} 
+            language={gameState.language}
          />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[95vw] md:w-auto overflow-hidden select-none">
             {gameState.isTimeStopped && (
@@ -191,12 +196,12 @@ function App() {
                 </div>
               </div>
             )}
-            {(gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.OGANESSON_CONGRATS || gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE) && gameState.recordTime !== undefined && (
+            {(gameState.tutorialMessage === logMessages.TUTORIAL.OGANESSON_CONGRATS || gameState.tutorialMessage === logMessages.TUTORIAL.ALL_ELEMENTS_COMPLETE) && gameState.recordTime !== undefined && (
               <div className="absolute inset-0 z-[60] bg-yellow-400/10 backdrop-blur-[4px] flex items-center justify-center pointer-events-none">
                 <div key={gameState.tutorialMessage} className="flex flex-col items-center animate-fade-in">
                   <div className="text-xs md:text-sm font-bold text-yellow-400 uppercase tracking-[0.3em] mb-2 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]">Achievement Unlocked</div>
                   <div className="text-3xl md:text-5xl font-black italic text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] uppercase tracking-tighter text-center px-4">
-                    {gameState.tutorialMessage === LOG_MESSAGES.TUTORIAL.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'FAR BEYOND BOUNDARY'}
+                    {gameState.tutorialMessage === logMessages.TUTORIAL.ALL_ELEMENTS_COMPLETE ? 'Periodic Table Completed' : 'FAR BEYOND BOUNDARY'}
                   </div>
                   <div className="mt-6 flex flex-col items-center">
                     <div className="text-[10px] text-yellow-400/70 uppercase tracking-widest font-bold">Completion Time</div>
@@ -216,7 +221,7 @@ function App() {
                 finalCombo={engine.finalCombo} overrideResult={activeOverrideResult} 
             />
             <GridStatusFooter gameState={gameState} />
-            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { ui.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={ui.isSoundTestActive} onToggleSoundTest={ui.toggleSoundTest} />
+            <GameOverOverlay isVisible={gameState.gameOver} reason={gameState.gameOverReason} nuclide={gameState.currentNuclide} onRestart={(rnd) => { ui.closeSoundTest(); engine.restartGame(rnd); }} isSoundTestActive={ui.isSoundTestActive} onToggleSoundTest={ui.toggleSoundTest} language={gameState.language} />
          </div>
       </div>
     </div>

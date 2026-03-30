@@ -1,5 +1,5 @@
 import { HistoryEntry, NuclideData } from '../../types';
-import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { LOG_MESSAGES } from '../../constants';
 
 /**
  * Pure function to register or update a nuclide discovery in the evolution history.

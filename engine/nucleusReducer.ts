@@ -68,7 +68,7 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                 };
 
             case 'NOTIFY_TUTORIAL_EVENT': {
-                const nextMsg = getNextTutorialMessage(state, action.payload.event);
+                const nextMsg = getNextTutorialMessage(state, action.payload.event, {}, state.language);
                 const updates = calculateTutorialFlagUpdates(state, nextMsg, state.turn, action.payload.event);
                 return {
                     ...state,
@@ -92,6 +92,9 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
                     }
                 };
             }
+
+            case 'SET_LANGUAGE':
+                return { ...state, language: action.payload };
 
             default: 
                 return state;

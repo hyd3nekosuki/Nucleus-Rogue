@@ -49,6 +49,7 @@ export const useKeyboardControls = (
           case 'u': skillToToggle = TITLES.UNKNOWN; break;
           case 'f': skillToToggle = TITLES.FISSION; break;
           case 'd': skillToToggle = TITLES.DEMON_CORE; break;
+          case 'l': engine.setLanguage(engine.gameState.language === 'en' ? 'jp' : 'en'); return;
           case 'm': toggleMute(); return;
           case 'v': ui.toggleVoiceMute(); return;
         }

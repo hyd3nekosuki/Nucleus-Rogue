@@ -3,6 +3,8 @@ import { NuclideData, DecayMode, HistoryEntry, ComboOrigin } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { DripLineService } from '../../engine/dripLineService';
 
+import { LOG_MESSAGES, TITLES } from '../../constants';
+
 interface EvolutionMapProps {
     history: HistoryEntry[];
     currentNuclide: NuclideData;
@@ -155,7 +157,9 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
 
     const getTooltipText = (name: string, method: string) => {
         const formattedName = formatNuclideName(name);
-        if (method === "Origin" || method === "Unknown" || method === "Experimental replicate") {
+        const historyLabels = LOG_MESSAGES.HISTORY;
+        
+        if (method === historyLabels.ORIGIN || method === historyLabels.UNKNOWN || method === historyLabels.EXP_REPLICATE) {
             return `${formattedName} (${method})`;
         }
         return `${formattedName} by ${method}`;

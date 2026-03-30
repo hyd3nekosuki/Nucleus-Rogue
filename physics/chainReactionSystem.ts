@@ -1,4 +1,4 @@
-import { EntityType, GridEntity, Position } from '../types';
+import { EntityType, GridEntity, Position, Language } from '../types';
 import { NEUTRON_CROSS_SECTIONS } from '../data/neutronReactions';
 import { getPromptNeutronCount, getFissionFragmentOutcome } from './fissionModel';
 import { findNearbyFreeCell } from '../engine/core/discoveryEngine';
@@ -27,7 +27,8 @@ export const isFissile = (z: number, a: number): boolean => {
 export const processFissionChainReaction = (
     initialNeutronCount: number,
     playerPos: Position,
-    gridEntities: GridEntity[]
+    gridEntities: GridEntity[],
+    language: Language = 'en'
 ): {
     finalEntities: GridEntity[];
     remainingNeutrons: number;

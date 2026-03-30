@@ -12,7 +12,7 @@ import { REASON } from '../../constants/gameOverReason';
 import { TITLES } from '../../constants/titles';
 import { HISTORY_METHODS } from '../../constants/strings';
 import { calculateMoveResult, generateEntities } from '../moveSimulator';
-import { getHistoryMethod } from '../../utils/historyLogic';
+import { getHistoryMethod, getLocalizedReactionLabel } from '../../utils/historyLogic';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
@@ -21,13 +21,15 @@ import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/c
 import { finalizeAction } from '../core/turnService';
 import { processUnlocks } from '../unlockSystem';
 import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages } from '../../constants';
 
 export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number }): GameState => {
     const { dx, dy } = payload;
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
     
     const nextTurn = state.turn + 1;
-    const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS);
+    const logMessages = getLogMessages(state.language);
+    const result = calculateMoveResult(state, dx, dy, ENERGY_EVOLUTION_TURNS, state.language);
     if (!result.moved || !result.newPos) return state;
 
     // Scenario 1: Direct player movement into Another Nuclide (Mid-boss/Predator)
@@ -120,7 +122,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             shake: result.shouldShake || defeatedCount > 0 || isAnti, 
             shakeIntensity: result.shakeIntensity,
             flash: result.flashColor || (result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined), 
-            priorityMessages: result.isPpFusion ? [LOG_MESSAGES.HISTORY.NUCLEAR_FUSION] : [],
+            priorityMessages: result.isPpFusion ? [logMessages.HISTORY.NUCLEAR_FUSION] : [],
             decayModeTrigger: result.inducedDecayMode,
             hasDefeat: defeatedCount > 0 || isAnti,
             chainReactionPath: result.chainDecayResult?.chainReactionPath
@@ -136,32 +138,33 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             let coreMsg = result.scatteredMessage && !result.isPositronAbsorption 
                 ? `⚠️ ${result.scatteredMessage}` 
                 : result.isPpFusion 
-                    ? LOG_MESSAGES.SYSTEM.STELLAR_FUSION_DEUTERIUM 
+                    ? logMessages.SYSTEM.STELLAR_FUSION_DEUTERIUM 
                     : result.inducedReactionLabel
-                        ? LOG_MESSAGES.SYSTEM.REACTION_INTO(result.inducedReactionLabel, newData.name) 
+                        ? logMessages.SYSTEM.REACTION_INTO(getLocalizedReactionLabel(result.inducedReactionLabel, logMessages), newData.name) 
                         : result.targetEntity?.type === EntityType.ENEMY_ELECTRON 
-                            ? (result.isECCapture ? LOG_MESSAGES.DECAY.ELECTRON_CAPTURE_INTO(newData.name) : LOG_MESSAGES.SYSTEM.ENFORCED_ELECTRON_CAPTURE_INTO(newData.name))
+                            ? (result.isECCapture ? logMessages.DECAY.ELECTRON_CAPTURE_INTO(newData.name) : logMessages.SYSTEM.ENFORCED_ELECTRON_CAPTURE_INTO(newData.name))
                             : result.targetEntity?.type === EntityType.ENEMY_POSITRON 
-                                ? LOG_MESSAGES.SYSTEM.ENFORCED_POSITRON_CAPTURE_INTO(newData.name) 
+                                ? logMessages.SYSTEM.ENFORCED_POSITRON_CAPTURE_INTO(newData.name) 
                                 : result.targetEntity?.type === EntityType.PROTON 
-                                    ? LOG_MESSAGES.SYSTEM.ENFORCED_PROTON_CAPTURE_INTO(newData.name) 
+                                    ? logMessages.SYSTEM.ENFORCED_PROTON_CAPTURE_INTO(newData.name) 
                                     : result.targetEntity?.type === EntityType.NEUTRON 
-                                        ? LOG_MESSAGES.SYSTEM.NEUTRON_CAPTURE_INTO(newData.name) 
-                                        : LOG_MESSAGES.DECAY.TRANSFORMATION_INTO(newData.name);
+                                        ? logMessages.SYSTEM.NEUTRON_CAPTURE_INTO(newData.name) 
+                                        : logMessages.DECAY.TRANSFORMATION_INTO(newData.name);
 
-            if (result.hpPenalty >= 20) { coreMsg = LOG_MESSAGES.SYSTEM.ENFORCED_CAPTURE_PREFIX(coreMsg); reason = REASON.FATAL_CAPTURE; }
+            if (result.hpPenalty >= 20) { coreMsg = logMessages.SYSTEM.ENFORCED_CAPTURE_PREFIX(coreMsg); reason = REASON.FATAL_CAPTURE; }
 
             nextState = applyDiscoveryLogic({ ...nextState, messages: [...nextState.messages, coreMsg, ...reactionMessages].slice(-10), hp: Math.min(state.maxHp, Math.max(0, state.hp + (newData.isStable ? 10 : 0) - result.hpPenalty)), energyPoints: Math.min(MAX_ENERGY, state.energyPoints + result.energyBonus + reactionEnergyBonus) }, newData, context, nextTurn, { isCoulombScattered: result.isCoulombScattered, isFusionAchieved: result.isPpFusion, isFissionAchieved: result.isFissionAchieved, isZeroBarnAchieved: result.isZeroBarnAchieved, isBremsAchieved: result.isBremsAchieved, gluttonyTrigger: result.gluttonyTrigger });
         } else {
             const isDare = !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine);
             const isDareActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
-            let failMsg = isAnti ? LOG_MESSAGES.SYSTEM.TOTAL_ANNIHILATION(result.energyBonus) : LOG_MESSAGES.SYSTEM.TRANSFORMATION_FAILED_DRIP_LINE;
+            let failMsg = isAnti ? logMessages.SYSTEM.TOTAL_ANNIHILATION(result.energyBonus) : logMessages.SYSTEM.TRANSFORMATION_FAILED_DRIP_LINE;
 
             const unlockResult = processUnlocks(
                 state.unlockedElements, state.unlockedGroups, null, null,
                 false, false, false, false, 0, 
                 false, false, false, !!result.isZeroBarnAchieved, !!result.isBremsAchieved,
-                0, 0, false, isDare, false, false, state.playerLevel
+                0, 0, false, isDare, false, false, state.playerLevel,
+                false, state.language
             );
 
             let finalEntities = nextState.gridEntities;
@@ -183,7 +186,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         }
     } else {
         const nextHp = Math.max(0, Math.min(state.maxHp, state.hp + (state.currentNuclide.isStable ? 1 : 0)) - result.hpPenalty);
-        const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn, energyIncreased: result.energyBonus > 0 });
+        const nextMsg = getNextTutorialMessage(state, 'TURN_ADVANCED', { currentTurn: nextTurn, energyIncreased: result.energyBonus > 0 }, state.language);
         
         // Prioritize specific tutorial messages from the simulator (e.g., Real Physics scattering)
         const finalTutorialMsg = result.tutorialMessage !== undefined ? result.tutorialMessage : nextMsg;
@@ -202,7 +205,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     
     // Add Real Physics unlock message if applicable
     if (result.newlyUnlockedGroups?.includes(TITLES.REAL_PHYSICS) && !state.unlockedGroups.includes(TITLES.REAL_PHYSICS)) {
-        nextState.messages = [...nextState.messages, LOG_MESSAGES.SYSTEM.SKILL_UNLOCKED_REAL_PHYSICS].slice(-10);
+        nextState.messages = [...nextState.messages, logMessages.SYSTEM.SKILL_UNLOCKED_REAL_PHYSICS].slice(-10);
     }
 
     if (nextState.hp <= 0 && !nextState.gameOver) Object.assign(nextState, resolveStabilityCrisis(nextState, reason, !state.currentNuclide.isStable && (state.currentNuclide.isProtonDripLine || state.currentNuclide.isNeutronDripLine)));
