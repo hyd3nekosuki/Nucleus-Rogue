@@ -1,9 +1,15 @@
 
 export const FACTS_SEGMENT_1: Record<string, string> = {
   "0-1": "A free particle that decays into a proton with a half-life of 10.2 minutes.",
+  "0-2": "A transient system of two neutrons; its observation provides insight into the strong nuclear force.",
+  "0-4": "A resonance state of four neutrons (Tetraneutron) that challenges nuclear structure models.",
+  "0-6": "A theoretical system of six neutrons; its stability is a subject of intense nuclear research.",
   "1-1": "The most abundant element in the universe, making up 75% of baryonic mass.",
   "1-2": "A stable isotope (Deuterium) used in heavy water and as a chemical tracer.",
   "1-3": "A radioactive isotope (Tritium) used in self-powered lighting and fusion research.",
+  "1-4": "Extremely short-lived neutron resonance state; its existence was confirmed in 2003.",
+  "1-5": "A super-heavy hydrogen isotope that decays via two-neutron emission.",
+  "1-6": "An extremely unstable hydrogen isotope with a very high neutron-to-proton ratio.",
   "1-7": "The most neutron-rich hydrogen isotope ever synthesized in laboratory conditions.",
   "2-3": "Rare on Earth but abundant on the Moon; a potential fuel for clean fusion.",
   "2-4": "Extremely stable due to its 'doubly magic' nuclear shell structure.",

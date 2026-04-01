@@ -42,6 +42,7 @@ export const FACTS_SEGMENT_3: Record<string, string> = {
   "49-113": "Nearly stable isotope used in the production of liquid crystal displays (LCDs).",
   "49-115": "Primordial isotope with a half-life 4 million times the age of the universe.",
   "50-112": "Target in nuclear physics used to study extremely neutron-deficient nuclei.",
+  "50-100": "A doubly magic nucleus (Z=N=50) that is the lightest isotope of tin, discovered in 1994.",
   "50-114": "Stable isotope used in fundamental research on nuclear shell structure.",
   "50-115": "Used to study the thermal and magnetic properties of superconducting materials.",
   "50-116": "A stable isotope used in the production of high-strength magnets.",
