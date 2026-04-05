@@ -56,7 +56,7 @@ export const calculateAnnihilationSymmetry = (
         remainingEntities,
         effectMode,
         removedId: target.id,
-        extraMessages: [logMessages.PHYSICS.ANNIHILATION_GAMMA(20000)]
+        extraMessages: [JSON.stringify({ key: 'PHYSICS.ANNIHILATION_GAMMA', params: [20000] })]
     };
 };
 
@@ -84,6 +84,6 @@ export const calculateFissionShockwave = (
     return {
         remainingEntities,
         defeatedNuclides,
-        extraMessages: defeatedNuclides.length > 0 ? [logMessages.PHYSICS.SHOCKWAVE_NEUTRALIZED(defeatedNuclides.length)] : []
+        extraMessages: defeatedNuclides.length > 0 ? [JSON.stringify({ key: 'PHYSICS.SHOCKWAVE_NEUTRALIZED', params: [defeatedNuclides.length] })] : []
     };
 };

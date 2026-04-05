@@ -34,6 +34,10 @@ export const finalizeAction = (state: GameState): GameState => {
                 priorityMessages: [
                     ...(nextState.lastEvent.priorityMessages || []),
                     ...(bgLastEvent.priorityMessages || [])
+                ],
+                ttsPriorityMessages: [
+                    ...(nextState.lastEvent.ttsPriorityMessages || []),
+                    ...(bgLastEvent.ttsPriorityMessages || [])
                 ]
             };
         }

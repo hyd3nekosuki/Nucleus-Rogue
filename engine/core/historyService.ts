@@ -1,5 +1,6 @@
 import { HistoryEntry, NuclideData } from '../../types';
 import { LOG_MESSAGES } from '../../constants';
+import { getEnglishLogMessage } from '../../utils/logUtils';
 
 /**
  * Pure function to register or update a nuclide discovery in the evolution history.
@@ -25,6 +26,7 @@ export const registerHistoryEntry = (
 ): Record<string, HistoryEntry> => {
     const key = `${nuclide.z}-${nuclide.a}`;
     const existing = history[key];
+    const englishMethod = getEnglishLogMessage(method);
 
     if (existing) {
         /**
@@ -36,7 +38,7 @@ export const registerHistoryEntry = (
          *    pedigrees from being downgraded to "Unknown".
          * 3. lastTurn and isEngraved are always updated to the latest session state.
          */
-        const isNewScientificAction = method !== LOG_MESSAGES.HISTORY.UNKNOWN;
+        const isNewScientificAction = englishMethod !== LOG_MESSAGES.HISTORY.UNKNOWN;
         const isExistingRecordUnknown = existing.method === LOG_MESSAGES.HISTORY.UNKNOWN || !existing.method;
         const shouldUpdateLineage = isNewScientificAction || isExistingRecordUnknown;
 
@@ -45,7 +47,7 @@ export const registerHistoryEntry = (
             [key]: {
                 ...existing,
                 lastTurn: turn,
-                method: shouldUpdateLineage ? method : existing.method,
+                method: shouldUpdateLineage ? englishMethod : existing.method,
                 pz: shouldUpdateLineage ? pz : existing.pz,
                 pa: shouldUpdateLineage ? pa : existing.pa,
                 isEngraved: forceEngraved || !!existing.isEngraved
@@ -61,7 +63,7 @@ export const registerHistoryEntry = (
         symbol: nuclide.symbol,
         z: nuclide.z,
         a: nuclide.a,
-        method,
+        method: englishMethod,
         pz,
         pa,
         isEngraved: forceEngraved

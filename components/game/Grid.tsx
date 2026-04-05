@@ -5,6 +5,7 @@ import { OverrideValidationResult } from '../../hooks/useOverrideValidator';
 import { DripLineService } from '../../engine/dripLineService';
 import { TITLES } from '../../constants';
 import { getSymbol } from '../../constants/atomicData';
+import { isPositron, isElectron, isNeutron } from '../../utils/particleUtils';
 
 interface GridProps {
   width: number;
@@ -52,15 +53,16 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       const isConsumedByOverride = entity && overrideResult?.idsToConsume?.includes(entity.id);
 
       if (isPlayer) {
-          const isNeutron = gameState.currentNuclide.z === 0;
-          const isElectron = gameState.currentNuclide.z === -1;
+          const isNeutronPlayer = isNeutron(gameState.currentNuclide);
+          const isElectronPlayer = isElectron(gameState.currentNuclide);
+          const isPositronPlayer = isPositron(gameState.currentNuclide);
           const isUnknownDecay = gameState.currentNuclide.decayModes.includes(DecayMode.UNKNOWN);
           const hue = (gameState.currentNuclide.z * 10) % 360;
           const isUnstable = !gameState.currentNuclide.isStable;
           
-          let bgStyle = isNeutron ? '#ffffff' : (isElectron ? '#facc15' : `hsl(${hue}, 70%, 50%)`);
-          let textStyle = (isNeutron || isElectron) ? '#000000' : '#fff';
-          let shadowStyle = isNeutron ? '0 0 20px #ffffff' : (isElectron ? '0 0 20px #facc15' : undefined);
+          let bgStyle = isNeutronPlayer ? '#ffffff' : (isElectronPlayer ? '#facc15' : (isPositronPlayer ? '#bc13fe' : `hsl(${hue}, 70%, 50%)`));
+          let textStyle = (isNeutronPlayer || isElectronPlayer || isPositronPlayer) ? '#000000' : '#fff';
+          let shadowStyle = isNeutronPlayer ? '0 0 20px #ffffff' : (isElectronPlayer ? '0 0 20px #facc15' : (isPositronPlayer ? '0 0 20px #bc13fe' : undefined));
           let borderStyle = undefined;
 
           if (isUnknownDecay) {
@@ -78,18 +80,18 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
 
           content = (
               <div 
-                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutron && !isElectron && !isUnknownDecay && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
+                className={`relative w-full h-full rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isUnstable && !gameState.isTimeStopped ? 'animate-pulse' : ''} ${!isNeutronPlayer && !isElectronPlayer && !isUnknownDecay && !gameState.isTimeStopped ? 'shadow-[0_0_15px_rgba(0,255,157,0.5)]' : ''}`}
                 style={{ backgroundColor: bgStyle, color: textStyle, boxShadow: shadowStyle, border: borderStyle }}
               >
                  <span className="z-10 relative top-[1px]">{gameState.currentNuclide.symbol}</span>
-                 {!isElectron && (
+                 {!isElectronPlayer && (
                    <>
-                     <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutron || isElectron) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.a}</div>
-                     <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutron || isElectron) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.z}</div>
+                     <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutronPlayer || isElectronPlayer) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.a}</div>
+                     <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutronPlayer || isElectronPlayer) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.z}</div>
                    </>
                  )}
-                 {(gameState.magicBarrierCharges > 0 || isNeutron || isElectron || isUnknownDecay) && (
-                    <div className={`absolute inset-[-4px] border ${isNeutron && !isUnknownDecay ? 'border-gray-400' : (isElectron ? 'border-yellow-400/50' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30'))} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
+                 {(gameState.magicBarrierCharges > 0 || isNeutronPlayer || isElectronPlayer || isUnknownDecay) && (
+                    <div className={`absolute inset-[-4px] border ${isNeutronPlayer && !isUnknownDecay ? 'border-gray-400' : (isElectronPlayer ? 'border-yellow-400/50' : (isUnknownDecay ? 'border-purple-500/50' : 'border-white/30'))} rounded-full ${gameState.isTimeStopped ? '' : 'animate-[spin_4s_linear_infinite]'}`}></div>
                  )}
               </div>
           );
@@ -144,8 +146,9 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
               case EntityType.ANOTHER_NUCLIDE:
                   const ez = entity.z || 0;
                   const ea = entity.a || 0;
+                  const isPositronEntity = isPositron({ z: ez, a: ea });
                   const ehue = (ez * 10) % 360;
-                  const eBgStyle = ez === 0 ? '#ffffff' : `hsl(${ehue}, 80%, 80%)`;
+                  const eBgStyle = ez === 0 ? '#ffffff' : (isPositronEntity ? '#bc13fe' : `hsl(${ehue}, 80%, 80%)`);
                   // Distinction by affiliation: Circle for Friend (Round), Soft Square for Enemy (rounded-md)
                   const shapeClass = entity.isFriendly ? 'rounded-full' : 'rounded-md';
                   content = (
@@ -153,7 +156,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                         className={`relative w-full h-full ${shapeClass} flex items-center justify-center text-xs font-bold border border-black/20 shadow-[0_0_12px_rgba(0,0,0,0.4)] animate-pulse transition-all duration-300`}
                         style={{ backgroundColor: eBgStyle, color: '#000000' }}
                     >
-                        <span className="z-10 relative top-[1px]">{getSymbol(ez)}</span>
+                        <span className="z-10 relative top-[1px]">{isPositronEntity ? "e+" : getSymbol(ez)}</span>
                         <div className="absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ea}</div>
                         <div className="absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 opacity-90">{ez}</div>
                         <div className={`absolute inset-[-4px] border-2 border-dashed border-black/10 ${shapeClass} ${gameState.isTimeStopped ? '' : 'animate-[spin_8s_linear_infinite]'}`}></div>

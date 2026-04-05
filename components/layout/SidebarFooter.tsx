@@ -26,7 +26,7 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({
   return (
     <div className="p-4 bg-black/40 border-t border-gray-800 shrink-0 flex justify-between items-center text-[10px] text-gray-500">
       <div className="flex flex-col">
-        <span className="font-bold uppercase">v{version}</span>
+        <span className="font-bold">ver. {version}</span>
         <div className="flex gap-2">
           <a 
             href="https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html" 

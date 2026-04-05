@@ -13,6 +13,7 @@ export const parseNuclideCommand = (input: string): { z: number, a: number } | n
     if (!trimmed) return null;
 
     if (trimmed.toLowerCase() === 'e-') return { z: -1, a: 0 };
+    if (trimmed.toLowerCase() === 'e+') return { z: 1, a: 0 };
 
     // Matches patterns like "Au-197", "Au197", "197-Au", "197Au"
     const match = trimmed.match(/^([a-z]+)-?(\d+)$/i) || trimmed.match(/^(\d+)-?([a-z]+)$/i);

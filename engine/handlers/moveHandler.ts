@@ -18,6 +18,7 @@ import { resolveStabilityCrisis } from '../stabilityManager';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from '../tutorialManager';
 import { applyDiscoveryLogic, findNearbyFreeCell } from '../core/discoveryEngine';
 import { handleAnotherNuclideCollision, handleDefeatByReaction } from '../core/collisionService';
+import { isPositron } from '../../utils/particleUtils';
 import { finalizeAction } from '../core/turnService';
 import { processUnlocks } from '../unlockSystem';
 import { LOG_MESSAGES } from '../../constants/logMessageTextData';
@@ -64,7 +65,8 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
     // Process enemies defeated by reaction (Alpha, SF, etc.) from chainDecayResult
     let defeatedCount = 0;
     if (result.chainDecayResult?.defeatedNuclides && result.chainDecayResult.defeatedNuclides.length > 0) {
-        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: nextEntities }, result.chainDecayResult.defeatedNuclides, nextTurn);
+        const triggerLabel = result.inducedReactionLabel || result.chainDecayResult.trigger;
+        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: nextEntities }, result.chainDecayResult.defeatedNuclides, nextTurn, triggerLabel);
         nextEntities = defeatResult.nextEntities;
         currentHistory = defeatResult.nextHistory;
         reactionEnergyBonus = defeatResult.energyBonus;
@@ -122,7 +124,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             shake: result.shouldShake || defeatedCount > 0 || isAnti, 
             shakeIntensity: result.shakeIntensity,
             flash: result.flashColor || (result.shouldFlash ? (result.isPpFusion ? 'bg-neon-purple' : 'bg-neon-blue') : undefined), 
-            priorityMessages: result.isPpFusion ? [logMessages.HISTORY.NUCLEAR_FUSION] : [],
+            priorityMessages: result.isPpFusion ? [LOG_MESSAGES.HISTORY.NUCLEAR_FUSION] : [],
             decayModeTrigger: result.inducedDecayMode,
             hasDefeat: defeatedCount > 0 || isAnti,
             chainReactionPath: result.chainDecayResult?.chainReactionPath
@@ -197,7 +199,15 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
             tutorialMessage: finalTutorialMsg, 
             messages: result.scatteredMessage ? [...nextState.messages, `⚠️ ${result.scatteredMessage}`].slice(-10) : nextState.messages 
         });
-        if (nextHp === 0) reason = result.isAnnihilation ? REASON.ANNIHILATION : REASON.FATAL_CAPTURE;
+        if (nextHp === 0) {
+            if (result.isAnnihilation) {
+                reason = isPositron(state.currentNuclide) 
+                    ? REASON.POSITRON_ANNIHILATION 
+                    : REASON.ELECTRON_ANNIHILATION;
+            } else {
+                reason = REASON.FATAL_CAPTURE;
+            }
+        }
     }
 
     if (result.additionalEffects) nextState.effects = [...nextState.effects, ...result.additionalEffects];

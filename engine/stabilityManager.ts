@@ -3,7 +3,7 @@ import { calculateReincarnationTargets } from './particleEngine';
 import { REASON } from '../constants/gameOverReason';
 import { processUnlocks } from './unlockSystem';
 import { TITLES } from '../constants/titles';
-import { getLogMessages } from '../constants';
+import { getLogMessages, LOG_MESSAGES } from '../constants';
 
 /**
  * Utility to resolve a stability crisis (HP=0).
@@ -41,7 +41,12 @@ export const resolveStabilityCrisis = (
             messages: [...state.messages, ...res.messages].slice(-10),
             combo: 0, comboScore: 0, comboOrigin: undefined,
             consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-            lastEvent: { id: now, type: 'DEATH', message: logMessages.HISTORY.NOTHINGNESS, flash: 'bg-neon-purple', shake: true }
+            lastEvent: { 
+                id: now, type: 'DEATH', 
+                message: logMessages.HISTORY.NOTHINGNESS, 
+                ttsMessage: LOG_MESSAGES.HISTORY.NOTHINGNESS,
+                flash: 'bg-neon-purple', shake: true 
+            }
         };
     }
 
@@ -58,7 +63,11 @@ export const resolveStabilityCrisis = (
                 ...state.effects, 
                 { id: Math.random().toString(36).substr(2, 9), type: DecayMode.STABILIZE_ZAP, position: { ...state.playerPos }, timestamp: now }
             ],
-            lastEvent: { id: now, type: 'SURVIVAL', subType: 'TEMPORAL_INVERSION', message: logMessages.HISTORY.TEMPORAL_INVERSION }
+            lastEvent: { 
+                id: now, type: 'SURVIVAL', subType: 'TEMPORAL_INVERSION', 
+                message: logMessages.HISTORY.TEMPORAL_INVERSION,
+                ttsMessage: LOG_MESSAGES.HISTORY.TEMPORAL_INVERSION
+            }
         };
 
         const res = finalizeUnlocks(survivalUpdate);
@@ -72,7 +81,8 @@ export const resolveStabilityCrisis = (
 
     // --- CASE 2: Reincarnation ---
     const isDaredevilActive = state.unlockedGroups.includes(TITLES.DEMON_CORE) && !state.disabledSkills.includes(TITLES.DEMON_CORE);
-    const reinc = reason === REASON.ANNIHILATION ? null : calculateReincarnationTargets(state.currentNuclide, state.reincarnationPool, state.evolutionHistory, isDaredevilActive);
+    const isAnnihilation = reason === REASON.ANNIHILATION || reason === REASON.ELECTRON_ANNIHILATION || reason === REASON.POSITRON_ANNIHILATION;
+    const reinc = isAnnihilation ? null : calculateReincarnationTargets(state.currentNuclide, state.reincarnationPool, state.evolutionHistory, isDaredevilActive);
     
     if (reinc) {
         const { nuclide, usage } = reinc;
@@ -93,7 +103,11 @@ export const resolveStabilityCrisis = (
             hasPerformedActiveReincarnation: true,
             combo: 0, comboScore: 0, comboOrigin: undefined,
             consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null,
-            lastEvent: { id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', message: logMessages.HISTORY.REINCARNATION }
+            lastEvent: { 
+                id: now, type: 'SURVIVAL', subType: 'REINCARNATION', flash: 'bg-neon-green', 
+                message: logMessages.HISTORY.REINCARNATION,
+                ttsMessage: LOG_MESSAGES.HISTORY.REINCARNATION
+            }
         };
 
         const res = finalizeUnlocks(survivalUpdate);

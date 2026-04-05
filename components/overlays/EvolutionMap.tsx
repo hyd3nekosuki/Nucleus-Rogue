@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { NuclideData, DecayMode, HistoryEntry, ComboOrigin } from '../../types';
+import { NuclideData, DecayMode, HistoryEntry, ComboOrigin, Language } from '../../types';
 import { getNuclideDataSync } from '../../services/nuclideService';
 import { DripLineService } from '../../engine/dripLineService';
 
-import { LOG_MESSAGES, TITLES } from '../../constants';
+import { LOG_MESSAGES, TITLES, getLogMessages } from '../../constants';
 
 interface EvolutionMapProps {
     history: HistoryEntry[];
@@ -11,9 +11,10 @@ interface EvolutionMapProps {
     turn: number; // Current game turn
     combo: number;
     comboOrigin?: ComboOrigin;
+    language: Language;
 }
 
-const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn, combo, comboOrigin }) => {
+const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn, combo, comboOrigin, language }) => {
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
     const [mountTurn] = useState(turn); // Store the turn value when the component was first mounted
     
@@ -157,10 +158,15 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
 
     const getTooltipText = (name: string, method: string) => {
         const formattedName = formatNuclideName(name);
-        const historyLabels = LOG_MESSAGES.HISTORY;
+        const logMessages = getLogMessages(language);
+        const historyLabels = logMessages.HISTORY;
         
         if (method === historyLabels.ORIGIN || method === historyLabels.UNKNOWN || method === historyLabels.EXP_REPLICATE) {
             return `${formattedName} (${method})`;
+        }
+        
+        if (language === 'jp') {
+            return `${method}により${formattedName}に変化`;
         }
         return `${formattedName} by ${method}`;
     };

@@ -43,4 +43,4 @@ export const gameEventBus = new GameEventBus();
  */
 export const emitShake = (duration?: number) => gameEventBus.emitEffect('SHAKE', duration);
 export const emitFlash = (color: string, duration?: number) => gameEventBus.emitEffect('FLASH', { color, duration });
-export const emitTTS = (text: string) => gameEventBus.emitEffect('TTS', text);
+export const emitTTS = (text: string, lang: string = 'en') => gameEventBus.emitEffect('TTS', { text, lang });

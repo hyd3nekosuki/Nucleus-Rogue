@@ -5,6 +5,7 @@ import { COULOMB_BARRIER_THRESHOLD } from '../constants/physics';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
 import { LOG_MESSAGES, getLogMessages } from '../constants';
+import { isPositron, isElectron, isLepton } from '../utils/particleUtils';
 
 import { getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
@@ -44,7 +45,7 @@ export const calculateInteraction = (
                     // Forced Capture: e- + p -> n (High energy only)
                     res.dZ = 1; res.dA = 1;
                     res.messages.push(logMessages.PHYSICS.ELECTRON_PROTON_REACTION);
-                    res.inducedReactionLabel = LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE_PLAYER;
+                    res.inducedReactionLabel = logMessages.HISTORY.ELECTRON_CAPTURE_PLAYER;
                     res.shouldFlash = true;
                     res.flashColor = "bg-white";
                     return res;
@@ -66,6 +67,55 @@ export const calculateInteraction = (
                 // Annihilation
                 res.isAnnihilation = true;
                 return res;
+            case EntityType.ANOTHER_NUCLIDE: {
+                const targetZ = target.z || 0;
+                const targetA = target.a || 0;
+                if (targetZ === 1 && targetA === 0) {
+                    // Annihilation with positron-nuclide
+                    res.isAnnihilation = true;
+                    return res;
+                }
+                return res;
+            }
+            default:
+                return res;
+        }
+    }
+
+    // Special Case: Player is a Positron (Z=1, A=0)
+    if (isPositron(currentNuclide)) {
+        switch (target.type) {
+            case EntityType.PROTON:
+                // Coulomb repulsion: e+ vs p (including high energy)
+                res.isCoulombScattered = true;
+                res.scatteredMessage = logMessages.PHYSICS.POSITRON_SCATTERED;
+                return res;
+            case EntityType.NEUTRON:
+                // No reaction, pass through (including high energy)
+                res.messages.push(logMessages.PHYSICS.POSITRON_PASSES_NEUTRON);
+                return res;
+            case EntityType.ENEMY_ELECTRON:
+                // Annihilation
+                res.isAnnihilation = true;
+                return res;
+            case EntityType.ENEMY_POSITRON:
+                // Coulomb repulsion: e+ vs e+
+                res.isCoulombScattered = true;
+                res.scatteredMessage = logMessages.PHYSICS.COULOMB_REPULSION_PP;
+                return res;
+            case EntityType.ANOTHER_NUCLIDE: {
+                const targetZ = target.z || 0;
+                const targetA = target.a || 0;
+                if (isElectron({ z: targetZ, a: targetA })) {
+                    // Annihilation with electron-nuclide
+                    res.isAnnihilation = true;
+                    return res;
+                }
+                // Positron player is scattered by other nuclides
+                res.isCoulombScattered = true;
+                res.scatteredMessage = logMessages.PHYSICS.POSITRON_SCATTERED;
+                return res;
+            }
             default:
                 return res;
         }
@@ -167,6 +217,19 @@ export const calculateInteraction = (
             res.isPositronAbsorption = true;
             res.dZ = 1;
             break;
+
+        case EntityType.ANOTHER_NUCLIDE: {
+            const targetZ = target.z || 0;
+            const targetA = target.a || 0;
+            if (targetZ === 1 && targetA === 0) {
+                res.isPositronAbsorption = true;
+                res.dZ = 1;
+            } else if (targetZ === -1 && targetA === 0) {
+                res.isECCapture = true;
+                res.dZ = -1;
+            }
+            break;
+        }
     }
 
     return res;
@@ -192,7 +255,7 @@ export const calculateNeutronReaction = (
     language: Language = 'en'
 ): AtomicReactionResult | null => {
     const logMessages = getLogMessages(language);
-    if (target.type !== EntityType.NEUTRON || currentNuclide.z === -1) return null;
+    if (target.type !== EntityType.NEUTRON || isLepton(currentNuclide)) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
 
@@ -262,7 +325,8 @@ export const calculateNeutronReaction = (
             currentTime, 
             annihilationEnabled, 
             fissionEnabled,
-            neutronStarEnabled
+            neutronStarEnabled,
+            language
         );
         
         // Stacking logic: 
@@ -354,7 +418,8 @@ export const calculateNeutronReaction = (
                     currentTime, 
                     annihilationEnabled, 
                     fissionEnabled,
-                    neutronStarEnabled
+                    neutronStarEnabled,
+                    language
                 );
 
                 let stackedDA = 1 + decayResult.dA;
@@ -411,7 +476,7 @@ export const calculateProtonReaction = (
     language: Language = 'en'
 ): AtomicReactionResult | null => {
     const logMessages = getLogMessages(language);
-    if (target.type !== EntityType.PROTON || !target.isHighEnergy || currentNuclide.z === -1) return null;
+    if (target.type !== EntityType.PROTON || !target.isHighEnergy || isLepton(currentNuclide)) return null;
 
     const isRealPhysicsActive = !unlockedGroups.includes(TITLES.REAL_PHYSICS) || !disabledSkills.includes(TITLES.REAL_PHYSICS);
     const isFusionDisabled = disabledSkills.includes(TITLES.FUSION);
@@ -536,7 +601,8 @@ export const calculateProtonReaction = (
             currentTime, 
             annihilationEnabled, 
             fissionEnabled,
-            neutronStarEnabled
+            neutronStarEnabled,
+            language
         );
 
         // Stacking logic:

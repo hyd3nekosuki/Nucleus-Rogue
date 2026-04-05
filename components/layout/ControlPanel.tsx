@@ -212,7 +212,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
                         window.open(`https://doi.org/${doi.doi}`, '_blank', 'noopener,noreferrer');
                       } else {
                         const nuclideName = getNuclideDataSync(z, a).name;
-                        const searchQuery = encodeURIComponent(nuclideName);
+                        const searchQuery = encodeURIComponent(`nuclide ${nuclideName}`);
                         window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank', 'noopener,noreferrer');
                       }
                     }}

@@ -9,6 +9,9 @@ import { findSpecialReaction } from '../../data/specialReactions';
 import { resolveStabilityCrisis } from '../stabilityManager';
 import { registerHistoryEntry } from './historyService';
 import { getLogMessages, LOG_MESSAGES } from '../../constants';
+import { getLocalizedReactionLabel } from '../../utils/historyLogic';
+
+import { isPositron, isElectron } from '../../utils/particleUtils';
 
 /**
  * Core Service: Resolves a collision between the player nucleus and an "Another Nuclide" entity.
@@ -26,6 +29,26 @@ export const handleAnotherNuclideCollision = (
     const pa = state.currentNuclide.a;
     const ez = enemy.z || 0;
     const ea = enemy.a || 0;
+
+    // Annihilation check for positron/electron modes
+    const isPlayerPositron = isPositron({ z: pz, a: pa });
+    const isPlayerElectron = isElectron({ z: pz, a: pa });
+    const isEnemyPositron = isPositron({ z: ez, a: ea });
+    const isEnemyElectron = isElectron({ z: ez, a: ea });
+
+    if ((isPlayerPositron && isEnemyElectron) || (isPlayerElectron && isEnemyPositron)) {
+        const annihilationMsg = isPlayerPositron ? logMessages.PHYSICS.POSITRON_ANNIHILATION : logMessages.PHYSICS.ELECTRON_ANNIHILATION;
+        const nextState = {
+            ...state,
+            playerPos: collisionPos,
+            hp: 0,
+            messages: [...state.messages, annihilationMsg].slice(-10),
+            lastEvent: { id: now, type: 'COLLISION' as const, subType: 'ANNIHILATION', shake: true, flash: 'bg-white' }
+        };
+        const reason = isPlayerPositron ? REASON.POSITRON_ANNIHILATION : REASON.ELECTRON_ANNIHILATION;
+        return { ...nextState, ...resolveStabilityCrisis(nextState, reason) };
+    }
+
     const reaction = findSpecialReaction(pz, pa, ez, ea);
 
     // Scenario A: Special Nuclear Reaction (e.g., fusion or transmutation)
@@ -66,6 +89,8 @@ export const handleAnotherNuclideCollision = (
             }
             reaction.emissions.forEach(emitType => { nextEntities = generateEntities(1, nextEntities, collisionPos, state.turn, emitType, true); });
 
+            const reactionMessage = (state.language === 'jp' && reaction.messageJP) ? reaction.messageJP : reaction.message;
+
             return applyDiscoveryLogic(
                 { 
                     ...state, 
@@ -73,7 +98,7 @@ export const handleAnotherNuclideCollision = (
                     energyPoints: Math.min(MAX_ENERGY, state.energyPoints + reaction.energyBonus), 
                     gridEntities: nextEntities, 
                     evolutionHistory: nextHistory,
-                    messages: [...state.messages, reaction.message].slice(-10), 
+                    messages: [...state.messages, reactionMessage].slice(-10), 
                     lastEvent: { 
                         id: now, type: 'COLLISION', subType: 'SPECIAL_REACTION', shake: true, 
                         flash: reaction.isSuperheavy ? 'bg-yellow-400' : 'bg-white', 
@@ -103,7 +128,7 @@ export const handleAnotherNuclideCollision = (
 
     if (isDefeated) { 
         nextEnergy = Math.min(MAX_ENERGY, state.energyPoints + DEFEAT_ENERGY_REWARD); 
-        rewardMsg = [logMessages.SYSTEM.ANOTHER_NUCLIDE_DEFEATED]; 
+        rewardMsg = [JSON.stringify({ key: 'SYSTEM.ANOTHER_NUCLIDE_DEFEATED' })]; 
         
         // Register defeated enemy in history as isolated dot
         const enemyData = getNuclideDataSync(ez, ea);
@@ -115,7 +140,7 @@ export const handleAnotherNuclideCollision = (
         nextEntities.push({ ...enemy, position: findNearbyFreeCell(collisionPos, nextEntities, collisionPos), z: nextZ, a: nextA });
     }
 
-    const campLabel = enemy.isFriendly ? logMessages.SYSTEM.CAMP_FRIENDLY : logMessages.SYSTEM.CAMP_ANOTHER;
+    const campKey = enemy.isFriendly ? 'SYSTEM.CAMP_FRIENDLY' : 'SYSTEM.CAMP_ANOTHER';
     const nextState: GameState = { 
         ...state, 
         playerPos: collisionPos, 
@@ -124,7 +149,7 @@ export const handleAnotherNuclideCollision = (
         gridEntities: nextEntities, 
         evolutionHistory: nextHistory,
         turn: targetTurn, 
-        messages: [...state.messages, logMessages.SYSTEM.COLLISION_WITH_NUCLIDE(campLabel, penalty), ...rewardMsg].slice(-10), 
+        messages: [...state.messages, JSON.stringify({ key: 'SYSTEM.COLLISION_WITH_NUCLIDE', params: [JSON.stringify({ key: campKey }), penalty] }), ...rewardMsg].slice(-10), 
         lastEvent: { id: now, type: 'COLLISION', hasDefeat: isDefeated, shake: true, flash: enemy.isFriendly ? 'bg-blue-900' : 'bg-amber-700' } 
     };
 
@@ -142,7 +167,8 @@ export const handleAnotherNuclideCollision = (
 export const handleDefeatByReaction = (
     state: GameState,
     defeatedEntities: GridEntity[],
-    targetTurn: number
+    targetTurn: number,
+    reactionLabel?: string
 ): { nextEntities: GridEntity[], nextHistory: Record<string, HistoryEntry>, energyBonus: number, messages: string[], defeatedCount: number } => {
     const logMessages = getLogMessages(state.language);
     let nextEntities = [...state.gridEntities];
@@ -157,8 +183,20 @@ export const handleDefeatByReaction = (
         
         // Apply rewards
         energyBonus += DEFEAT_ENERGY_REWARD;
-        const label = enemy.type === EntityType.ANTI_NUCLIDE ? logMessages.SYSTEM.LABEL_ANTI_NUCLIDE : logMessages.SYSTEM.LABEL_ANOTHER_NUCLIDE;
-        messages.push(logMessages.SYSTEM.DEFEATED_BY_REACTION(label));
+        const label = enemy.type === EntityType.ANTI_NUCLIDE ? JSON.stringify({ key: 'SYSTEM.LABEL_ANTI_NUCLIDE' }) : JSON.stringify({ key: 'SYSTEM.LABEL_ANOTHER_NUCLIDE' });
+        
+        if (reactionLabel) {
+            // Find the key for the reactionLabel to allow nested localization
+            const reactionKey = Object.keys(LOG_MESSAGES.HISTORY).find(
+                k => (LOG_MESSAGES.HISTORY as any)[k] === reactionLabel
+            );
+            const localizedReaction = reactionKey ? JSON.stringify({ key: `HISTORY.${reactionKey}` }) : reactionLabel;
+            
+            messages.push(JSON.stringify({ key: 'SYSTEM.DEFEATED_BY_SPECIFIC_REACTION', params: [label, localizedReaction] }));
+        } else {
+            messages.push(JSON.stringify({ key: 'SYSTEM.DEFEATED_BY_REACTION', params: [label] }));
+        }
+        
         defeatedCount++;
         
         // Register in history as scientific discovery (only for nuclides with Z/A)
@@ -167,7 +205,8 @@ export const handleDefeatByReaction = (
             const ea = enemy.a || 0;
             const enemyData = getNuclideDataSync(ez, ea);
             if (enemyData.exists) {
-                nextHistory = registerHistoryEntry(nextHistory, enemyData, LOG_MESSAGES.HISTORY.UNKNOWN, null, null, targetTurn, true);
+                const historyMethod = reactionLabel || LOG_MESSAGES.HISTORY.UNKNOWN;
+                nextHistory = registerHistoryEntry(nextHistory, enemyData, historyMethod, null, null, targetTurn, true);
             }
         }
     });

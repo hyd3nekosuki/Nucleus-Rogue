@@ -60,12 +60,12 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             
             {/* Title */}
             <div className={`text-white text-3xl md:text-4xl font-black mb-2 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] uppercase italic transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'} ${isNothingness ? 'text-neon-purple' : ''}`}>
-                {meta.title}
+                {meta.title(language)}
             </div>
 
             {/* Description Message */}
             <p className={`mb-4 text-gray-400 text-lg relative z-10 transition-opacity ${isSoundTestActive ? 'opacity-0' : 'opacity-100'}`}>
-                {meta.getDescription(nuclide.name)}
+                {meta.getDescription(nuclide.name, language)}
             </p>
             
             {/* Diagnostics Stats */}

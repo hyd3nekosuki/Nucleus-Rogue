@@ -54,7 +54,7 @@ export const processRandomBackgroundEvents = (state: GameState): BackgroundEvent
     nextEntities = moveAnotherNuclides(nextEntities, state.playerPos, state.turn, isDaredevilActive);
     
     // NEW Step 4: Resolve struggles between different camps after movement
-    const struggleResult = resolveMatterStruggle(nextEntities);
+    const struggleResult = resolveMatterStruggle(nextEntities, state.language);
     nextEntities = struggleResult.nextEntities;
     if (struggleResult.struggleMessages.length > 0) {
         nextMessages = [...nextMessages, ...struggleResult.struggleMessages].slice(-10);

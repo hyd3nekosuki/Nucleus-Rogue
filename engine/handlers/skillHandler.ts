@@ -16,7 +16,7 @@ import {
 import { MAGIC_NUMBERS } from '../../constants/physics';
 import { TITLES } from '../../constants/titles';
 import { HISTORY_METHODS } from '../../constants/strings';
-import { getLogMessages } from '../../constants';
+import { getLogMessages, LOG_MESSAGES } from '../../constants';
 import { REASON } from '../../constants/gameOverReason';
 import { getNuclideDataSync, getValidAsForZ } from '../../services/nuclideService';
 import { generateEntities } from '../moveSimulator';
@@ -48,7 +48,10 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 energyPoints: Math.max(0, state.energyPoints - cost), 
                 tranquiloTurnCount: nextTranquiloCount,
                 messages: [...state.messages, logMessages.SKILLS.STABILIZATION_SUCCESS].slice(-10), 
-                lastEvent: { id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green' } 
+                lastEvent: { 
+                    id: now, type: 'SKILL', subType: 'STABILIZE', flash: 'bg-neon-green',
+                    ttsPriorityMessages: [LOG_MESSAGES.SKILLS.STABILIZATION_SUCCESS]
+                } 
             };
             
             return finalizeAction(nextState);
@@ -71,7 +74,11 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                         ? state.achievementTimes 
                         : { ...state.achievementTimes, far_beyond_og: state.elapsedTime },
                     messages: [...state.messages, logMessages.SKILLS.NUCLEOSYNTHESIS_BOUNDARY(isOg294)].slice(-10),
-                    lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, priorityMessages: [logMessages.HISTORY.NUCLEOSYNTHESIS] }
+                    lastEvent: { 
+                        id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, 
+                        priorityMessages: [logMessages.HISTORY.NUCLEOSYNTHESIS],
+                        ttsPriorityMessages: [LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS]
+                    }
                 };
                 return finalizeAction(nextState);
             }
@@ -84,9 +91,9 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.NUCLEOSYNTHESIS_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: [logMessages.HISTORY.NUCLEOSYNTHESIS] } },
+                { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.NUCLEOSYNTHESIS_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: [logMessages.HISTORY.NUCLEOSYNTHESIS], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS] } },
                 newData,
-                { method: HISTORY_METHODS.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
@@ -105,9 +112,9 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists || nextZ < 0 || nextZ > 118) return { ...state, gameOver: true, gameOverReason: REASON.NUCLEUS_COLLAPSE, gridEntities: [], energyPoints: 0, tutorialMessage: null, lastEvent: { id: now, type: 'DEATH' } };
             
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, logMessages.SKILLS.R_PROCESS_SUCCESS(totalAbsorbed), logMessages.SKILLS.MASTERY_CONSUMED].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: [logMessages.HISTORY.R_PROCESS] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, logMessages.SKILLS.R_PROCESS_SUCCESS(totalAbsorbed), logMessages.SKILLS.MASTERY_CONSUMED].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: [logMessages.HISTORY.R_PROCESS], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.R_PROCESS] } },
                 newData,
-                { method: HISTORY_METHODS.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
@@ -137,9 +144,9 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (!newData.exists) return state;
 
             const nextState = applyDiscoveryLogic(
-                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.EXP_REPLICATE_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: [logMessages.HISTORY.EXP_REPLICATE] } },
+                { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.EXP_REPLICATE_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: [logMessages.HISTORY.EXP_REPLICATE], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.EXP_REPLICATE] } },
                 newData,
-                { method: HISTORY_METHODS.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
                 state.turn + 1,
                 { skipComboSettlement: true, isExplicitReplication: true, isQuantumOverride: false }
             );
@@ -185,7 +192,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                             return finalizeAction(applyDiscoveryLogic(
                                 { ...state, unlockedGroups: updatedGroups, achievementTimes, messages: [...state.messages, logMessages.SKILLS.DEBUG_TRANSFORMED(targetData.name)].slice(-10) },
                                 targetData,
-                                { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
                                 state.turn + 1,
                                 { isQuantumOverride: true }
                             ));
@@ -207,7 +214,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                                 unlockedGroups: updatedGroups,
                                 achievementTimes,
                                 gridEntities: [...state.gridEntities, newEntity],
-                                messages: [...state.messages, logMessages.SKILLS.DEBUG_SPAWNED(isFriendly ? 'friend' : 'enemy', targetData.name)].slice(-10)
+                                messages: [...state.messages, logMessages.SKILLS.DEBUG_SPAWNED(isFriendly ? logMessages.SYSTEM.CAMP_FRIENDLY : logMessages.SYSTEM.CAMP_ANOTHER, targetData.name)].slice(-10)
                             };
                         }
                     }
@@ -250,11 +257,12 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     messages: [...state.messages, logMessages.SKILLS.SYSTEM_OVERRIDE_SUCCESS(targetData.name)].slice(-10),
                     lastEvent: {
                         id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-yellow-400', shake: true,
-                        priorityMessages: [logMessages.HISTORY.QUANTUM_OVERRIDE]
+                        priorityMessages: [logMessages.HISTORY.QUANTUM_OVERRIDE],
+                        ttsPriorityMessages: [LOG_MESSAGES.HISTORY.QUANTUM_OVERRIDE]
                     }
                 },
                 targetData,
-                { method: HISTORY_METHODS.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
                 nextTurn,
                 { isExplicitReplication: true, isQuantumOverride: true }
             );

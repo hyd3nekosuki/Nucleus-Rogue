@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { DecayMode, GameState, GameAction } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 import { LOG_MESSAGES } from '../constants/logMessageTextData';
+import { getEnglishLogMessage } from '../utils/logUtils';
 
 // Define the priority order for vocalization (Lower index = Higher priority)
 const SPEECH_PRIORITY = [
@@ -120,7 +121,21 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
             
             // Trigger the TTS system with the winning event. 
             // useTTS will then handle the "Event + Nuclide Name" sequence.
-            emitTTS(winner);
+            // Procedure: Only speak the event name if it's NOT a standard nuclide transformation (decay/reaction).
+            // For special title events (Fusion, Fission, Annihilation, etc.), we speak the event name.
+            const isStandardTransformation = [
+                LOG_MESSAGES.HISTORY.ALPHA_DECAY,
+                LOG_MESSAGES.HISTORY.BETA_MINUS,
+                LOG_MESSAGES.HISTORY.BETA_PLUS,
+                LOG_MESSAGES.HISTORY.ELECTRON_CAPTURE,
+                LOG_MESSAGES.HISTORY.PROTON_EMISSION,
+                LOG_MESSAGES.HISTORY.NEUTRON_EMISSION,
+                LOG_MESSAGES.HISTORY.FISSION_SPONTANEOUS
+            ].some(p => winner.startsWith(p));
+
+            if (!isStandardTransformation) {
+                emitTTS(getEnglishLogMessage(winner), 'en');
+            }
         }
 
         // 4. Special Case: Internal Decay Sync for Visualizer
@@ -143,8 +158,9 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
         }
 
         // 6. Reincarnation specific (Ensuring it's caught if not in priorityMessages)
+        // Note: Reincarnation is a survival event, we speak it even if it results in a nuclide change (to Electron)
         if (event.type === 'SURVIVAL' && event.subType === 'REINCARNATION' && !event.priorityMessages?.includes(LOG_MESSAGES.HISTORY.REINCARNATION)) {
-            emitTTS(LOG_MESSAGES.HISTORY.REINCARNATION);
+            emitTTS(LOG_MESSAGES.HISTORY.REINCARNATION, 'en');
         }
 
         // 7. Mark event as played in the global state

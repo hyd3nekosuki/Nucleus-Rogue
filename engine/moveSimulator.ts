@@ -2,6 +2,7 @@ import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect, L
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt, getFreeCells } from '../utils/gridUtils';
+import { isPositron, isElectron, isLepton } from '../utils/particleUtils';
 import { calculateInteraction, calculateNeutronReaction, calculateProtonReaction } from '../physics/atomicCalculator';
 import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
@@ -39,6 +40,7 @@ export interface MoveResult {
     evolvedEntities: GridEntity[];
     scatteredMessage?: string;
     messages?: string[];
+    ttsPriorityMessages?: string[];
     magicProtectionBonus?: number;
     chargesUsed: number;
     consecutiveProtons: number;
@@ -190,8 +192,9 @@ export const calculateMoveResult = (
             };
         }
 
-        const isNoCapture = prev.currentNuclide.z === -1 && 
-            (targetEntity.type === EntityType.NEUTRON || targetEntity.type === EntityType.ENEMY_ELECTRON || (targetEntity.type === EntityType.PROTON && !targetEntity.isHighEnergy));
+        const isPositronPlayer = isPositron(prev.currentNuclide);
+        const isNoCapture = (isElectron(prev.currentNuclide) && (targetEntity.type === EntityType.NEUTRON || targetEntity.type === EntityType.ENEMY_ELECTRON || (targetEntity.type === EntityType.PROTON && !targetEntity.isHighEnergy))) ||
+            (isPositronPlayer && (targetEntity.type === EntityType.NEUTRON || targetEntity.type === EntityType.ENEMY_POSITRON || targetEntity.type === EntityType.PROTON));
         if (!isNoCapture) {
             nextEntities.splice(entityMatch.index, 1);
         }
@@ -256,6 +259,8 @@ export const calculateMoveResult = (
         }
 
         if (interactionResult.isAnnihilation) {
+            const isPositronPlayer = isPositron(prev.currentNuclide);
+            const annihilationMsg = isPositronPlayer ? logMessages.PHYSICS.POSITRON_ANNIHILATION : logMessages.PHYSICS.ELECTRON_ANNIHILATION;
             return {
                 moved: true,
                 newPos,
@@ -263,7 +268,7 @@ export const calculateMoveResult = (
                 isAnnihilation: true,
                 energyBonus: 0, actionBonusScore: 0,
                 evolvedEntities: nextEntities,
-                messages: [logMessages.PHYSICS.ANNIHILATION],
+                messages: [annihilationMsg],
                 chargesUsed: 0,
                 consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0,
                 lastConsumedType: null,
@@ -339,8 +344,8 @@ export const calculateMoveResult = (
         }
 
         if (interactionResult.isCoulombScattered) {
-            if (prev.currentNuclide.z === -1) {
-                // Electron is scattered
+            if (isLepton(prev.currentNuclide)) {
+                // Electron or Positron is scattered
                 const potentialCells = getFreeCells(nextEntities, newPos);
                 if (potentialCells.length > 0) {
                     const respawnPos = potentialCells[Math.floor(Math.random() * potentialCells.length)];
@@ -410,6 +415,7 @@ export const calculateMoveResult = (
         evolvedEntities,
         scatteredMessage: interactionResult?.scatteredMessage,
         messages,
+        ttsPriorityMessages: interactionResult?.ttsPriorityMessages,
         magicProtectionBonus: interactionResult?.magicProtectionBonus,
         chargesUsed,
         consecutiveProtons: cP,

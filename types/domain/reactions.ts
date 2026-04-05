@@ -14,6 +14,7 @@ export interface AtomicReactionResult {
   energyBonus: number;
   actionBonusScore: number;
   messages: string[];
+  ttsPriorityMessages?: string[];
   inducedDecayMode?: DecayMode;
   inducedReactionLabel?: string;
   isPpFusion?: boolean;
@@ -51,6 +52,7 @@ export interface SpecialReaction {
   product2A?: number;
   emissions: EntityType[]; // Remaining raw particle emissions
   message: string;
+  messageJP?: string;
   energyBonus: number; // Q-value in MeV
   isSuperheavy?: boolean;
 }

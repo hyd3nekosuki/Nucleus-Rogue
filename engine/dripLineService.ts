@@ -2,6 +2,8 @@ import { NUCLIDE_REPOSITORY } from '../data/nuclideRepository';
 import { DRIP_LINE_LIMITS } from '../data/dripLineLimits';
 import { NuclideCategory } from '../types';
 
+import { isElectron } from '../utils/particleUtils';
+
 /**
  * Service to determine if a nuclide sits on the physical boundaries of existence (Drip Lines).
  * Optimized to use static limit data where possible.
@@ -35,7 +37,7 @@ export const DripLineService = {
      * Checks if a specific coordinate pair (Z, A) is outside the boundaries of nuclear existence.
      */
     isBeyondDripLine: (z: number, a: number): boolean => {
-        if (z === -1 && a === 0) return false; // Electron is a special case
+        if (isElectron({ z, a })) return false; // Electron is a special case
         if (z < 0 || z > 118) return true;
         const limits = DRIP_LINE_LIMITS[z];
         if (!limits) return true;

@@ -153,12 +153,13 @@ function App() {
                     turn={gameState.turn} 
                     combo={gameState.combo} 
                     comboOrigin={gameState.comboOrigin} 
+                    language={gameState.language}
                 />
              )}
           </div>
 
           <div ref={scrollRef} className="flex-1 p-4 font-mono text-xs overflow-y-auto flex flex-col justify-start scroll-smooth select-none">
-              <MessageLog messages={gameState.messages} turn={gameState.turn} />
+              <MessageLog messages={gameState.messages} turn={gameState.turn} language={gameState.language} />
           </div>
 
           <div className="p-4 border-t border-gray-800 shrink-0 bg-black/20">

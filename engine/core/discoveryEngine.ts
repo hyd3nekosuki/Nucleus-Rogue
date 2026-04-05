@@ -130,7 +130,7 @@ export const applyDiscoveryLogic = (
 
     if (nextLevel > state.playerLevel) {
         nextMessages = [...nextMessages, logMessages.SYSTEM.MASTERY_LEVEL_UP(nextLevel)];
-        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [logMessages.HISTORY.MASTERY_LEVEL] };
+        levelUpEvent = { id: now, type: 'LEVEL_UP', priorityMessages: [LOG_MESSAGES.HISTORY.MASTERY_LEVEL] };
     }
 
     // 6. Tutorial Management

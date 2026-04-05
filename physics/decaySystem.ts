@@ -57,7 +57,7 @@ const handleAlphaDecay = (currentNuclide: NuclideData, playerPos: Position, grid
         // Apply special rewards
         energyBonus += ANNIHILATION_ENERGY_REWARD;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(logMessages.PHYSICS.ANTI_NUCLIDE_NEUTRALIZED_ALPHA);
+        messages.push(JSON.stringify({ key: 'PHYSICS.ANTI_NUCLIDE_NEUTRALIZED_ALPHA' }));
     }
 
     // Find non-friendly Another Nuclides in Moore neighborhood
@@ -213,13 +213,13 @@ const handleSpontaneousFission = (currentNuclide: NuclideData, playerPos: Positi
     const messages: string[] = [];
 
     if (chainResult.chainReactionCount > 0) {
-        messages.push(logMessages.PHYSICS.FISSION_CHAIN_REACTION_TRIGGERED(chainResult.chainReactionCount));
+        messages.push(JSON.stringify({ key: 'PHYSICS.FISSION_CHAIN_REACTION_TRIGGERED', params: [chainResult.chainReactionCount] }));
     }
 
     if (antisInBlast.length > 0) {
         energyBonus += ANNIHILATION_ENERGY_REWARD;
         score += Math.floor(940 * currentNuclide.a);
-        messages.push(logMessages.PHYSICS.ANTI_NUCLIDE_PURGED_FISSION);
+        messages.push(JSON.stringify({ key: 'PHYSICS.ANTI_NUCLIDE_PURGED_FISSION' }));
     }
 
     // Prepare byproduct data if it is a physically plausible nucleus

@@ -21,6 +21,8 @@ export interface GameStateEvent {
   decayModeTrigger?: DecayMode; 
   message?: string;
   priorityMessages?: string[]; 
+  ttsMessage?: string;
+  ttsPriorityMessages?: string[];
   shake?: boolean;
   shakeIntensity?: 'normal' | 'light';
   flash?: string;

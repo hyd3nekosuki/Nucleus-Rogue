@@ -315,7 +315,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     let reactionMessages: string[] = [];
 
     if (decayResult.defeatedNuclides && decayResult.defeatedNuclides.length > 0) {
-        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: currentEntities }, decayResult.defeatedNuclides, nextTurn);
+        const defeatResult = handleDefeatByReaction({ ...state, gridEntities: currentEntities }, decayResult.defeatedNuclides, nextTurn, decayResult.trigger);
         currentEntities = defeatResult.nextEntities;
         currentHistory = defeatResult.nextHistory;
         reactionEnergyBonus = defeatResult.energyBonus;

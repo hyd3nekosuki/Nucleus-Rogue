@@ -25,7 +25,11 @@ export const useGameEventListener = (callbacks: EffectCallbacks) => {
                     }
                     break;
                 case 'TTS':
-                    callbacks.onTTS(event.payload);
+                    if (typeof event.payload === 'string') {
+                        callbacks.onTTS(event.payload);
+                    } else if (event.payload?.text) {
+                        callbacks.onTTS(event.payload.text);
+                    }
                     break;
             }
         };

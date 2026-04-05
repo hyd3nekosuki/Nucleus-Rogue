@@ -1,7 +1,7 @@
-import { GridEntity, Position, EntityType } from '../../types';
+import { GridEntity, Position, EntityType, Language } from '../../types';
 import { isWithinBounds } from '../../utils/gridUtils';
 import { getNuclideDataSync } from '../../services/nuclideService';
-import { LOG_MESSAGES } from '../../constants/logMessageTextData';
+import { getLogMessages } from '../../constants';
 
 /**
  * Handles the AI movement of another nuclide.
@@ -91,7 +91,8 @@ export const moveAnotherNuclides = (
 /**
  * Step 4: Resolves "Matter Struggle" between nuclides of different camps sharing the same position.
  */
-export const resolveMatterStruggle = (entities: GridEntity[]): { nextEntities: GridEntity[], struggleMessages: string[], hasStruggle: boolean } => {
+export const resolveMatterStruggle = (entities: GridEntity[], language: Language = 'en'): { nextEntities: GridEntity[], struggleMessages: string[], hasStruggle: boolean } => {
+    const logMessages = getLogMessages(language);
     const struggleMessages: string[] = [];
     let hasStruggle = false;
     
@@ -151,19 +152,19 @@ export const resolveMatterStruggle = (entities: GridEntity[]): { nextEntities: G
         }
 
         const winnerName = winnerIsFriend ? nameF : nameE;
-        struggleMessages.push(LOG_MESSAGES.EVENTS.MATTER_STRUGGLE(nameF, nameE, winnerName));
+        struggleMessages.push(JSON.stringify({ key: 'EVENTS.MATTER_STRUGGLE', params: [nameF, nameE, winnerName] }));
 
         if (winnerIsFriend) {
             // All friends in this cell survive, all enemies are removed
             resultEntities.push(...friends);
             if (enemies.length > 1) {
-                struggleMessages.push(LOG_MESSAGES.EVENTS.ANNIHILATED_ENEMIES);
+                struggleMessages.push(JSON.stringify({ key: 'EVENTS.ANNIHILATED_ENEMIES' }));
             }
         } else {
             // All enemies in this cell survive, all friends are removed
             resultEntities.push(...enemies);
             if (friends.length > 1) {
-                struggleMessages.push(LOG_MESSAGES.EVENTS.ANNIHILATED_FRIENDS);
+                struggleMessages.push(JSON.stringify({ key: 'EVENTS.ANNIHILATED_FRIENDS' }));
             }
         }
     }

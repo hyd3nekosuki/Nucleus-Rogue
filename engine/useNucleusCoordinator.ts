@@ -232,7 +232,7 @@ export const useNucleusCoordinator = () => {
                 newIds.forEach(id => {
                     const challenge = CHALLENGES.find(c => c.id === id);
                     if (challenge) {
-                        emitTTS(challenge.title);
+                        emitTTS(challenge.title, 'en');
                     }
                 });
             }
