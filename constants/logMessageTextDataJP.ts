@@ -19,7 +19,7 @@ export const LOG_MESSAGES_JP = {
     UNSTABLE_PROTON_CAPTURE: "不安定な陽子捕獲",
     NEUTRON_NOT_ABSORBED_ZERO_BARN: "⚠️ 0 barnのため中性子が吸収され別次元に転送されました (+1 Core)",
     HIGH_ENERGY_NEUTRON_NOT_ABSORBED_ZERO_BARN: "⚠️ 0 barnのため高エネルギー中性子が吸収され別次元に転送されました (+1 Core)",
-    ELECTRON_CAPTURED_VIA_CHANNEL: (mode: string) => `電子が ${mode}チャネル経由で捕獲されました`,
+    ELECTRON_CAPTURED_VIA_CHANNEL: (mode: string) => `電子が${mode}チャネル経由で捕獲されました`,
     ELECTRON_SCATTERING_PREVENTS_CAPTURE: "⚠️ 電子散乱により捕獲されず別次元に転送されました (+1 Core)",
     ELECTRON_SCATTERED_STABILITY: "質量エネルギーの安定性により核種と電子は無反応",
     POSITRON_PASSES_NEUTRON: "陽電子と中性子は無反応",

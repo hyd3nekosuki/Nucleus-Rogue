@@ -2,7 +2,7 @@ import { GridEntity, Position, EntityType, GameState, DecayMode, VisualEffect, L
 
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
 import { isWithinBounds, findEntityAt, getFreeCells } from '../utils/gridUtils';
-import { isPositron, isElectron, isLepton } from '../utils/particleUtils';
+import { isPositron, isElectron, isLepton, isNeutron } from '../utils/particleUtils';
 import { calculateInteraction, calculateNeutronReaction, calculateProtonReaction } from '../physics/atomicCalculator';
 import { calculateAnnihilation } from '../physics/annihilationLogic';
 import { TITLES } from '../constants/titles';
@@ -177,7 +177,8 @@ export const calculateMoveResult = (
         }
 
         // Collision prevention for positrons unless we are a neutron state or electron state
-        if (targetEntity.type === EntityType.ENEMY_POSITRON && prev.currentNuclide.z !== 0 && prev.currentNuclide.z !== -1) {
+        // Block normal nuclides from hitting ENEMY_POSITRON (only leptons and neutrons can interact)
+        if (targetEntity.type === EntityType.ENEMY_POSITRON && !isNeutron(prev.currentNuclide) && !isLepton(prev.currentNuclide)) {
             return { 
                 moved: false, dZ: 0, dA: 0, hpPenalty: 0, energyBonus: 0, actionBonusScore: 0, evolvedEntities: prev.gridEntities, chargesUsed: 0,
                 consecutiveProtons: prev.consecutiveProtons,

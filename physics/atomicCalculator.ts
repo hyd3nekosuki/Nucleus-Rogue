@@ -7,7 +7,7 @@ import { TITLES } from '../constants/titles';
 import { LOG_MESSAGES, getLogMessages } from '../constants';
 import { isPositron, isElectron, isLepton } from '../utils/particleUtils';
 
-import { getNuclideDataSync } from '../services/nuclideService';
+import { getNuclideDataSync, getDecayModeLabel } from '../services/nuclideService';
 import { calculateDecayEffects } from './decaySystem';
 import { NEUTRON_CROSS_SECTIONS } from '../data/neutronReactions';
 import { PROTON_CROSS_SECTIONS } from '../data/protonReactions';
@@ -187,7 +187,8 @@ export const calculateInteraction = (
                         m === DecayMode.EC_SF ||
                         m === DecayMode.EC_B_PLUS
                     );
-                    res.messages = [logMessages.PHYSICS.ELECTRON_CAPTURED_VIA_CHANNEL(ecMode || "")].filter(Boolean);
+                    const displayLabel = ecMode ? getDecayModeLabel(ecMode, language) : "";
+                    res.messages = [logMessages.PHYSICS.ELECTRON_CAPTURED_VIA_CHANNEL(displayLabel)].filter(Boolean);
                 } else if (scatteringActive) {
                     res.messages.push(logMessages.PHYSICS.ELECTRON_SCATTERING_PREVENTS_CAPTURE);
                 } else {

@@ -53,7 +53,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
     return (
         <div 
             onClick={() => isSoundTestActive && onToggleSoundTest()}
-            className={`absolute inset-0 bg-[#050508]/95 flex flex-col items-center justify-center rounded-xl z-30 p-6 text-center shadow-[0_0_50px_rgba(0,0,0,1)] backdrop-blur-md border border-neon-blue/20 overflow-hidden transition-all duration-700 ${isSoundTestActive ? 'opacity-30 cursor-pointer' : 'opacity-100'}`}
+            className={`absolute inset-0 bg-[#050508]/95 flex flex-col items-center justify-start sm:justify-center rounded-xl z-30 py-8 px-4 text-center shadow-[0_0_50px_rgba(0,0,0,1)] backdrop-blur-md border border-neon-blue/20 overflow-y-auto transition-all duration-700 ${isSoundTestActive ? 'opacity-30 cursor-pointer' : 'opacity-100'}`}
         >
             {/* CRT Scanline Overlay */}
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(0,243,255,0.02),rgba(0,243,255,0.01),rgba(0,243,255,0.02))] bg-[length:100%_3px,2px_100%] opacity-50"></div>

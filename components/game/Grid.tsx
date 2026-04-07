@@ -84,7 +84,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
                 style={{ backgroundColor: bgStyle, color: textStyle, boxShadow: shadowStyle, border: borderStyle }}
               >
                  <span className="z-10 relative top-[1px]">{gameState.currentNuclide.symbol}</span>
-                 {!isElectronPlayer && (
+                 {!(isElectronPlayer || isPositronPlayer) && (
                    <>
                      <div className={`absolute top-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutronPlayer || isElectronPlayer) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.a}</div>
                      <div className={`absolute bottom-[2px] left-[3px] text-[7px] font-mono leading-none font-normal z-20 ${(isNeutronPlayer || isElectronPlayer) && !isUnknownDecay && !gameState.isTimeStopped ? 'text-black font-bold' : 'text-white'} drop-shadow-md opacity-90`}>{gameState.currentNuclide.z}</div>
@@ -188,7 +188,7 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
       }
 
       cells.push(
-        <div key={`${x}-${y}`} className={`relative w-full aspect-square md:w-10 md:h-10 border ${borderClass} ${bgClass} flex items-center justify-center grid-cell-anim ${isInteractable ? 'cursor-pointer' : ''}`} onClick={() => onCellClick(x, y)}>
+        <div key={`${x}-${y}`} className={`relative w-full h-full border ${borderClass} ${bgClass} flex items-center justify-center grid-cell-anim ${isInteractable ? 'cursor-pointer' : ''}`} onClick={() => onCellClick(x, y)}>
             {content}
             {isTarget && <div className="target-mark"></div>}
             {activeEffects.map(ef => {
@@ -341,8 +341,8 @@ const Grid: React.FC<GridProps> = ({ width, height, gameState, onCellClick, fina
   };
 
   return (
-    <div className={`relative transition-all touch-none ${gameState.isTimeStopped ? 'grayscale-[0.4] contrast-125' : ''}`}>
-        <div className="grid gap-0.5 select-none" style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}>{cells}</div>
+    <div className={`relative transition-all touch-none w-full aspect-square ${gameState.isTimeStopped ? 'grayscale-[0.4] contrast-125' : ''}`}>
+        <div className="grid gap-0.5 select-none w-full h-full" style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${height}, minmax(0, 1fr))` }}>{cells}</div>
         
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none z-50 overflow-visible" style={{ mixBlendMode: 'screen' }}>
             <defs>
