@@ -8,6 +8,7 @@ import { handleEngraveCurrent } from './handlers/historyHandler';
 import { handleMovePlayer } from './handlers/moveHandler';
 import { handleManualDecay } from './handlers/decayHandler';
 import { getNextTutorialMessage, calculateTutorialFlagUpdates } from './tutorialManager';
+import { buildSpatialIndex } from '../utils/gridUtils';
 
 /**
  * Nucleus Rogue: Central State Reducer
@@ -96,6 +97,9 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
             case 'SET_LANGUAGE':
                 return { ...state, language: action.payload };
 
+            case 'TOGGLE_RADAR':
+                return { ...state, showRadar: !state.showRadar };
+
             default: 
                 return state;
         }
@@ -117,6 +121,14 @@ export const nucleusReducer = (state: GameState, action: GameAction): GameState 
         finalState = {
             ...finalState,
             persistentPath: undefined
+        };
+    }
+
+    // Sync spatial index if entities or effects changed
+    if (finalState.gridEntities !== state.gridEntities || finalState.effects !== state.effects || !finalState.spatialIndex) {
+        finalState = {
+            ...finalState,
+            spatialIndex: buildSpatialIndex(finalState.gridEntities, finalState.effects)
         };
     }
 

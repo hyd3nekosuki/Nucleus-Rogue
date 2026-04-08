@@ -27,8 +27,8 @@ import { parseNuclideCommand, solveParticleRequirements } from '../particleEngin
 /**
  * Handler for all skill-based state transitions.
  */
-export const handleUseSkill = (state: GameState, payload: { skillType: string, params?: any }): GameState => {
-    const { skillType, params } = payload;
+export const handleUseSkill = (state: GameState, payload: { skillType: string, params?: any, elapsedTime?: number }): GameState => {
+    const { skillType, params, elapsedTime } = payload;
     const now = Date.now();
     const logMessages = getLogMessages(state.language);
     if (state.gameOver || state.loadingData) return state;
@@ -69,10 +69,10 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     turn: state.turn + 1,
                     energyPoints: Math.max(0, state.energyPoints - cost),
                     tutorialMessage: isOg294 ? logMessages.TUTORIAL.OGANESSON_CONGRATS : state.tutorialMessage,
-                    recordTime: state.elapsedTime,
+                    recordTime: elapsedTime || 0,
                     achievementTimes: state.achievementTimes['far_beyond_og'] 
                         ? state.achievementTimes 
-                        : { ...state.achievementTimes, far_beyond_og: state.elapsedTime },
+                        : { ...state.achievementTimes, far_beyond_og: elapsedTime || 0 },
                     messages: [...state.messages, logMessages.SKILLS.NUCLEOSYNTHESIS_BOUNDARY(isOg294)].slice(-10),
                     lastEvent: { 
                         id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-yellow-400', shake: true, 
@@ -93,7 +93,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const nextState = applyDiscoveryLogic(
                 { ...state, hp: state.maxHp, energyPoints: Math.max(0, state.energyPoints - cost), tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.NUCLEOSYNTHESIS_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, consecutiveProtons: 0, consecutiveNeutrons: 0, consecutiveElectrons: 0, lastConsumedType: null, lastEvent: { id: now, type: 'SKILL', subType: 'NUCLEOSYNTHESIS', flash: 'bg-white', shake: true, priorityMessages: [logMessages.HISTORY.NUCLEOSYNTHESIS], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.NUCLEOSYNTHESIS] } },
                 newData,
-                { method: logMessages.HISTORY.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.NUCLEOSYNTHESIS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: nextZ * 10000, chargesUsed: 0, isManualDecay: false, elapsedTime },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
@@ -114,7 +114,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const nextState = applyDiscoveryLogic(
                 { ...state, hp: state.maxHp, tranquiloTurnCount: 0, gridEntities: [], playerLevel: 0, masteredDecays: [], messages: [...state.messages, logMessages.SKILLS.R_PROCESS_SUCCESS(totalAbsorbed), logMessages.SKILLS.MASTERY_CONSUMED].slice(-10), lastEvent: { id: now, type: 'SKILL', subType: 'R_PROCESS', flash: 'bg-neon-blue', shake: true, priorityMessages: [logMessages.HISTORY.R_PROCESS], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.R_PROCESS] } },
                 newData,
-                { method: logMessages.HISTORY.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.R_PROCESS, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalAbsorbed * 50000, chargesUsed: 0, isManualDecay: false, elapsedTime },
                 state.turn + 1,
                 { isNucleosynthesis: true }
             );
@@ -124,7 +124,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (absorbedPos > 0 && !achievementTimes['forbidden_capture']) {
                 achievementTimes = {
                     ...achievementTimes,
-                    forbidden_capture: state.elapsedTime
+                    forbidden_capture: elapsedTime || 0
                 };
             }
 
@@ -146,7 +146,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             const nextState = applyDiscoveryLogic(
                 { ...state, hp: state.maxHp, tranquiloTurnCount: 0, messages: [...state.messages, logMessages.SKILLS.EXP_REPLICATE_SUCCESS(newData.name)].slice(-10), isTimeStopped: false, combo: 0, lastEvent: { id: now, type: 'SKILL', subType: 'TRANSMUTE', flash: 'bg-neon-purple', shake: true, priorityMessages: [logMessages.HISTORY.EXP_REPLICATE], ttsPriorityMessages: [LOG_MESSAGES.HISTORY.EXP_REPLICATE] } },
                 newData,
-                { method: logMessages.HISTORY.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.EXP_REPLICATE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: BONUS_SCORES.EXP_REPLICATE_ACTION, chargesUsed: 0, isManualDecay: false, elapsedTime },
                 state.turn + 1,
                 { skipComboSettlement: true, isExplicitReplication: true, isQuantumOverride: false }
             );
@@ -173,7 +173,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                 // Record achievement for Research Misconduct
                 let achievementTimes = { ...state.achievementTimes };
                 if (achievementTimes['research_misconduct'] === undefined) {
-                    achievementTimes['research_misconduct'] = state.elapsedTime;
+                    achievementTimes['research_misconduct'] = elapsedTime || 0;
                 }
 
                 if (debugCmd.toLowerCase().endsWith('e')) {
@@ -192,7 +192,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                             return finalizeAction(applyDiscoveryLogic(
                                 { ...state, unlockedGroups: updatedGroups, achievementTimes, messages: [...state.messages, logMessages.SKILLS.DEBUG_TRANSFORMED(targetData.name)].slice(-10) },
                                 targetData,
-                                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false, elapsedTime },
                                 state.turn + 1,
                                 { isQuantumOverride: true }
                             ));
@@ -262,7 +262,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
                     }
                 },
                 targetData,
-                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false },
+                { method: logMessages.HISTORY.QUANTUM_OVERRIDE, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: 0, chargesUsed: 0, isManualDecay: false, elapsedTime },
                 nextTurn,
                 { isExplicitReplication: true, isQuantumOverride: true }
             );
@@ -272,7 +272,7 @@ export const handleUseSkill = (state: GameState, payload: { skillType: string, p
             if (absorbedPos > 0 && !achievementTimes['forbidden_capture']) {
                 achievementTimes = {
                     ...achievementTimes,
-                    forbidden_capture: state.elapsedTime
+                    forbidden_capture: elapsedTime || 0
                 };
             }
 

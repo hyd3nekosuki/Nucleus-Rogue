@@ -10,7 +10,8 @@ export const useMoveController = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
     moveStep: (dx: number, dy: number) => void,
-    handlePlayerInteract: () => void
+    handlePlayerInteract: () => void,
+    handleToggleRadar: () => void
 ) => {
     const moveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const moveQueueRef = useRef<{ dx: number; dy: number }[]>([]);
@@ -36,8 +37,10 @@ export const useMoveController = (
      */
     const handleCellClick = useCallback((x: number, y: number) => {
         // Condition: Clicking on the current player position triggers interaction (Decay/Decapsulation)
+        // AND toggles the Nuclear Radar visibility
         if (x === gameState.playerPos.x && y === gameState.playerPos.y) {
             handlePlayerInteract();
+            handleToggleRadar();
             return;
         }
 
@@ -89,6 +92,7 @@ export const useMoveController = (
         gameState.loadingData,
         gameState.isTimeStopped,
         handlePlayerInteract,
+        handleToggleRadar,
         stopAutoMove,
         setGameState,
         moveStep

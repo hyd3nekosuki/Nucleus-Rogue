@@ -40,7 +40,7 @@ const NuclideDiagnostics: React.FC<{ nuclide: NuclideData; halfLife: string; isS
     </div>
 );
 
-const GameOverOverlay: React.FC<GameOverOverlayProps> = ({ 
+const GameOverOverlay: React.FC<GameOverOverlayProps> = React.memo(({ 
     isVisible, reason = REASON.UNKNOWN, nuclide, onRestart, isSoundTestActive, onToggleSoundTest, language 
 }) => {
     if (!isVisible) return null;
@@ -69,9 +69,7 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             </p>
             
             {/* Diagnostics Stats */}
-            {!isCriticalFail && (
-                <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} isNothingness={isNothingness} language={language} />
-            )}
+            <NuclideDiagnostics nuclide={nuclide} halfLife={preciseHalfLife} isSoundTestActive={isSoundTestActive} isNothingness={isNothingness} language={language} />
             
             {/* External Reference for Failures */}
             {(isCriticalFail || isNothingness) && (
@@ -122,6 +120,6 @@ const GameOverOverlay: React.FC<GameOverOverlayProps> = ({
             <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-neon-blue/30"></div>
         </div>
     );
-};
+});
 
 export default GameOverOverlay;

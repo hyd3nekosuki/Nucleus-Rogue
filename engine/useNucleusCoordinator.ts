@@ -25,17 +25,21 @@ import { emitTTS } from './events/gameEvents';
  */
 export const useNucleusCoordinator = () => {
     // 1. Core Integrated State & Reducer Dispatch
-    const { gameState, setGameState, dispatch } = useNucleusState();
+    const { gameState, setGameState, sessionState, setSessionState, dispatch } = useNucleusState();
+
+    const handleToggleRadar = useCallback(() => dispatch({ type: 'TOGGLE_RADAR' }), [dispatch]);
 
     // 2. Transient Visual State Management (Shakes, Flashes, TTS Trigger)
     const {
-        isScreenShaking, shakeIntensity, isFlashBang, flashColor, lastDecayEvent, finalCombo,
+        lastDecayEvent, finalCombo,
         triggerShake, triggerFlash, setFinalCombo, resetVisuals
-    } = useVisualEffects(gameState, dispatch);
+    } = useVisualEffects(gameState, dispatch, setSessionState);
+
+    const { isScreenShaking, shakeIntensity, isFlashBang, flashColor } = sessionState;
 
     // 3. Periodic Life-Cycle Timers (Stability Decay, Combo Expiration, Janitorial Cleanup)
     useStabilityTimer(gameState, setGameState);
-    useRTATimer(gameState, setGameState);
+    useRTATimer(gameState, setSessionState);
     useComboTimer(gameState, setGameState, setFinalCombo);
     useVisualCleanup(gameState, setGameState);
 
@@ -44,13 +48,14 @@ export const useNucleusCoordinator = () => {
 
     const { moveStep } = useMovementExecutor({
         dispatch,
+        sessionState,
         onStopRequest: () => stopAutoMoveRef.current()
     });
 
     const { 
         handleDecayAction, handlePlayerInteract 
     } = useDecayController(
-        gameState, dispatch, 
+        gameState, sessionState, dispatch, 
         () => stopAutoMoveRef.current()
     );
 
@@ -58,7 +63,8 @@ export const useNucleusCoordinator = () => {
         gameState,
         setGameState,
         moveStep,
-        handlePlayerInteract
+        handlePlayerInteract,
+        handleToggleRadar
     );
 
     // Bridge the internal stopAutoMove to external handlers via Ref
@@ -72,7 +78,7 @@ export const useNucleusCoordinator = () => {
         handleTransmute, handleToggleHiddenSkill, restartGame, handleForceUnknownDecay,
         handleEngraveCurrent
     } = useNucleusActions(
-        gameState, dispatch, 
+        gameState, sessionState, setSessionState, dispatch, 
         stopAutoMove, handleDecayAction, resetVisuals
     );
 
@@ -80,6 +86,8 @@ export const useNucleusCoordinator = () => {
     const { generateSaveCode, loadSaveCode: rawLoadSaveCode } = usePersistence(
         gameState,
         setGameState,
+        sessionState,
+        setSessionState,
         gameState.evolutionHistory,
         () => {}, // setEvolutionHistory (Legacy - integrated in state)
         resetVisuals
@@ -87,6 +95,7 @@ export const useNucleusCoordinator = () => {
 
     const { executeQuantumOverride } = useQuantumOverride(
         gameState,
+        sessionState,
         dispatch,
         resetVisuals
     );
@@ -134,10 +143,12 @@ export const useNucleusCoordinator = () => {
     }, [dispatch]);
 
     // 8. Achievement Tracking
+    // Optimized: Only re-run when core game state changes (turn, stats, etc.)
+    // elapsedTime is now read from sessionState inside the effect to avoid re-triggering on every tick.
     useEffect(() => {
         const checkAchievement = (id: string, condition: boolean) => {
             if (condition && !gameState.achievementTimes[id]) {
-                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: gameState.elapsedTime } });
+                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: sessionState.elapsedTime } });
             }
         };
 
@@ -199,18 +210,18 @@ export const useNucleusCoordinator = () => {
             const allReactionsDone = requiredReactions.every(method => (gameState.reactionStats[method] || 0) > 0);
 
             if (allDecaysDone && allReactionsDone) {
-                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: gameState.elapsedTime } });
+                dispatch({ type: 'RECORD_ACHIEVEMENT', payload: { id, time: sessionState.elapsedTime } });
             }
         };
 
         checkSeasonedNuclide();
     }, [
+        gameState.turn, // Trigger on turn change
         gameState.unlockedElements, 
         gameState.maxCombo, 
         gameState.reincarnations, 
         gameState.decayStats, 
         gameState.reactionStats, 
-        gameState.elapsedTime,
         gameState.achievementTimes,
         gameState.currentNuclide,
         gameState.lastEvent,
@@ -244,6 +255,7 @@ export const useNucleusCoordinator = () => {
     return {
         // Raw Data
         gameState, 
+        sessionState,
         evolutionHistory: gameState.evolutionHistory,
         
         // Visual Status
@@ -273,6 +285,7 @@ export const useNucleusCoordinator = () => {
         restartGame, 
         setHP, 
         setLanguage,
+        handleToggleRadar,
         generateSaveCode, 
         handleLoad
     };

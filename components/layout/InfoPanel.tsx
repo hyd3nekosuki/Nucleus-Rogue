@@ -25,7 +25,7 @@ interface InfoPanelProps {
   language: Language;
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ 
+const InfoPanel: React.FC<InfoPanelProps> = React.memo(({ 
   nuclide, 
   score, 
   energyPoints,
@@ -165,6 +165,6 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default InfoPanel;

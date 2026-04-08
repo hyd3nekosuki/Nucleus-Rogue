@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { GameState, GameAction } from '../types';
+import { GameState, GameAction, SessionState } from '../types';
 import { parseNuclideCommand, solveParticleRequirements } from '../engine/particleEngine';
 
 /**
@@ -8,6 +8,7 @@ import { parseNuclideCommand, solveParticleRequirements } from '../engine/partic
  */
 export const useQuantumOverride = (
     gameState: GameState,
+    sessionState: SessionState,
     dispatch: React.Dispatch<GameAction>,
     resetVisualEvents: () => void
 ) => {
@@ -50,7 +51,8 @@ export const useQuantumOverride = (
                 type: 'USE_SKILL',
                 payload: { 
                     skillType: 'QUANTUM_OVERRIDE',
-                    params: { code }
+                    params: { code },
+                    elapsedTime: sessionState.elapsedTime
                 }
             });
             return true;
@@ -67,14 +69,15 @@ export const useQuantumOverride = (
                 type: 'USE_SKILL',
                 payload: { 
                     skillType: 'QUANTUM_OVERRIDE',
-                    params: { code }
+                    params: { code },
+                    elapsedTime: sessionState.elapsedTime
                 }
             });
             return true;
         }
 
         return false;
-    }, [gameState.playerLevel, validateOverridePotential, resetVisualEvents, dispatch]);
+    }, [gameState.playerLevel, sessionState.elapsedTime, validateOverridePotential, resetVisualEvents, dispatch]);
 
     return { executeQuantumOverride };
 };

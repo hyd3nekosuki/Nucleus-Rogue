@@ -28,7 +28,7 @@ interface EmissionParticle {
     startDist: number;
 }
 
-const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, decayModes, lastDecayEvent, isTimeStopped, onClick, isEngraved }) => {
+const NucleusVisualizer: React.FC<NucleusVisualizerProps> = React.memo(({ z, a, symbol, decayModes, lastDecayEvent, isTimeStopped, onClick, isEngraved }) => {
   const n = a - z; // Neutrons
   const [emissionParticles, setEmissionParticles] = useState<EmissionParticle[]>([]);
   
@@ -548,6 +548,6 @@ const NucleusVisualizer: React.FC<NucleusVisualizerProps> = ({ z, a, symbol, dec
       </div>
     </div>
   );
-};
+});
 
 export default NucleusVisualizer;

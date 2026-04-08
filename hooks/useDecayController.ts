@@ -1,12 +1,13 @@
 
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, GameAction, EntityType } from '../types';
+import { GameState, DecayMode, GameAction, EntityType, SessionState } from '../types';
 import { selectDecayMode, getNuclideDataSync } from '../services/nuclideService';
 import { calculateDecayEffects } from '../physics/decaySystem';
 import { TITLES } from '../constants/titles';
 
 export const useDecayController = (
     gameState: GameState,
+    sessionState: SessionState,
     dispatch: React.Dispatch<GameAction>,
     stopAutoMove: () => void
 ) => {
@@ -33,9 +34,9 @@ export const useDecayController = (
         
         dispatch({
             type: 'MANUAL_DECAY',
-            payload: { mode: actualMode }
+            payload: { mode: actualMode, elapsedTime: sessionState.elapsedTime }
         });
-    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.isAnimatingFission, gameState.currentNuclide, gameState.playerPos, gameState.gridEntities, gameState.unlockedGroups, gameState.disabledSkills, stopAutoMove, dispatch]);
+    }, [gameState.gameOver, gameState.loadingData, gameState.isTimeStopped, gameState.isAnimatingFission, gameState.currentNuclide, gameState.playerPos, gameState.gridEntities, gameState.unlockedGroups, gameState.disabledSkills, sessionState.elapsedTime, stopAutoMove, dispatch]);
 
     const handlePlayerInteract = useCallback(() => {
         stopAutoMove(); 

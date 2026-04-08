@@ -46,7 +46,10 @@ export interface GameState {
   activeEvent?: { type: string; color: string; timestamp: number };
   reincarnations: number;
   magicBarrierCharges: number;
-  elapsedTime: number;
+  /** 
+   * Static timestamp of a major achievement (e.g. Periodic Table completion).
+   * Unlike elapsedTime, this is set only once and does not trigger high-frequency updates.
+   */
   recordTime?: number;
   achievementTimes: Record<string, number>;
   tutorialMessage: string | null;
@@ -70,12 +73,30 @@ export interface GameState {
   isAnimatingFission?: boolean;
   tranquiloTurnCount: number;
   language: Language;
+  showRadar: boolean;
+  spatialIndex: {
+    entities: Record<string, GridEntity[]>;
+    entitiesById: Record<string, GridEntity>;
+    effects: Record<string, VisualEffect[]>;
+  };
+}
+
+/**
+ * SessionState: Represents high-frequency, non-core-logic runtime values.
+ * Separated from GameState to optimize rendering and reduce redundant calculations.
+ */
+export interface SessionState {
+  elapsedTime: number;
+  isScreenShaking: boolean;
+  shakeIntensity: 'normal' | 'light';
+  isFlashBang: boolean;
+  flashColor: string;
 }
 
 export type GameAction =
-  | { type: 'MOVE_PLAYER'; payload: { dx: number; dy: number } }
-  | { type: 'MANUAL_DECAY'; payload: { mode: DecayMode } }
-  | { type: 'USE_SKILL'; payload: { skillType: 'STABILIZE' | 'NUCLEOSYNTHESIS' | 'R_PROCESS' | 'TIME_STOP' | 'TRANSMUTE' | 'TOGGLE_SKILL' | 'QUANTUM_OVERRIDE'; params?: any } }
+  | { type: 'MOVE_PLAYER'; payload: { dx: number; dy: number; elapsedTime?: number } }
+  | { type: 'MANUAL_DECAY'; payload: { mode: DecayMode; elapsedTime?: number } }
+  | { type: 'USE_SKILL'; payload: { skillType: 'STABILIZE' | 'NUCLEOSYNTHESIS' | 'R_PROCESS' | 'TIME_STOP' | 'TRANSMUTE' | 'TOGGLE_SKILL' | 'QUANTUM_OVERRIDE'; params?: any; elapsedTime?: number } }
   | { type: 'DISCOVER_NUCLIDE'; payload: { nextNuclide: NuclideData; context: DiscoveryContext } }
   | { type: 'UPDATE_BASIC_STATE'; payload: Partial<GameState> | ((prev: GameState) => Partial<GameState>) }
   | { type: 'RESET_STATE'; payload: GameState }
@@ -87,6 +108,7 @@ export type GameAction =
   | { type: 'NOTIFY_TUTORIAL_EVENT'; payload: { event: 'MASTERY_OPENED' } }
   | { type: 'END_COMBO'; payload: { scoreBonus: number; unlockedGroups: string[]; messages: string[] } }
   | { type: 'CLEANUP_VISUALS'; payload: { effects: VisualEffect[]; activeEventExpired: boolean } }
-  | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean } }
+  | { type: 'ENGRAVE_CURRENT'; payload: { isResonating: boolean; elapsedTime?: number } }
   | { type: 'RECORD_ACHIEVEMENT'; payload: { id: string; time: number } }
-  | { type: 'SET_LANGUAGE'; payload: Language };
+  | { type: 'SET_LANGUAGE'; payload: Language }
+  | { type: 'TOGGLE_RADAR' };

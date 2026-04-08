@@ -1,5 +1,5 @@
-import { useReducer, useCallback } from 'react';
-import { GameState, GameAction } from '../types';
+import { useReducer, useCallback, useState } from 'react';
+import { GameState, GameAction, SessionState } from '../types';
 import { getInitialState } from './initialState';
 import { nucleusReducer } from './nucleusReducer';
 
@@ -13,6 +13,15 @@ export const useNucleusState = () => {
 
     // 2. State Machine Activation
     const [gameState, dispatch] = useReducer(nucleusReducer, initialState);
+
+    // 3. Session State (High-frequency updates)
+    const [sessionState, setSessionState] = useState<SessionState>({
+        elapsedTime: 0,
+        isScreenShaking: false,
+        shakeIntensity: 'normal',
+        isFlashBang: false,
+        flashColor: 'bg-neon-blue'
+    });
 
     /**
      * State Update Proxy: Maintains backward compatibility for legacy hooks
@@ -28,6 +37,8 @@ export const useNucleusState = () => {
     return {
         gameState,
         setGameState, 
+        sessionState,
+        setSessionState,
         dispatch,     
         evolutionHistory: gameState.evolutionHistory
     };

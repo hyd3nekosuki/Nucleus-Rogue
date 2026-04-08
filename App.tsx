@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 // Triggering Vite reload to resolve potential HMR hang
 import { GRID_WIDTH, GRID_HEIGHT, APP_VERSION, LOG_MESSAGES, getLogMessages } from './constants';
 import Grid from './components/game/Grid';
@@ -8,6 +8,7 @@ import InfoPanel from './components/layout/InfoPanel';
 import ControlPanel from './components/layout/ControlPanel';
 import SidebarFooter from './components/layout/SidebarFooter';
 import GridStatusFooter from './components/layout/GridStatusFooter';
+import NuclearRadar from './components/game/NuclearRadar';
 import MessageLog from './components/layout/MessageLog';
 import PeriodicTable from './components/overlays/PeriodicTable';
 import GameOverOverlay from './components/overlays/GameOverOverlay';
@@ -27,7 +28,7 @@ function App() {
 
   // --- Logic Layer Setup ---
   const engine = useNucleusCoordinator();
-  const { gameState } = engine;
+  const { gameState, sessionState } = engine;
   
   // --- UI/View Layer Setup ---
   const ui = useGameUIState(engine, scrollRef, containerRef);
@@ -75,6 +76,40 @@ function App() {
     engine.handleEngraveCurrent(isResonating);
   }, [engine, ui.lastKickTime, bpm]);
 
+  // --- Nuclear Radar Dynamic Positioning ---
+  const [radarPosition, setRadarPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
+
+  useEffect(() => {
+    const { x, y } = gameState.playerPos;
+    const margin = 4; // Number of cells to trigger move
+    
+    let collision = false;
+    if (radarPosition === 'top-left' && x < margin && y < margin) collision = true;
+    if (radarPosition === 'top-right' && x >= GRID_WIDTH - margin && y < margin) collision = true;
+    if (radarPosition === 'bottom-left' && x < margin && y >= GRID_HEIGHT - margin) collision = true;
+    if (radarPosition === 'bottom-right' && x >= GRID_WIDTH - margin && y >= GRID_HEIGHT - margin) collision = true;
+
+    if (collision) {
+      const midX = GRID_WIDTH / 2;
+      const midY = GRID_HEIGHT / 2;
+      
+      // Move to a quadrant that is NOT where the player is
+      if (x >= midX && y < midY) setRadarPosition('top-left');
+      else if (x < midX && y < midY) setRadarPosition('top-right');
+      else if (x < midX && y >= midY) setRadarPosition('bottom-right');
+      else setRadarPosition('bottom-left');
+    }
+  }, [gameState.playerPos, radarPosition]);
+
+  const radarPositionClass = useMemo(() => {
+    switch (radarPosition) {
+        case 'top-left': return 'top-3 left-3';
+        case 'top-right': return 'top-3 right-3';
+        case 'bottom-left': return 'bottom-3 left-3';
+        case 'bottom-right': return 'bottom-3 right-3';
+    }
+  }, [radarPosition]);
+
   // --- Listeners & Controls ---
   useKeyboardControls(engine, ui, toggleMute);
   useGameEventListener({
@@ -104,7 +139,7 @@ function App() {
             saveCode={ui.saveCode}
             recordTime={gameState.recordTime}
             achievementTimes={gameState.achievementTimes}
-            elapsedTime={gameState.elapsedTime}
+            elapsedTime={sessionState.elapsedTime}
             hasPerformedActiveReincarnation={gameState.hasPerformedActiveReincarnation}
         />
       )}
@@ -189,11 +224,17 @@ function App() {
             language={gameState.language}
          />
          <div className="relative bg-panel-bg p-2 rounded-xl border border-gray-800 shadow-2xl w-full max-w-[min(95vw,80vh)] overflow-hidden select-none">
+            {/* Real-time Nuclear Radar (Z-N Chart Mini-map) - Dynamic Positioning & Visibility */}
+            {gameState.showRadar && (
+              <div className={`absolute ${radarPositionClass} z-50 pointer-events-none transition-all duration-500 ease-in-out`}>
+                <NuclearRadar gameState={gameState} />
+              </div>
+            )}
             {gameState.isTimeStopped && (
               <div className="absolute inset-0 z-[60] bg-neon-blue/10 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center">
                   <div className="text-4xl md:text-6xl font-black italic text-neon-blue animate-pulse drop-shadow(0 0 20px #00f3ff) uppercase tracking-tighter">Frozen Time</div>
-                  <div className="text-xl md:text-2xl font-mono text-neon-blue mt-2 drop-shadow(0 0 10px #00f3ff) opacity-80">{(gameState.elapsedTime / 1000).toFixed(2)}s</div>
+                  <div className="text-xl md:text-2xl font-mono text-neon-blue mt-2 drop-shadow(0 0 10px #00f3ff) opacity-80">{(sessionState.elapsedTime / 1000).toFixed(2)}s</div>
                 </div>
               </div>
             )}

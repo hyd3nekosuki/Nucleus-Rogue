@@ -1,5 +1,29 @@
-import { Position, GridEntity } from '../types';
+import { Position, GridEntity, VisualEffect } from '../types';
 import { GRID_WIDTH, GRID_HEIGHT } from '../constants/gameConfig';
+
+/**
+ * Builds a spatial index for entities and effects to optimize grid rendering.
+ */
+export const buildSpatialIndex = (entities: GridEntity[], effects: VisualEffect[]) => {
+    const entityIndex: Record<string, GridEntity[]> = {};
+    const entityByIdIndex: Record<string, GridEntity> = {};
+    const effectIndex: Record<string, VisualEffect[]> = {};
+
+    for (const entity of entities) {
+        const key = `${entity.position.x},${entity.position.y}`;
+        if (!entityIndex[key]) entityIndex[key] = [];
+        entityIndex[key].push(entity);
+        entityByIdIndex[entity.id] = entity;
+    }
+
+    for (const effect of effects) {
+        const key = `${effect.position.x},${effect.position.y}`;
+        if (!effectIndex[key]) effectIndex[key] = [];
+        effectIndex[key].push(effect);
+    }
+
+    return { entities: entityIndex, entitiesById: entityByIdIndex, effects: effectIndex };
+};
 
 /**
  * Checks if a position is within the defined game grid.

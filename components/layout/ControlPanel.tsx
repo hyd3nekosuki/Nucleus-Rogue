@@ -19,7 +19,7 @@ interface ControlPanelProps {
   lastKickTime: number;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
+const ControlPanel: React.FC<ControlPanelProps> = React.memo(({ z, a, combo, comboOrigin, isTimeStopped, lastComboTime, description, activeEvent, tutorialMessage, bpm, lastKickTime }) => {
   const [gaugeValue, setGaugeValue] = useState(0);
   const [isSignalVisible, setIsSignalVisible] = useState(false);
   const [isEventColorActive, setIsEventColorActive] = useState(false);
@@ -246,6 +246,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ z, a, combo, comboOrigin, i
       ></div>
     </div>
   );
-};
+});
 
 export default ControlPanel;

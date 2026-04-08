@@ -14,7 +14,7 @@ interface EvolutionMapProps {
     language: Language;
 }
 
-const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, turn, combo, comboOrigin, language }) => {
+const EvolutionMap: React.FC<EvolutionMapProps> = React.memo(({ history, currentNuclide, turn, combo, comboOrigin, language }) => {
     const [selectedInfo, setSelectedInfo] = useState<string | null>(null);
     const [mountTurn] = useState(turn); // Store the turn value when the component was first mounted
     
@@ -326,6 +326,6 @@ const EvolutionMap: React.FC<EvolutionMapProps> = ({ history, currentNuclide, tu
             )}
         </div>
     );
-};
+});
 
 export default EvolutionMap;

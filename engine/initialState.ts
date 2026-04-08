@@ -42,7 +42,6 @@ export const getInitialState = (language: Language = 'en'): GameState => {
         lastConsumedType: null,
         reincarnations: 0,
         magicBarrierCharges: 0,
-        elapsedTime: 0,
         recordTime: undefined,
         achievementTimes: {},
         tutorialMessage: logMessages.TUTORIAL.CAPTURE,
@@ -59,6 +58,12 @@ export const getInitialState = (language: Language = 'en'): GameState => {
         persistentPath: undefined,
         pathExpiryTurn: 0,
         language: language,
+        showRadar: false,
+        spatialIndex: {
+            entities: {},
+            entitiesById: {},
+            effects: {},
+        },
         realPhysicsUnlockProgress: {
             hasScatteredProton: false,
             hasScatteredElectron: false,

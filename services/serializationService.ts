@@ -151,7 +151,7 @@ async function decompress(buffer: ArrayBuffer): Promise<ArrayBuffer> {
 /**
  * Packs game state into a compressed binary Base64 string using a section-based format
  */
-export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>): Promise<string> => {
+export const packBinary = async (state: GameState, history: Record<string, HistoryEntry>, elapsedTime: number): Promise<string> => {
     const historyList = Object.values(history);
     
     // Buffer size calculation: 2048 (increased for section headers) + (16 bytes per history entry) + (extended stats) + (achievements)
@@ -193,7 +193,7 @@ export const packBinary = async (state: GameState, history: Record<string, Histo
         view.setUint16(offset, state.currentNuclide.a); offset += 2;
         view.setUint16(offset, state.maxCombo); offset += 2;
         view.setUint8(offset++, state.magicBarrierCharges);
-        view.setUint32(offset, Math.floor(state.elapsedTime)); offset += 4;
+        view.setUint32(offset, Math.floor(elapsedTime)); offset += 4;
     });
 
     // Section 2: UNLOCKED

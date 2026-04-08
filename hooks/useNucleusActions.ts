@@ -1,6 +1,6 @@
 // Fix: Added React import to provide access to React namespace for Dispatch type
 import React, { useCallback } from 'react';
-import { GameState, DecayMode, HistoryEntry, GameAction } from '../types';
+import { GameState, DecayMode, HistoryEntry, GameAction, SessionState } from '../types';
 import { INITIAL_NUCLIDE } from '../constants/gameConfig';
 import { HISTORY_METHODS } from '../constants/strings';
 import { TITLES } from '../constants/titles';
@@ -16,6 +16,8 @@ import { getNextTutorialMessage } from '../engine/tutorialManager';
  */
 export const useNucleusActions = (
     gameState: GameState,
+    sessionState: SessionState,
+    setSessionState: React.Dispatch<React.SetStateAction<SessionState>>,
     dispatch: React.Dispatch<GameAction>,
     stopAutoMove: () => void,
     handleDecayAction: (mode: DecayMode) => void,
@@ -28,34 +30,34 @@ export const useNucleusActions = (
         if (isSynth) resetVisuals();
         dispatch({
             type: 'USE_SKILL',
-            payload: { skillType: isSynth ? 'NUCLEOSYNTHESIS' : 'STABILIZE' }
+            payload: { skillType: isSynth ? 'NUCLEOSYNTHESIS' : 'STABILIZE', elapsedTime: sessionState.elapsedTime }
         });
-    }, [gameState.energyPoints, gameState.playerLevel, gameState.disabledSkills, dispatch, resetVisuals]);
+    }, [gameState.energyPoints, gameState.playerLevel, gameState.disabledSkills, sessionState.elapsedTime, dispatch, resetVisuals]);
 
     const handleUltimateSynthesis = useCallback(() => {
         resetVisuals();
-        dispatch({ type: 'USE_SKILL', payload: { skillType: 'R_PROCESS' } });
-    }, [dispatch, resetVisuals]);
+        dispatch({ type: 'USE_SKILL', payload: { skillType: 'R_PROCESS', elapsedTime: sessionState.elapsedTime } });
+    }, [sessionState.elapsedTime, dispatch, resetVisuals]);
 
     const handleToggleTimeStop = useCallback(() => {
         stopAutoMove();
         // Reset visuals when toggling time stop to prevent stale combo animations from reappearing
         resetVisuals();
-        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TIME_STOP' } });
-    }, [stopAutoMove, dispatch, resetVisuals]);
+        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TIME_STOP', elapsedTime: sessionState.elapsedTime } });
+    }, [stopAutoMove, sessionState.elapsedTime, dispatch, resetVisuals]);
 
     const handleTransmute = useCallback((selectedZ: number) => {
         resetVisuals();
-        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TRANSMUTE', params: { selectedZ } } });
-    }, [dispatch, resetVisuals]);
+        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TRANSMUTE', params: { selectedZ }, elapsedTime: sessionState.elapsedTime } });
+    }, [sessionState.elapsedTime, dispatch, resetVisuals]);
 
     const handleToggleHiddenSkill = useCallback((skillName: string) => {
-        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TOGGLE_SKILL', params: { skillName } } });
-    }, [dispatch]);
+        dispatch({ type: 'USE_SKILL', payload: { skillType: 'TOGGLE_SKILL', params: { skillName }, elapsedTime: sessionState.elapsedTime } });
+    }, [sessionState.elapsedTime, dispatch]);
 
     const handleEngraveCurrent = useCallback((isResonating: boolean = false) => {
-        dispatch({ type: 'ENGRAVE_CURRENT', payload: { isResonating } });
-    }, [dispatch]);
+        dispatch({ type: 'ENGRAVE_CURRENT', payload: { isResonating, elapsedTime: sessionState.elapsedTime } });
+    }, [sessionState.elapsedTime, dispatch]);
 
     const restartGame = useCallback((randomStart: boolean = false) => {
         const currentTitles = gameState.unlockedElements;
@@ -125,7 +127,6 @@ export const useNucleusActions = (
             payload: { 
                 ...newState, 
                 turn: startTurn,
-                elapsedTime: randomStart ? gameState.elapsedTime : 0,
                 evolutionHistory: nextHistory,
                 disabledSkills: randomStart ? gameState.disabledSkills : [], 
                 currentNuclide: startNuclide, 
@@ -137,7 +138,13 @@ export const useNucleusActions = (
                 tutorialMessage: nextMsg
             }
         });
-    }, [gameState, resetVisuals, dispatch]);
+
+        // Reset session state as well
+        setSessionState(prev => ({
+            ...prev,
+            elapsedTime: randomStart ? sessionState.elapsedTime : 0
+        }));
+    }, [gameState, sessionState, resetVisuals, dispatch, setSessionState]);
 
     const handleForceUnknownDecay = useCallback(() => {
         if (gameState.playerLevel < 5 || !gameState.currentNuclide.isStable || gameState.energyPoints < 5) return;

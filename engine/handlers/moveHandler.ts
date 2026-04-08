@@ -24,8 +24,8 @@ import { processUnlocks } from '../unlockSystem';
 import { LOG_MESSAGES } from '../../constants/logMessageTextData';
 import { getLogMessages } from '../../constants';
 
-export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number }): GameState => {
-    const { dx, dy } = payload;
+export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: number, elapsedTime?: number }): GameState => {
+    const { dx, dy, elapsedTime } = payload;
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
     
     const nextTurn = state.turn + 1;
@@ -135,7 +135,7 @@ export const handleMovePlayer = (state: GameState, payload: { dx: number, dy: nu
         const newData = (result.dZ === 0 && result.dA === 0 && !result.isPpFusion && !result.isPositronAbsorption) ? state.currentNuclide : getNuclideDataSync(pZ, pA);
         if (newData.exists) {
             const totalActionScore = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.MOVEMENT_STABLE_REWARD : SCORE_FACTORS.MOVEMENT_UNSTABLE_REWARD) + result.actionBonusScore + (result.magicProtectionBonus || 0) + (result.isPpFusion ? BONUS_SCORES.STELLAR_FUSION : 0);
-            const context: DiscoveryContext = { method: getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel), pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalActionScore, chargesUsed: result.chargesUsed, inducedDecayMode: result.inducedDecayMode, isManualDecay: false };
+            const context: DiscoveryContext = { method: getHistoryMethod(!!result.isPpFusion, !!result.isPositronAbsorption, result.targetEntity, result.inducedReactionLabel), pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalActionScore, chargesUsed: result.chargesUsed, inducedDecayMode: result.inducedDecayMode, isManualDecay: false, elapsedTime };
             
             let coreMsg = result.scatteredMessage && !result.isPositronAbsorption 
                 ? `⚠️ ${result.scatteredMessage}` 

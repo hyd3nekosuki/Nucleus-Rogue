@@ -33,4 +33,5 @@ export interface DiscoveryContext {
   chargesUsed: number;
   inducedDecayMode?: DecayMode;
   isManualDecay?: boolean; 
+  elapsedTime?: number;
 }

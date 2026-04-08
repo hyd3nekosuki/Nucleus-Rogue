@@ -9,7 +9,7 @@ interface Props {
   gameState: GameState;
 }
 
-const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
+const GridStatusFooter: React.FC<Props> = React.memo(({ gameState }) => {
   const [showStats, setShowStats] = useState(false);
 
   // 1. Calculate Grid Totals
@@ -133,6 +133,6 @@ const GridStatusFooter: React.FC<Props> = ({ gameState }) => {
         </div>
     </div>
   );
-};
+});
 
 export default GridStatusFooter;

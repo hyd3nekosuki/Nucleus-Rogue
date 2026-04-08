@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { GameState, HistoryEntry } from '../types';
+import { GameState, HistoryEntry, SessionState } from '../types';
 import { MAX_ENERGY, GRID_WIDTH, GRID_HEIGHT, REASON } from '../constants';
 import { packBinary, unpackBinary } from '../services/serializationService';
 import { getNuclideDataSync } from '../services/nuclideService';
@@ -13,6 +13,8 @@ import { getInitialState } from '../engine/initialState';
 export const usePersistence = (
     gameState: GameState,
     setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+    sessionState: SessionState,
+    setSessionState: React.Dispatch<React.SetStateAction<SessionState>>,
     evolutionHistory: Record<string, HistoryEntry>, // Legacy: part of state now
     setEvolutionHistory: React.Dispatch<React.SetStateAction<Record<string, HistoryEntry>>>, // Legacy: unused
     resetVisualEvents: () => void
@@ -21,8 +23,8 @@ export const usePersistence = (
      * Generates a compressed research save code from current progress.
      */
     const generateSaveCode = useCallback(async () => {
-        return await packBinary(gameState, gameState.evolutionHistory);
-    }, [gameState]);
+        return await packBinary(gameState, gameState.evolutionHistory, sessionState.elapsedTime);
+    }, [gameState, sessionState.elapsedTime]);
 
     /**
      * Loads research data from a compressed save code.
@@ -90,7 +92,6 @@ export const usePersistence = (
                 turn: payload.t || 0, 
                 maxCombo: payload.mc || 0, 
                 magicBarrierCharges: payload.mb || 0, 
-                elapsedTime: payload.et || 0,
                 achievementTimes: payload.at || {},
                 reincarnationPool: {
                     p: payload.pp || 0,
@@ -122,13 +123,18 @@ export const usePersistence = (
                 gridEntities: generateEntities(5, [], { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) }, payload.t || 0) 
             });
 
+            setSessionState(prev => ({
+                ...prev,
+                elapsedTime: payload.et || 0
+            }));
+
             resetVisualEvents();
             return true;
         } catch (e) {
             console.error("Failed to restore game state from research data:", e);
             return false;
         }
-    }, [setGameState, resetVisualEvents]);
+    }, [setGameState, setSessionState, resetVisualEvents]);
 
     return { generateSaveCode, loadSaveCode };
 };

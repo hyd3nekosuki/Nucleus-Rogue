@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { DecayMode, GameState, GameAction } from '../types';
+import { DecayMode, GameState, GameAction, SessionState } from '../types';
 import { emitShake, emitFlash, emitTTS } from '../engine/events/gameEvents';
 import { LOG_MESSAGES } from '../constants/logMessageTextData';
 import { getEnglishLogMessage } from '../utils/logUtils';
@@ -21,11 +21,11 @@ const SPEECH_PRIORITY = [
 /**
  * Custom hook to manage transient visual effect states and bridge engine events.
  */
-export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatch<GameAction>) => {
-    const [isScreenShaking, setIsScreenShaking] = useState(false);
-    const [shakeIntensity, setShakeIntensity] = useState<'normal' | 'light'>('normal');
-    const [isFlashBang, setIsFlashBang] = useState(false);
-    const [flashColor, setFlashColor] = useState('bg-neon-blue');
+export const useVisualEffects = (
+    gameState?: GameState, 
+    dispatch?: React.Dispatch<GameAction>,
+    setSessionState?: React.Dispatch<React.SetStateAction<SessionState>>
+) => {
     const [lastDecayEvent, setLastDecayEvent] = useState<{ mode: DecayMode; timestamp: number; isPlayed?: boolean } | null>(null);
     const [finalCombo, setFinalCombo] = useState<{ count: number; id: number } | null>(null);
 
@@ -50,17 +50,17 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
     }, []); // Run once on mount
 
     const triggerShake = useCallback((duration: number = 300, intensity: 'normal' | 'light' = 'normal') => {
+        if (!setSessionState) return;
         const actualDuration = intensity === 'light' ? 200 : duration;
-        setShakeIntensity(intensity);
-        setIsScreenShaking(true);
-        setTimeout(() => setIsScreenShaking(false), actualDuration);
-    }, []);
+        setSessionState(prev => ({ ...prev, isScreenShaking: true, shakeIntensity: intensity }));
+        setTimeout(() => setSessionState(prev => ({ ...prev, isScreenShaking: false })), actualDuration);
+    }, [setSessionState]);
 
     const triggerFlash = useCallback((color: string, duration: number = 500) => {
-        setFlashColor(color);
-        setIsFlashBang(true);
-        setTimeout(() => setIsFlashBang(false), duration);
-    }, []);
+        if (!setSessionState) return;
+        setSessionState(prev => ({ ...prev, isFlashBang: true, flashColor: color }));
+        setTimeout(() => setSessionState(prev => ({ ...prev, isFlashBang: false })), duration);
+    }, [setSessionState]);
 
     const resetVisuals = useCallback(() => {
         setLastDecayEvent(null);
@@ -187,10 +187,6 @@ export const useVisualEffects = (gameState?: GameState, dispatch?: React.Dispatc
     }, [gameState?.effects, dispatch]);
 
     return {
-        isScreenShaking,
-        shakeIntensity,
-        isFlashBang,
-        flashColor,
         lastDecayEvent,
         finalCombo,
         triggerShake,

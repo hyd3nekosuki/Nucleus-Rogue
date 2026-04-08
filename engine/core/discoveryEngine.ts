@@ -152,14 +152,14 @@ export const applyDiscoveryLogic = (
     
     if (hasAllElements && !wasAlreadyComplete) {
         finalTutorialMsg = logMessages.TUTORIAL.ALL_ELEMENTS_COMPLETE;
-        finalRecordTime = state.elapsedTime;
+        finalRecordTime = context.elapsedTime || state.recordTime;
         nextMessages = [...nextMessages, logMessages.SYSTEM.PERIODIC_TABLE_COMPLETE];
     }
 
     // Achievement Time Recording
     const nextAchievementTimes = { ...state.achievementTimes };
     if (unlockResult.updatedGroups.includes(TITLES.FORBIDDEN_CAPTURE) && !state.unlockedGroups.includes(TITLES.FORBIDDEN_CAPTURE)) {
-        nextAchievementTimes['forbidden_capture'] = state.elapsedTime;
+        nextAchievementTimes['forbidden_capture'] = context.elapsedTime || 0;
     }
 
     // 7. Chain / Combo Logic

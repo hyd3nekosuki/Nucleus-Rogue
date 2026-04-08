@@ -6,8 +6,8 @@ import { registerHistoryEntry } from '../core/historyService';
 /**
  * Handler for engraving the current nuclide into history.
  */
-export const handleEngraveCurrent = (state: GameState, payload: { isResonating: boolean }): GameState => {
-    const { isResonating } = payload;
+export const handleEngraveCurrent = (state: GameState, payload: { isResonating: boolean, elapsedTime?: number }): GameState => {
+    const { isResonating, elapsedTime } = payload;
     const now = Date.now();
     const cost = isResonating ? 0 : 1;
     

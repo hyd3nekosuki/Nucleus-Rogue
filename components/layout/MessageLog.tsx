@@ -8,7 +8,7 @@ interface MessageLogProps {
   language: Language;
 }
 
-const MessageLog: React.FC<MessageLogProps> = ({ messages, turn, language }) => {
+const MessageLog: React.FC<MessageLogProps> = React.memo(({ messages, turn, language }) => {
   return (
     <>
       {[...messages].reverse().map((msg, i) => {
@@ -36,6 +36,6 @@ const MessageLog: React.FC<MessageLogProps> = ({ messages, turn, language }) => 
       })}
     </>
   );
-};
+});
 
 export default MessageLog;

@@ -23,8 +23,8 @@ import { getLocalizedReactionLabel } from '../../utils/historyLogic';
  * Handler for manual radioactive decay actions.
  * Now advances the global turn and triggers AI movement/assault resolution via turnService.
  */
-export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }): GameState => {
-    const { mode } = payload;
+export const handleManualDecay = (state: GameState, payload: { mode: DecayMode, elapsedTime?: number }): GameState => {
+    const { mode, elapsedTime } = payload;
     const now = Date.now();
     const logMessages = getLogMessages(state.language);
     if (state.gameOver || state.loadingData || state.isTimeStopped) return state;
@@ -175,7 +175,7 @@ export const handleManualDecay = (state: GameState, payload: { mode: DecayMode }
     }
 
     const totalBaseActionPoints = (newData.a * SCORE_FACTORS.MASS_MULTIPLIER) + (newData.isStable ? SCORE_FACTORS.STABLE_BONUS : SCORE_FACTORS.UNSTABLE_BONUS) + decayResult.actionBonusScore;
-    const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true };
+    const context: DiscoveryContext = { method: decayResult.trigger, pz: state.currentNuclide.z, pa: state.currentNuclide.a, addedScore: totalBaseActionPoints, chargesUsed: 0, inducedDecayMode: actualMode, isManualDecay: true, elapsedTime };
     
     const forcedMsg = isForced ? logMessages.DECAY.FORCED_DECAY(getDecayModeLabel(actualMode, state.language)) : "";
     const decayDescMsg = 
