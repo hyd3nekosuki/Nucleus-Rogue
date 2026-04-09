@@ -263,7 +263,7 @@ const EvolutionMap: React.FC<EvolutionMapProps> = React.memo(({ history, current
 
                             return (
                                 <div key={i} 
-                                    className={`relative flex items-center justify-center ${borderStyles} ${cliffGradient} ${showBeyondHatching ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.8)_2px,rgba(0,0,0,0.8)_4px)] opacity-50' : ''}`}
+                                    className={`relative flex items-center justify-center ${borderStyles} ${cliffGradient} ${showBeyondHatching ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.8)_2px,rgba(0,0,0,0.8)_4px)] opacity-80' : ''}`}
                                     style={{ boxShadow: cliffShadow }}
                                 >
                                     {node ? (
